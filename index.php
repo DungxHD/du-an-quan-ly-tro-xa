@@ -1,73 +1,118 @@
 <?php
+/**
+ * ==============================================================================
+ * FILE: index.php
+ * DESCRIPTION: Entry point chính của ứng dụng (Front Controller).
+ *              Xử lý khởi tạo môi trường, autoloading, helper functions và routing.
+ * AUTHOR: Qwen Coder (Hỗ trợ Dũng)
+ * VERSION: 2.0 - Optimized & Modern Style
+ * ==============================================================================
+ */
+
+// 1. CẤU HÌNH MÔI TRƯỜNG & HẰNG SỐ
+// ------------------------------------------------------------------------------
 session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-define('BASE_PATH', __DIR__ . '/');
-$baseUrl = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
+// Xác định đường dẫn gốc và Base URL linh hoạt (không hard-code localhost)
+define('BASE_PATH', __DIR__ . DIRECTORY_SEPARATOR);
+$scriptName = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
+$baseUrl = trim($scriptName, '/');
 define('BASE_URL', $baseUrl !== '' ? '/' . $baseUrl . '/' : '/');
 
-// Load Models: nạp đủ để router gọi trang nào cũng không thiếu class.
-require_once BASE_PATH . 'models/Database.php';
-require_once BASE_PATH . 'models/SettingModel.php';
-require_once BASE_PATH . 'models/AmenityModel.php';
-require_once BASE_PATH . 'models/BuildingModel.php';
-require_once BASE_PATH . 'models/RoomModel.php';
-require_once BASE_PATH . 'models/ServiceModel.php';
-require_once BASE_PATH . 'models/UserModel.php';
+// 2. HỆ THỐNG TỰ ĐỘNG NẠP CLASS (AUTOLOADING)
+// ------------------------------------------------------------------------------
+// Giúp giảm thiểu việc require_once thủ công, code sạch và dễ mở rộng hơn.
+spl_autoload_register(function ($class) {
+    // Danh sách thư mục chứa class tương ứng với hậu tố tên class
+    $map = [
+        'Controller' => 'controllers/',
+        'Model'      => 'models/',
+    ];
 
-// Load Controllers: tách dữ liệu khỏi giao diện để luồng xử lý dễ đọc hơn.
-require_once BASE_PATH . 'controllers/BaseController.php';
-require_once BASE_PATH . 'controllers/HomeController.php';
-require_once BASE_PATH . 'controllers/RoomController.php';
-require_once BASE_PATH . 'controllers/AuthController.php';
-require_once BASE_PATH . 'controllers/AdminController.php';
-require_once BASE_PATH . 'controllers/TenantController.php';
+    foreach ($map as $suffix => $dir) {
+        if (strpos($class, $suffix) !== false) {
+            $file = BASE_PATH . $dir . $class . '.php';
+            if (file_exists($file)) {
+                require_once $file;
+                return;
+            }
+        }
+    }
+});
 
-// Cache settings sớm để header/footer/public view dùng ổn định kể cả khi thiếu DB.
-RoomModel::loadSettings();
+// 3. CÁC HÀM HELPER TIỆN ÍCH (GLOBAL HELPERS)
+// ------------------------------------------------------------------------------
 
-// Helper hiển thị và điều hướng dùng chung.
-function e($str)
-{
+/**
+ * Escape output chống XSS cơ bản.
+ * @param mixed $str Dữ liệu cần escape.
+ * @return string Chuỗi đã được mã hóa HTML.
+ */
+function e($str) {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 }
-function fallbackText($value, $default = 'Chưa có dữ liệu')
-{
+
+/**
+ * Trả về text mặc định nếu giá trị rỗng.
+ * @param mixed $value Giá trị kiểm tra.
+ * @param string $default Text mặc định.
+ * @return string
+ */
+function fallbackText($value, $default = 'Chưa có dữ liệu') {
     $text = trim((string)($value ?? ''));
     return $text !== '' ? $text : $default;
 }
-function redirectTo($page, $params = [])
-{
+
+/**
+ * Điều hướng sang trang khác.
+ * @param string $page Tên page (route).
+ * @param array $params Các tham số GET kèm theo.
+ */
+function redirectTo($page, $params = []) {
     $query = array_merge(['page' => $page], $params);
     header('Location: ' . BASE_URL . '?' . http_build_query($query));
     exit;
 }
-function requireLogin()
-{
+
+/**
+ * Kiểm tra đăng nhập, nếu chưa thì chuyển về login.
+ */
+function requireLogin() {
     if (!isset($_SESSION['user_id'])) {
         redirectTo('login');
     }
 }
-function requireAdmin()
-{
+
+/**
+ * Kiểm tra quyền Admin (role = 1).
+ */
+function requireAdmin() {
     requireLogin();
     if (($_SESSION['role'] ?? 0) != 1) {
+        // Có thể hiển thị trang 403 Forbidden ở đây nếu muốn chuyên nghiệp hơn
         redirectTo('home');
     }
 }
-function requireTenant()
-{
+
+/**
+ * Kiểm tra quyền Tenant (role != 1).
+ */
+function requireTenant() {
     requireLogin();
     if (($_SESSION['role'] ?? 1) == 1) {
         redirectTo('admin');
     }
 }
+
 /**
- * Trả menu điều hướng cho các panel đăng nhập để mọi view dùng cùng một cấu trúc.
+ * Sinh menu điều hướng cho Panel Admin hoặc Tenant.
+ * @param string $role 'admin' hoặc 'tenant'.
+ * @param string $active ID của menu đang active.
+ * @return array Danh sách menu.
  */
-function getPanelNavigation($role, $active = '')
-{
+function getPanelNavigation($role, $active = '') {
     $menus = [
         'admin' => [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
@@ -90,100 +135,96 @@ function getPanelNavigation($role, $active = '')
     }, $menus[$role] ?? []);
 }
 
-// Router chính: ưu tiên page ngắn, view-first, dễ nối route mới.
-$page = $_GET['page'] ?? 'home';
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+// 4. ROUTING CHÍNH (ĐIỀU PHỐI YÊU CẦU)
+// ------------------------------------------------------------------------------
+try {
+    // Lấy thông tin route từ URL (param 'page')
+    $page = $_GET['page'] ?? 'home';
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-switch ($page) {
-    case 'home':
+    // Bảng ánh xạ Route -> Controller/Method (Dễ dàng thêm mới ở đây)
+    // Cấu trúc: 'tên-route' => ['controller' => TênClass, 'action' => tenMethod, 'auth' => 'admin'|'tenant'|null]
+    $routes = [
+        // Public Routes
+        'home'       => ['controller' => 'HomeController', 'action' => 'index'],
+        'intro'      => ['controller' => 'HomeController', 'action' => 'intro'],
+        'rooms'      => ['controller' => 'HomeController', 'action' => 'rooms'],
+        'detail'     => ['controller' => 'RoomController', 'action' => 'detail', 'param' => 'id'],
+        'login'      => ['controller' => 'AuthController', 'action' => 'login'],
+        'register'   => ['controller' => 'AuthController', 'action' => 'register'],
+        'logout'     => ['controller' => 'AuthController', 'action' => 'logout'],
+
+        // Admin Routes
+        'admin'                 => ['controller' => 'AdminController', 'action' => 'dashboard', 'auth' => 'admin'],
+        'admin-settings'        => ['controller' => 'HomeController', 'action' => 'saveSettings', 'auth' => 'admin'], // Redirect logic cũ
+        'admin-save-settings'   => ['controller' => 'HomeController', 'action' => 'saveSettings', 'auth' => 'admin'],
+        'admin-buildings'       => ['controller' => 'AdminController', 'action' => 'buildings', 'auth' => 'admin'],
+        'admin-save-building'   => ['controller' => 'AdminController', 'action' => 'saveBuilding', 'auth' => 'admin'],
+        'admin-delete-building' => ['controller' => 'AdminController', 'action' => 'deleteBuilding', 'auth' => 'admin', 'param' => 'id'],
+        'admin-rooms'           => ['controller' => 'AdminController', 'action' => 'rooms', 'auth' => 'admin'],
+        'admin-save-room'       => ['controller' => 'AdminController', 'action' => 'saveRoom', 'auth' => 'admin'],
+        'admin-delete-room'     => ['controller' => 'AdminController', 'action' => 'deleteRoom', 'auth' => 'admin', 'param' => 'id'],
+        'admin-tenants'         => ['controller' => 'AdminController', 'action' => 'tenants', 'auth' => 'admin'],
+        'admin-add-tenant'      => ['controller' => 'AdminController', 'action' => 'addTenant', 'auth' => 'admin'],
+        'admin-stats'           => ['controller' => 'AdminController', 'action' => 'stats', 'auth' => 'admin'],
+
+        // Tenant Routes
+        'tenant'                => ['controller' => 'TenantController', 'action' => 'dashboard', 'auth' => 'tenant'],
+        'tenant-services'       => ['controller' => 'TenantController', 'action' => 'services', 'auth' => 'tenant'],
+        'tenant-profile'        => ['controller' => 'TenantController', 'action' => 'profile', 'auth' => 'tenant'],
+        'tenant-register-service'=> ['controller' => 'TenantController', 'action' => 'registerService', 'auth' => 'tenant'],
+        'tenant-add-comment'    => ['controller' => 'TenantController', 'action' => 'addComment', 'auth' => 'tenant'],
+    ];
+
+    // Xử lý route
+    if (array_key_exists($page, $routes)) {
+        $route = $routes[$page];
+        
+        // Kiểm tra phân quyền nếu có
+        if (isset($route['auth'])) {
+            if ($route['auth'] === 'admin') {
+                requireAdmin();
+            } elseif ($route['auth'] === 'tenant') {
+                requireTenant();
+            }
+        }
+
+        // Khởi tạo Controller và gọi Action
+        $controllerName = $route['controller'];
+        $actionName = $route['action'];
+        
+        if (class_exists($controllerName)) {
+            $controller = new $controllerName();
+            
+            // Chuẩn bị tham số (nếu có, ví dụ: id)
+            $params = [];
+            if (isset($route['param']) && $route['param'] === 'id') {
+                $params[] = $id;
+            }
+
+            // Gọi method tương ứng
+            if (method_exists($controller, $actionName)) {
+                call_user_func_array([$controller, $actionName], $params);
+            } else {
+                throw new Exception("Action '$actionName' không tồn tại trong $controllerName.");
+            }
+        } else {
+            throw new Exception("Controller '$controllerName' không tìm thấy.");
+        }
+
+    } else {
+        // Route không tồn tại -> Về trang chủ hoặc 404
+        // Ở đây mình cho về home để giống code cũ, có thể đổi thành error 404
         (new HomeController())->index();
-        break;
-    case 'intro':
-        (new HomeController())->intro();
-        break;
-    case 'rooms':
-        (new HomeController())->rooms();
-        break;
-    case 'detail':
-        (new RoomController())->detail($id);
-        break;
-    case 'login':
-        (new AuthController())->login();
-        break;
-    case 'register':
-        (new AuthController())->register();
-        break;
-    case 'logout':
-        (new AuthController())->logout();
-        break;
-    case 'admin':
-        requireAdmin();
-        (new AdminController())->dashboard();
-        break;
-    case 'admin-settings':
-        requireAdmin();
-        redirectTo('admin');
-        break;
-    case 'admin-save-settings':
-        requireAdmin();
-        (new HomeController())->saveSettings();
-        break;
-    case 'admin-buildings':
-        requireAdmin();
-        (new AdminController())->buildings();
-        break;
-    case 'admin-save-building':
-        requireAdmin();
-        (new AdminController())->saveBuilding();
-        break;
-    case 'admin-delete-building':
-        requireAdmin();
-        (new AdminController())->deleteBuilding($id);
-        break;
-    case 'admin-rooms':
-        requireAdmin();
-        (new AdminController())->rooms();
-        break;
-    case 'admin-save-room':
-        requireAdmin();
-        (new AdminController())->saveRoom();
-        break;
-    case 'admin-delete-room':
-        requireAdmin();
-        (new AdminController())->deleteRoom($id);
-        break;
-    case 'admin-tenants':
-        requireAdmin();
-        (new AdminController())->tenants();
-        break;
-    case 'admin-add-tenant':
-        requireAdmin();
-        (new AdminController())->addTenant();
-        break;
-    case 'admin-stats':
-        requireAdmin();
-        (new AdminController())->stats();
-        break;
-    case 'tenant':
-        requireTenant();
-        (new TenantController())->dashboard();
-        break;
-    case 'tenant-services':
-        requireTenant();
-        (new TenantController())->services();
-        break;
-    case 'tenant-profile':
-        requireTenant();
-        (new TenantController())->profile();
-        break;
-    case 'tenant-register-service':
-        requireTenant();
-        (new TenantController())->registerService();
-        break;
-    case 'tenant-add-comment':
-        requireTenant();
-        (new TenantController())->addComment();
-        break;
-    default:
-        (new HomeController())->index();
+    }
+
+} catch (Exception $e) {
+    // Xử lý lỗi tập trung
+    // Trong môi trường production, bạn nên ghi log thay vì hiển thị trực tiếp
+    echo "<div style='padding: 20px; background: #ffe6e6; border: 1px solid red; color: red;'>";
+    echo "<h3>Có lỗi xảy ra trong hệ thống:</h3>";
+    echo "<p><strong>Lỗi:</strong> " . e($e->getMessage()) . "</p>";
+    echo "<p><strong>File:</strong> " . e($e->getFile()) . " (Dòng " . $e->getLine() . ")</p>";
+    echo "</div>";
+    // Có thể thêm: error_log($e->getMessage());
 }
