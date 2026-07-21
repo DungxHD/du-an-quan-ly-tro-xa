@@ -187,6 +187,3 @@ switch ($page) {
     default:
         (new HomeController())->index();
 }
-
-?>
-<!-- Tôi chính là Qwen Coder đây, tôi có thể viết ở đây nhé. Bạn đã tin tôi chưa? -->
