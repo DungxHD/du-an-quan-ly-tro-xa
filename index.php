@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ==============================================================================
  * FILE: index.php
@@ -30,7 +31,6 @@ spl_autoload_register(function ($class) {
         'Controller' => 'controllers/',
         'Model'      => 'models/',
     ];
-
     foreach ($map as $suffix => $dir) {
         if (strpos($class, $suffix) !== false) {
             $file = BASE_PATH . $dir . $class . '.php';
@@ -50,7 +50,8 @@ spl_autoload_register(function ($class) {
  * @param mixed $str Dữ liệu cần escape.
  * @return string Chuỗi đã được mã hóa HTML.
  */
-function e($str) {
+function e($str)
+{
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 }
 
@@ -60,7 +61,8 @@ function e($str) {
  * @param string $default Text mặc định.
  * @return string
  */
-function fallbackText($value, $default = 'Chưa có dữ liệu') {
+function fallbackText($value, $default = 'Chưa có dữ liệu')
+{
     $text = trim((string)($value ?? ''));
     return $text !== '' ? $text : $default;
 }
@@ -70,7 +72,8 @@ function fallbackText($value, $default = 'Chưa có dữ liệu') {
  * @param string $page Tên page (route).
  * @param array $params Các tham số GET kèm theo.
  */
-function redirectTo($page, $params = []) {
+function redirectTo($page, $params = [])
+{
     $query = array_merge(['page' => $page], $params);
     header('Location: ' . BASE_URL . '?' . http_build_query($query));
     exit;
@@ -79,7 +82,8 @@ function redirectTo($page, $params = []) {
 /**
  * Kiểm tra đăng nhập, nếu chưa thì chuyển về login.
  */
-function requireLogin() {
+function requireLogin()
+{
     if (!isset($_SESSION['user_id'])) {
         redirectTo('login');
     }
@@ -88,7 +92,8 @@ function requireLogin() {
 /**
  * Kiểm tra quyền Admin (role = 1).
  */
-function requireAdmin() {
+function requireAdmin()
+{
     requireLogin();
     if (($_SESSION['role'] ?? 0) != 1) {
         // Có thể hiển thị trang 403 Forbidden ở đây nếu muốn chuyên nghiệp hơn
@@ -99,7 +104,8 @@ function requireAdmin() {
 /**
  * Kiểm tra quyền Tenant (role != 1).
  */
-function requireTenant() {
+function requireTenant()
+{
     requireLogin();
     if (($_SESSION['role'] ?? 1) == 1) {
         redirectTo('admin');
@@ -112,7 +118,8 @@ function requireTenant() {
  * @param string $active ID của menu đang active.
  * @return array Danh sách menu.
  */
-function getPanelNavigation($role, $active = '') {
+function getPanelNavigation($role, $active = '')
+{
     $menus = [
         'admin' => [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
@@ -172,14 +179,14 @@ try {
         'tenant'                => ['controller' => 'TenantController', 'action' => 'dashboard', 'auth' => 'tenant'],
         'tenant-services'       => ['controller' => 'TenantController', 'action' => 'services', 'auth' => 'tenant'],
         'tenant-profile'        => ['controller' => 'TenantController', 'action' => 'profile', 'auth' => 'tenant'],
-        'tenant-register-service'=> ['controller' => 'TenantController', 'action' => 'registerService', 'auth' => 'tenant'],
+        'tenant-register-service' => ['controller' => 'TenantController', 'action' => 'registerService', 'auth' => 'tenant'],
         'tenant-add-comment'    => ['controller' => 'TenantController', 'action' => 'addComment', 'auth' => 'tenant'],
     ];
 
     // Xử lý route
     if (array_key_exists($page, $routes)) {
         $route = $routes[$page];
-        
+
         // Kiểm tra phân quyền nếu có
         if (isset($route['auth'])) {
             if ($route['auth'] === 'admin') {
@@ -192,10 +199,10 @@ try {
         // Khởi tạo Controller và gọi Action
         $controllerName = $route['controller'];
         $actionName = $route['action'];
-        
+
         if (class_exists($controllerName)) {
             $controller = new $controllerName();
-            
+
             // Chuẩn bị tham số (nếu có, ví dụ: id)
             $params = [];
             if (isset($route['param']) && $route['param'] === 'id') {
@@ -211,13 +218,11 @@ try {
         } else {
             throw new Exception("Controller '$controllerName' không tìm thấy.");
         }
-
     } else {
         // Route không tồn tại -> Về trang chủ hoặc 404
         // Ở đây mình cho về home để giống code cũ, có thể đổi thành error 404
         (new HomeController())->index();
     }
-
 } catch (Exception $e) {
     // Xử lý lỗi tập trung
     // Trong môi trường production, bạn nên ghi log thay vì hiển thị trực tiếp
