@@ -1,10 +1,7 @@
 <?php
-
 session_start(); 
-// dung moi
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-
 define('BASE_PATH', __DIR__ . '/');
 $baseUrl = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
 define('BASE_URL', $baseUrl !== '' ? '/' . $baseUrl . '/' : '/');
