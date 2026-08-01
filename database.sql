@@ -1,34 +1,37 @@
 -- =====================================================================
--- NHATROA - DATABASE HOÀN CHỈNH (Gộp từ 4 phần)
--- Tên database: manage
--- MySQL 8.4
+-- NHATROA - DATABASE HOÀN CHỈNH TỐI ƯU (bản cuối cùng sau phản biện)
+-- Tên database: manage | MySQL 8.4
 --
--- TỔNG QUAN 18 BẢNG:
---   Phần 1 (Phòng trọ):      areas, floors, rooms
---   Phần 2 (Người dùng):     users
---   Phần 3 (Dịch vụ/TT):     services, room_services, user_services,
---                            meter_readings, payments, price_changes, notifications
---   Phần 4 (Đánh giá/Comment): settings, amenities, banned_words, comments,
---                            room_history, comment_moderation, comment_reports
+-- 19 BẢNG:
+--   Phần 1 (Phòng trọ):   areas, floors, rooms
+--   Phần 2 (Người dùng):  users
+--   Phần 3 (Dịch vụ/TT):  services, room_services, user_services,
+--                         meter_readings, contracts, payments,
+--                         payment_items, price_changes, notifications
+--   Phần 4 (Đánh giá):    settings, amenities, banned_words, comments,
+--                         comment_moderation, comment_reports
 --
--- THIẾT KẾ "CODE MỞ": dễ thêm chức năng sau này (xem comment từng bảng)
+-- CÁC QUYẾT ĐỊNH ĐÃ CHỐT (phản ánh trong bản này):
+--   • rooms: BỎ area_id, floor_id NOT NULL (truy xuất khu qua JOIN floors)
+--   • Mỗi khu buộc có ≥1 tầng (khu nhà trệt → "Tầng trệt", floor_number=0)
+--   • users: BỎ status + BỎ move_in/out (SSOT: chuyển sang contracts)
+--   • users: GIỮ 5 cột thông tin cá nhân (mã hóa AES) + room_id (con trỏ nhanh)
+--   • contracts: thay room_history, mở rộng (rent_price, cọc, initial index)
+--   • payment_items: snapshot hóa đơn (audit trail)
+--   • banned_words: BỎ is_active (dev quản lý qua INSERT/DELETE)
+--   • settings: THÊM enable_comment_moderation (công tắc tổng cho admin)
 -- =====================================================================
-
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 
 DROP DATABASE IF EXISTS `manage`;
 CREATE DATABASE `manage` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `manage`;
 
-
 -- =====================================================================
 -- PHẦN 1: PHÒNG TRỌ (Khu → Tầng → Phòng)
 -- =====================================================================
 
--- ---------------------------------------------------------------------
 -- 1. AREAS (Khu)
---    - Khu có thể KHÔNG có tầng (phòng thuộc thẳng khu)
--- ---------------------------------------------------------------------
 CREATE TABLE `areas` (
   `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Mã khu',
   `name`         VARCHAR(150) NOT NULL COMMENT 'Tên khu (VD: Khu A - Sinh viên)',
@@ -39,30 +42,22 @@ CREATE TABLE `areas` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 2. FLOORS (Tầng)
---    - Mỗi tầng thuộc 1 khu (area_id)
--- ---------------------------------------------------------------------
+-- 2. FLOORS (Tầng) — mỗi khu buộc có ≥1 tầng (khu nhà trệt tạo "Tầng trệt", floor_number=0)
 CREATE TABLE `floors` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Mã tầng',
   `area_id`       INT UNSIGNED NOT NULL COMMENT 'FK → areas: tầng thuộc khu nào',
-  `name`          VARCHAR(100) NOT NULL COMMENT 'Tên tầng (VD: Tầng 1)',
-  `floor_number`  INT NOT NULL DEFAULT 1 COMMENT 'Số tầng để sắp xếp',
+  `name`          VARCHAR(100) NOT NULL COMMENT 'Tên tầng (VD: Tầng 1, Tầng trệt)',
+  `floor_number`  INT NOT NULL DEFAULT 1 COMMENT 'Số tầng (0 = tầng trệt)',
   `created_at`    TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_floor_area` (`area_id`),
   CONSTRAINT `fk_floor_area` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 3. ROOMS (Phòng)
---    - area_id: phòng LUÔN thuộc 1 khu (NOT NULL)
---    - floor_id: phòng CÓ THỂ thuộc 1 tầng (NULL nếu khu không có tầng)
--- ---------------------------------------------------------------------
+-- 3. ROOMS (Phòng) — BỎ area_id, floor_id NOT NULL (DB tự chặn lệch khu/tầng)
 CREATE TABLE `rooms` (
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Mã phòng',
-  `area_id`        INT UNSIGNED NOT NULL COMMENT 'FK → areas: phòng thuộc khu nào',
-  `floor_id`       INT UNSIGNED DEFAULT NULL COMMENT 'FK → floors: phòng thuộc tầng nào (NULL nếu khu không có tầng)',
+  `floor_id`       INT UNSIGNED NOT NULL COMMENT 'FK → floors: phòng thuộc tầng nào (NOT NULL)',
   `name`           VARCHAR(100) NOT NULL COMMENT 'Tên phòng (VD: Phòng A1, B2)',
   `price`          DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Giá thuê/tháng (VNĐ)',
   `area`           DECIMAL(5,2) DEFAULT 0.00 COMMENT 'Diện tích (m²)',
@@ -73,43 +68,33 @@ CREATE TABLE `rooms` (
   `views`          INT DEFAULT 0 COMMENT 'Lượt xem phòng',
   `created_at`     TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_room_area` (`area_id`),
   KEY `idx_room_floor` (`floor_id`),
   KEY `idx_room_status` (`status`),
-  CONSTRAINT `fk_room_area` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_room_floor` FOREIGN KEY (`floor_id`) REFERENCES `floors` (`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_room_floor` FOREIGN KEY (`floor_id`) REFERENCES `floors` (`id`) ON DELETE CASCADE
+  -- CODE MỞ: ALTER TABLE rooms ADD COLUMN area_id INT UNSIGNED GENERATED ALWAYS AS (...);
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
 -- =====================================================================
--- PHẦN 2: NGƯỜI DÙNG (Users nâng cấp)
+-- PHẦN 2: NGƯỜI DÙNG
 -- =====================================================================
 
--- ---------------------------------------------------------------------
--- 4. USERS
---    - BỎ cột status
---    - THÊM 5 cột thông tin hợp đồng (MÃ HÓA AES ở tầng PHP)
---    - THÊM move_in_date, move_out_date
--- ---------------------------------------------------------------------
+-- 4. USERS — BỎ status, BỎ move_in/out (sang contracts), GIỮ thông tin cá nhân (AES) + room_id
 CREATE TABLE `users` (
-  `id`                    INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `full_name`             VARCHAR(100) NOT NULL COMMENT 'Họ và tên',
-  `email`                 VARCHAR(150) NOT NULL COMMENT 'Email đăng nhập (duy nhất)',
-  `phone`                 VARCHAR(20) DEFAULT NULL COMMENT 'Số điện thoại',
-  `password`              VARCHAR(255) NOT NULL COMMENT 'HASH bcrypt (KHÔNG phải AES)',
-  `avatar`                VARCHAR(255) DEFAULT 'default.png' COMMENT 'Ảnh đại diện',
-  `role`                  TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=Admin, 0=Tenant',
-  `room_id`               INT UNSIGNED DEFAULT NULL COMMENT 'Phòng đang ở (NULL nếu chưa gán)',
-  -- THÔNG TIN HỢP ĐỒNG (MÃ HÓA AES ở tầng PHP, DB lưu chuỗi mã hóa)
-  `date_of_birth`         VARCHAR(255) DEFAULT NULL COMMENT 'Ngày sinh (mã hóa AES)',
-  `permanent_address`     VARCHAR(255) DEFAULT NULL COMMENT 'Nơi ĐKHK thường trú (mã hóa AES)',
-  `identity_number`       VARCHAR(255) DEFAULT NULL COMMENT 'Số CMND/CCCD (mã hóa AES)',
-  `identity_issue_date`   VARCHAR(255) DEFAULT NULL COMMENT 'Ngày cấp CMND (mã hóa AES)',
-  `identity_issue_place`  VARCHAR(255) DEFAULT NULL COMMENT 'Nơi cấp CMND (mã hóa AES)',
-  -- NGÀY VÀO Ở / CHUYỂN ĐI (KHÔNG mã hóa - cần query)
-  `move_in_date`          DATE DEFAULT NULL COMMENT 'Ngày vào ở',
-  `move_out_date`         DATE DEFAULT NULL COMMENT 'Ngày chuyển đi (NULL = vẫn đang ở)',
-  `created_at`            TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `id`                     INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `full_name`              VARCHAR(100) NOT NULL COMMENT 'Họ và tên',
+  `email`                  VARCHAR(150) NOT NULL COMMENT 'Email đăng nhập (duy nhất)',
+  `phone`                  VARCHAR(20) DEFAULT NULL COMMENT 'Số điện thoại',
+  `password`               VARCHAR(255) NOT NULL COMMENT 'HASH bcrypt (KHÔNG phải AES)',
+  `avatar`                 VARCHAR(255) DEFAULT 'default.png' COMMENT 'Ảnh đại diện',
+  `role`                   TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=Admin, 0=Tenant',
+  `room_id`                INT UNSIGNED DEFAULT NULL COMMENT 'Phòng đang ở (con trỏ nhanh, NULL nếu chưa gán)',
+  -- THÔNG TIN CÁ NHÂN (MÃ HÓA AES ở tầng PHP, DB lưu chuỗi mã hóa)
+  `date_of_birth`          VARCHAR(255) DEFAULT NULL COMMENT 'Ngày sinh (mã hóa AES)',
+  `permanent_address`      VARCHAR(255) DEFAULT NULL COMMENT 'Nơi ĐKHK thường trú (mã hóa AES)',
+  `identity_number`        VARCHAR(255) DEFAULT NULL COMMENT 'Số CMND/CCCD (mã hóa AES)',
+  `identity_issue_date`    VARCHAR(255) DEFAULT NULL COMMENT 'Ngày cấp CMND (mã hóa AES)',
+  `identity_issue_place`   VARCHAR(255) DEFAULT NULL COMMENT 'Nơi cấp CMND (mã hóa AES)',
+  `created_at`             TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_email` (`email`),
   KEY `fk_user_room` (`room_id`),
@@ -117,36 +102,28 @@ CREATE TABLE `users` (
   CONSTRAINT `fk_user_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
 -- =====================================================================
--- PHẦN 3: DỊCH VỤ & THANH TOÁN (Gói C)
+-- PHẦN 3: DỊCH VỤ & THANH TOÁN
 -- =====================================================================
 
--- ---------------------------------------------------------------------
 -- 5. SERVICES
---    - is_required: bắt buộc (điện/nước), KHÔNG xóa được
---    - billing_mode: cách tính (fixed/meter/per_person/per_unit)
---    - applies_to: áp dụng cho phòng hay người
--- ---------------------------------------------------------------------
 CREATE TABLE `services` (
-  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Mã dịch vụ',
-  `name`          VARCHAR(100) NOT NULL COMMENT 'Tên dịch vụ',
-  `price`         DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Đơn giá (ý nghĩa tùy billing_mode)',
-  `unit`          VARCHAR(20) DEFAULT 'tháng' COMMENT 'Đơn vị: tháng/người/xe/kwh/m³',
-  `icon`          VARCHAR(50) DEFAULT 'settings' COMMENT 'Icon Material',
-  `description`   TEXT COMMENT 'Mô tả dịch vụ',
-  `is_required`   TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = bắt buộc (điện/nước), KHÔNG xóa được',
-  `billing_mode`  ENUM('fixed','meter','per_person','per_unit') NOT NULL DEFAULT 'fixed'
-                  COMMENT 'Cách tính: fixed=cố định | meter=chỉ số | per_person=theo người | per_unit=theo đơn vị',
-  `applies_to`    ENUM('room','person') NOT NULL DEFAULT 'room'
-                  COMMENT 'Áp dụng cho phòng (room_services) hay người (user_services)',
-  `is_active`     TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = đang kinh doanh',
+  `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Mã dịch vụ',
+  `name`           VARCHAR(100) NOT NULL COMMENT 'Tên dịch vụ',
+  `price`          DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Đơn giá hiện hành',
+  `unit`           VARCHAR(20) DEFAULT 'tháng' COMMENT 'Đơn vị: tháng/người/xe/kwh/m³',
+  `icon`           VARCHAR(50) DEFAULT 'settings' COMMENT 'Icon Material',
+  `description`    TEXT COMMENT 'Mô tả dịch vụ',
+  `is_required`    TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = bắt buộc (điện/nước), KHÔNG xóa được',
+  `billing_mode`   ENUM('fixed','meter','per_person','per_unit') NOT NULL DEFAULT 'fixed'
+                   COMMENT 'Cách tính: fixed=cố định | meter=chỉ số | per_person=theo người | per_unit=theo đơn vị',
+  `applies_to`     ENUM('room','person') NOT NULL DEFAULT 'room'
+                   COMMENT 'Áp dụng cho phòng (room_services) hay người (user_services)',
+  `is_active`      TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = đang kinh doanh',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 6. ROOM_SERVICES (Dịch vụ THEO PHÒNG — bảng trung gian N-N)
--- ---------------------------------------------------------------------
+-- 6. ROOM_SERVICES (Dịch vụ THEO PHÒNG — N-N)
 CREATE TABLE `room_services` (
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `room_id`        INT UNSIGNED NOT NULL COMMENT 'FK → rooms',
@@ -160,14 +137,12 @@ CREATE TABLE `room_services` (
   CONSTRAINT `fk_rs_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
 -- 7. USER_SERVICES (Dịch vụ CÁ NHÂN theo người)
--- ---------------------------------------------------------------------
 CREATE TABLE `user_services` (
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id`        INT UNSIGNED NOT NULL COMMENT 'FK → users (người đăng ký)',
   `service_id`     INT UNSIGNED NOT NULL COMMENT 'FK → services (applies_to=person)',
-  `quantity`       INT NOT NULL DEFAULT 1 COMMENT 'Số lượng (ví dụ 2 xe điện)',
+  `quantity`       INT NOT NULL DEFAULT 1 COMMENT 'Số lượng (VD: 2 xe điện)',
   `registered_at`  TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_user_service` (`user_id`, `service_id`),
@@ -176,18 +151,16 @@ CREATE TABLE `user_services` (
   CONSTRAINT `fk_us_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
 -- 8. METER_READINGS (Chỉ số điện/nước theo tháng)
--- ---------------------------------------------------------------------
 CREATE TABLE `meter_readings` (
-  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `room_id`     INT UNSIGNED NOT NULL COMMENT 'FK → rooms',
-  `service_id`  INT UNSIGNED NOT NULL COMMENT 'FK → services (điện/nước)',
-  `month`       TINYINT NOT NULL COMMENT 'Tháng (1-12)',
-  `year`        SMALLINT NOT NULL COMMENT 'Năm',
-  `old_index`   DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Chỉ số cũ',
-  `new_index`   DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Chỉ số mới',
-  `created_at`  TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `room_id`      INT UNSIGNED NOT NULL COMMENT 'FK → rooms',
+  `service_id`   INT UNSIGNED NOT NULL COMMENT 'FK → services (điện/nước)',
+  `month`        TINYINT NOT NULL COMMENT 'Tháng (1-12)',
+  `year`         SMALLINT NOT NULL COMMENT 'Năm',
+  `old_index`    DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Chỉ số cũ',
+  `new_index`    DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Chỉ số mới',
+  `created_at`   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_meter_period` (`room_id`, `service_id`, `month`, `year`),
   KEY `fk_mr_service` (`service_id`),
@@ -195,30 +168,71 @@ CREATE TABLE `meter_readings` (
   CONSTRAINT `fk_mr_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 9. PAYMENTS (Thanh toán theo tháng)
---    Mỗi phòng mỗi tháng 1 hóa đơn. 1 người trả → cả phòng thấy đã trả.
--- ---------------------------------------------------------------------
+-- 9. CONTRACTS (Hợp đồng thuê — SSOT cho move_in/out + snapshot giá + chỉ số ban đầu)
+--    1 người = 1 hợp đồng; nhiều người cùng phòng = nhiều hợp đồng
+CREATE TABLE `contracts` (
+  `id`                         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`                    INT UNSIGNED NOT NULL COMMENT 'FK → users: người thuê',
+  `room_id`                    INT UNSIGNED NOT NULL COMMENT 'FK → rooms: phòng thuê',
+  `move_in_date`               DATE NOT NULL COMMENT 'Ngày vào ở',
+  `move_out_date`              DATE DEFAULT NULL COMMENT 'Ngày chuyển đi (NULL = đang ở)',
+  `rent_price`                 DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Phần giá thuê mỗi người chịu (snapshot lúc ký)',
+  `deposit_amount`             DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Tiền cọc (hoàn trả khi chuyển đi)',
+  `initial_electricity_index`  DECIMAL(10,2) DEFAULT NULL COMMENT 'Chỉ số điện công tơ lúc vào ở (mốc tính tháng đầu)',
+  `initial_water_index`        DECIMAL(10,2) DEFAULT NULL COMMENT 'Chỉ số nước công tơ lúc vào ở (mốc tính tháng đầu)',
+  `status`                     ENUM('active','terminated') NOT NULL DEFAULT 'active' COMMENT 'active=đang thuê | terminated=đã kết thúc',
+  `contract_date`              DATE DEFAULT NULL COMMENT 'Ngày ký hợp đồng',
+  `created_at`                 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_contract_user` (`user_id`),
+  KEY `idx_contract_room` (`room_id`, `status`),
+  KEY `idx_contract_active` (`user_id`, `move_out_date`),
+  CONSTRAINT `fk_contract_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_contract_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
+  -- CODE MỞ: ALTER TABLE contracts ADD COLUMN terms TEXT COMMENT 'Điều khoản hợp đồng';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 10. PAYMENTS (Hóa đơn tổng theo tháng)
 CREATE TABLE `payments` (
-  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `room_id`     INT UNSIGNED NOT NULL COMMENT 'FK → rooms (phòng cần trả)',
-  `user_id`     INT UNSIGNED DEFAULT NULL COMMENT 'FK → users (ai đã trả, NULL nếu chưa)',
-  `month`       TINYINT NOT NULL COMMENT 'Tháng (1-12)',
-  `year`        SMALLINT NOT NULL COMMENT 'Năm',
-  `amount`      DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Tổng tiền phải trả (code tính)',
-  `status`      ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid' COMMENT 'Trạng thái thanh toán',
-  `paid_at`     TIMESTAMP NULL DEFAULT NULL COMMENT 'Thời điểm thanh toán',
-  `created_at`  TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `room_id`      INT UNSIGNED NOT NULL COMMENT 'FK → rooms (phòng cần trả)',
+  `contract_id`  INT UNSIGNED DEFAULT NULL COMMENT 'FK → contracts (hợp đồng liên kết, tùy chọn)',
+  `user_id`      INT UNSIGNED DEFAULT NULL COMMENT 'FK → users (ai đã trả, NULL nếu chưa)',
+  `month`        TINYINT NOT NULL COMMENT 'Tháng (1-12)',
+  `year`         SMALLINT NOT NULL COMMENT 'Năm',
+  `amount`       DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Tổng tiền (= tổng payment_items)',
+  `status`       ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid' COMMENT 'Trạng thái thanh toán',
+  `paid_at`      TIMESTAMP NULL DEFAULT NULL COMMENT 'Thời điểm thanh toán',
+  `created_at`   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_room_period` (`room_id`, `month`, `year`),
   KEY `fk_pay_user` (`user_id`),
+  KEY `fk_pay_contract` (`contract_id`),
   CONSTRAINT `fk_pay_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_pay_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_pay_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_pay_contract` FOREIGN KEY (`contract_id`) REFERENCES `contracts` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 10. PRICE_CHANGES (Lịch sử đổi giá — áp dụng từ THÁNG SAU)
--- ---------------------------------------------------------------------
+-- 11. PAYMENT_ITEMS (Chi tiết hóa đơn — SNAPSHOT giá + cách tính tại thời điểm chốt)
+--     Audit trail: hóa đơn cũ không đổi khi giá/cách tính thay đổi
+CREATE TABLE `payment_items` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `payment_id`    INT UNSIGNED NOT NULL COMMENT 'FK → payments',
+  `service_id`    INT UNSIGNED DEFAULT NULL COMMENT 'FK → services (NULL nếu là tiền phòng)',
+  `item_name`     VARCHAR(100) NOT NULL COMMENT 'Snapshot tên (VD: Tiền điện, Tiền phòng)',
+  `unit_price`    DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Snapshot đơn giá tại thời điểm chốt',
+  `quantity`      DECIMAL(10,2) NOT NULL DEFAULT 1 COMMENT 'Số lượng (số kwh / số người / 1...)',
+  `amount`        DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Thành tiền = unit_price × quantity',
+  `billing_mode`  ENUM('fixed','meter','per_person','per_unit') DEFAULT NULL COMMENT 'Snapshot cách tính tại thời điểm chốt',
+  `created_at`    TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_pi_payment` (`payment_id`),
+  KEY `fk_pi_service` (`service_id`),
+  CONSTRAINT `fk_pi_payment` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_pi_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 12. PRICE_CHANGES (Lịch sử đổi giá — áp dụng từ THÁNG SAU)
 CREATE TABLE `price_changes` (
   `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `service_id`       INT UNSIGNED NOT NULL COMMENT 'FK → services',
@@ -235,31 +249,25 @@ CREATE TABLE `price_changes` (
   CONSTRAINT `fk_pc_user` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 11. NOTIFICATIONS (Thông báo cho người thuê)
---     user_id = NULL → gửi cho TẤT CẢ người thuê
--- ---------------------------------------------------------------------
+-- 13. NOTIFICATIONS (Thông báo cho người thuê) — user_id=NULL → gửi tất cả
 CREATE TABLE `notifications` (
-  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id`     INT UNSIGNED DEFAULT NULL COMMENT 'FK → users (NULL = tất cả)',
-  `title`       VARCHAR(150) NOT NULL COMMENT 'Tiêu đề thông báo',
-  `content`     TEXT COMMENT 'Nội dung chi tiết',
-  `type`        ENUM('price_change','payment','general') NOT NULL DEFAULT 'general' COMMENT 'Loại thông báo',
-  `is_read`     TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0 = chưa đọc',
-  `created_at`  TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`      INT UNSIGNED DEFAULT NULL COMMENT 'FK → users (NULL = tất cả)',
+  `title`        VARCHAR(150) NOT NULL COMMENT 'Tiêu đề thông báo',
+  `content`      TEXT COMMENT 'Nội dung chi tiết',
+  `type`         ENUM('price_change','payment','general') NOT NULL DEFAULT 'general' COMMENT 'Loại thông báo',
+  `is_read`      TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0 = chưa đọc',
+  `created_at`   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_noti_user` (`user_id`),
   CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
 -- =====================================================================
 -- PHẦN 4: ĐÁNH GIÁ + COMMENT + SETTINGS + AMENITIES
 -- =====================================================================
 
--- ---------------------------------------------------------------------
--- 12. SETTINGS (Cấu hình động)
--- ---------------------------------------------------------------------
+-- 14. SETTINGS (Cấu hình động)
 CREATE TABLE `settings` (
   `setting_key`   VARCHAR(100) NOT NULL,
   `setting_value` TEXT,
@@ -268,10 +276,7 @@ CREATE TABLE `settings` (
   PRIMARY KEY (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 13. AMENITIES (Tiện ích trang chủ)
---     CODE MỞ: thêm area_id để gắn tiện ích với từng khu
--- ---------------------------------------------------------------------
+-- 15. AMENITIES (Tiện ích trang chủ)
 CREATE TABLE `amenities` (
   `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `icon`         VARCHAR(50) NOT NULL,
@@ -280,31 +285,25 @@ CREATE TABLE `amenities` (
   `sort_order`   INT DEFAULT 0,
   `is_active`    TINYINT(1) DEFAULT 1,
   PRIMARY KEY (`id`)
+  -- CODE MỞ: ALTER TABLE amenities ADD COLUMN area_id INT UNSIGNED DEFAULT NULL;
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 14. BANNED_WORDS (Danh sách từ cấm — lớp lọc offline)
---     CODE MỞ: thêm category (profanity/insult/spam)
--- ---------------------------------------------------------------------
+-- 16. BANNED_WORDS (Danh sách từ cấm — dev quản lý qua INSERT/DELETE, BỎ is_active)
 CREATE TABLE `banned_words` (
   `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `word`         VARCHAR(100) NOT NULL COMMENT 'Từ/cụm từ cấm (ĐÃ CHUẨN HÓA)',
   `type`         ENUM('word','phrase','abbreviation') NOT NULL DEFAULT 'word'
                  COMMENT 'word=từ đơn | phrase=cụm từ | abbreviation=viết tắt',
   `replacement`  VARCHAR(20) NOT NULL DEFAULT '***' COMMENT 'Chuỗi thay thế khi mã hóa',
-  `is_active`    TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=đang áp dụng',
   `created_at`   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_word` (`word`),
-  KEY `idx_active` (`is_active`)
+  UNIQUE KEY `uq_word` (`word`)
+  -- CODE MỞ: ALTER TABLE banned_words ADD COLUMN category VARCHAR(50) DEFAULT 'profanity';
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 15. COMMENTS (Đánh giá — với kiểm duyệt nội dung)
---     - Mỗi người 1 đánh giá/phòng (UNIQUE user_id + room_id)
---     - Sắp xếp: rating DESC → is_spam ASC → toxicity ASC → created_at DESC
---     CODE MỞ: thêm sentiment, admin_reviewed, parent_comment_id (reply)
--- ---------------------------------------------------------------------
+-- 17. COMMENTS (Đánh giá — với kiểm duyệt nội dung)
+--     LOGIC HIỂN THỊ: công khai WHERE status=1 AND is_spam=0; chủ comment thấy của mình; admin thấy tất cả
+--     LOGIC SẮP XẾP: ORDER BY rating DESC, is_spam ASC, toxicity_score ASC, created_at DESC
 CREATE TABLE `comments` (
   `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `room_id`         INT UNSIGNED NOT NULL COMMENT 'FK → rooms: phòng được đánh giá',
@@ -324,32 +323,10 @@ CREATE TABLE `comments` (
   KEY `fk_comment_user` (`user_id`),
   CONSTRAINT `fk_comment_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  -- CODE MỞ: thêm sentiment, admin_reviewed, parent_comment_id (reply)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 16. ROOM_HISTORY (Lịch sử phòng đã ở)
---     Cho phép người ĐÃ CHUYỂN ĐI đánh giá phòng cũ trong 15 ngày.
---     CODE MỞ: bỏ UNIQUE nếu muốn track nhiều lần ở cùng phòng
--- ---------------------------------------------------------------------
-CREATE TABLE `room_history` (
-  `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id`        INT UNSIGNED NOT NULL COMMENT 'FK → users: người ở',
-  `room_id`        INT UNSIGNED NOT NULL COMMENT 'FK → rooms: phòng đã ở',
-  `move_in_date`   DATE NOT NULL COMMENT 'Ngày vào ở',
-  `move_out_date`  DATE DEFAULT NULL COMMENT 'Ngày chuyển đi (NULL = đang ở)',
-  `created_at`     TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_user_room` (`user_id`, `room_id`) COMMENT 'Mỗi người 1 bản ghi/phòng',
-  KEY `idx_user_active` (`user_id`, `move_out_date`),
-  KEY `fk_rh_room` (`room_id`),
-  CONSTRAINT `fk_rh_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_rh_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ---------------------------------------------------------------------
--- 17. COMMENT_MODERATION (Chống spam — lưu DB)
---     CODE MỞ: thêm total_violations, is_permanently_banned
--- ---------------------------------------------------------------------
+-- 18. COMMENT_MODERATION (Chống spam — lưu DB, chống bypass)
 CREATE TABLE `comment_moderation` (
   `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id`          INT UNSIGNED NOT NULL COMMENT 'FK → users: user bị track',
@@ -361,20 +338,18 @@ CREATE TABLE `comment_moderation` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_user` (`user_id`) COMMENT 'Mỗi user 1 bản ghi',
   CONSTRAINT `fk_cm_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  -- CODE MỞ: thêm total_violations, is_permanently_banned
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 18. COMMENT_REPORTS (Báo cáo comment xấu)
---     CODE MỞ: cột status cho phép mở rộng luồng xử lý
--- ---------------------------------------------------------------------
+-- 19. COMMENT_REPORTS (Báo cáo comment xấu — cơ chế xử lý sự cố bị động)
 CREATE TABLE `comment_reports` (
-  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `comment_id`  INT UNSIGNED NOT NULL COMMENT 'FK → comments: comment bị báo cáo',
-  `user_id`     INT UNSIGNED NOT NULL COMMENT 'FK → users: người báo cáo',
-  `reason`      VARCHAR(255) DEFAULT NULL COMMENT 'Lý do báo cáo',
-  `status`      ENUM('pending','resolved','dismissed') NOT NULL DEFAULT 'pending'
-                COMMENT 'pending=chờ xử lý | resolved=đã xử lý | dismissed=bác bỏ',
-  `created_at`  TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `comment_id`   INT UNSIGNED NOT NULL COMMENT 'FK → comments: comment bị báo cáo',
+  `user_id`      INT UNSIGNED NOT NULL COMMENT 'FK → users: người báo cáo',
+  `reason`       VARCHAR(255) DEFAULT NULL COMMENT 'Lý do báo cáo',
+  `status`       ENUM('pending','resolved','dismissed') NOT NULL DEFAULT 'pending'
+                 COMMENT 'pending=chờ xử lý | resolved=đã xử lý | dismissed=bác bỏ',
+  `created_at`   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_comment_user` (`comment_id`, `user_id`) COMMENT 'Mỗi người báo cáo 1 comment 1 lần',
   KEY `idx_status` (`status`),
@@ -383,49 +358,47 @@ CREATE TABLE `comment_reports` (
   CONSTRAINT `fk_cr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
 -- =====================================================================
 -- DỮ LIỆU MẪU (nhất quán giữa các phần)
 -- =====================================================================
 
 -- ===== PHẦN 1: PHÒNG TRỌ =====
--- Khu A: có 2 tầng; Khu B: KHÔNG có tầng
+-- Khu A: 2 tầng; Khu B: 1 tầng ("Tầng trệt" — khu nhà trệt giờ buộc có tầng)
 INSERT INTO `areas` (`id`, `name`, `address`, `description`, `image`) VALUES
 (1, 'Khu A - Sinh viên', '123 Đường ABC, Quận 9', 'Khu gần FPT, an ninh tốt, có 2 tầng.', 'uploads/areas/khu-a.jpg'),
 (2, 'Khu B - Tiết kiệm', '125 Đường ABC, Quận 9', 'Khu nhà trệt, giá mềm, phòng nằm ngang.', 'uploads/areas/khu-b.jpg');
 
 INSERT INTO `floors` (`id`, `area_id`, `name`, `floor_number`) VALUES
 (1, 1, 'Tầng 1', 1),
-(2, 1, 'Tầng 2', 2);
+(2, 1, 'Tầng 2', 2),
+(3, 2, 'Tầng trệt', 0);  -- Khu B (nhà trệt) có 1 tầng mặc định
 
-INSERT INTO `rooms` (`id`, `area_id`, `floor_id`, `name`, `price`, `area`, `max_occupancy`, `description`, `thumbnail`, `status`, `views`) VALUES
-(1, 1, 1, 'Phòng A1', 3500000.00, 25.00, 2, 'Phòng có ban công, đầy đủ nội thất.', 'uploads/rooms/a1.jpg', 'rented', 150),
-(2, 1, 1, 'Phòng A2', 3200000.00, 22.00, 2, 'Phòng thoáng mát, cửa sổ lớn.', 'uploads/rooms/a2.jpg', 'available', 120),
-(3, 1, 2, 'Phòng A3', 4000000.00, 28.00, 3, 'Phòng rộng tầng 2, view công viên.', 'uploads/rooms/a3.jpg', 'available', 95),
-(4, 2, NULL, 'Phòng B1', 2000000.00, 15.00, 1, 'Phòng giá mềm, tiện nghi cơ bản.', 'uploads/rooms/b1.jpg', 'rented', 88),
-(5, 2, NULL, 'Phòng B2', 2200000.00, 16.00, 2, 'Phòng có gác lửng.', 'uploads/rooms/b2.jpg', 'available', 60);
+-- Phòng: floor_id NOT NULL (Khu B dùng "Tầng trệt" id=3), KHÔNG có area_id
+INSERT INTO `rooms` (`id`, `floor_id`, `name`, `price`, `area`, `max_occupancy`, `description`, `thumbnail`, `status`, `views`) VALUES
+(1, 1, 'Phòng A1', 3500000.00, 25.00, 2, 'Phòng có ban công, đầy đủ nội thất.', 'uploads/rooms/a1.jpg', 'rented', 150),
+(2, 1, 'Phòng A2', 3200000.00, 22.00, 2, 'Phòng thoáng mát, cửa sổ lớn.', 'uploads/rooms/a2.jpg', 'available', 120),
+(3, 2, 'Phòng A3', 4000000.00, 28.00, 3, 'Phòng rộng tầng 2, view công viên.', 'uploads/rooms/a3.jpg', 'available', 95),
+(4, 3, 'Phòng B1', 2000000.00, 15.00, 1, 'Phòng giá mềm, tiện nghi cơ bản.', 'uploads/rooms/b1.jpg', 'rented', 88),
+(5, 3, 'Phòng B2', 2200000.00, 16.00, 2, 'Phòng có gác lửng.', 'uploads/rooms/b2.jpg', 'available', 60);
 
 -- ===== PHẦN 2: NGƯỜI DÙNG =====
--- Mật khẩu demo: 123456 (đã hash bcrypt)
--- Thông tin hợp đồng lưu PLAIN TEXT để DEMO (code PHP sẽ mã hóa AES khi dùng thật)
+-- Mật khẩu demo: 123456 (hash bcrypt). Thông tin cá nhân PLAIN TEXT để DEMO (code PHP mã hóa AES khi dùng thật)
+-- users KHÔNG còn move_in/out (đã chuyển sang contracts)
 INSERT INTO `users`
 (`id`, `full_name`, `email`, `phone`, `password`, `role`, `room_id`,
- `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`,
- `move_in_date`, `move_out_date`) VALUES
+ `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`) VALUES
 (1, 'Nguyễn Văn An (Chủ trọ)', 'admin@nhatroa.vn', '0901234567',
  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1, NULL,
- NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+ NULL, NULL, NULL, NULL, NULL),
 (2, 'Trần Văn Bình', 'tenant1@gmail.com', '0912345678',
  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 0, 1,
- '2003-05-12', 'Thái Nguyên', '012345678901', '2020-01-10', 'Công an Thái Nguyên',
- '2026-01-01', NULL),
+ '2003-05-12', 'Thái Nguyên', '012345678901', '2020-01-10', 'Công an Thái Nguyên'),
 (3, 'Lê Thị Chi', 'tenant2@gmail.com', '0923456789',
  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 0, 1,
- '2004-08-20', 'Hà Nội', '098765432109', '2021-03-15', 'Công an Hà Nội',
- '2026-02-01', NULL),
+ '2004-08-20', 'Hà Nội', '098765432109', '2021-03-15', 'Công an Hà Nội'),
 (4, 'Phạm Đăng Ký Mới', 'tenant3@gmail.com', '0933333333',
  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 0, NULL,
- NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+ NULL, NULL, NULL, NULL, NULL);
 
 -- ===== PHẦN 3: DỊCH VỤ & THANH TOÁN =====
 INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `is_required`, `billing_mode`, `applies_to`) VALUES
@@ -442,21 +415,43 @@ INSERT INTO `room_services` (`room_id`, `service_id`, `quantity`) VALUES
 (1, 7, 1);  -- Phòng 1: Máy giặt
 
 INSERT INTO `user_services` (`user_id`, `service_id`, `quantity`) VALUES
-(2, 5, 1),  -- User 2 (Trần Văn Bình): Giữ xe máy (miễn phí)
-(3, 6, 1);  -- User 3 (Lê Thị Chi): Sạc xe điện (100k/xe)
+(2, 5, 1),  -- Bình: Giữ xe máy (miễn phí)
+(3, 6, 1);  -- Chi: Sạc xe điện (100k/xe)
 
 INSERT INTO `meter_readings` (`room_id`, `service_id`, `month`, `year`, `old_index`, `new_index`) VALUES
 (1, 1, 7, 2026, 1000.00, 1100.00),  -- Điện: tiêu thụ 100 kwh
-(1, 2, 7, 2026, 50.00,   60.00);    -- Nước: 10 m³ (dùng khi nước chuyển sang billing_mode=meter)
+(1, 2, 7, 2026, 50.00,   60.00);    -- Nước: 10 m³ (dùng khi nước chuyển sang meter)
 
-INSERT INTO `payments` (`room_id`, `user_id`, `month`, `year`, `amount`, `status`, `paid_at`) VALUES
-(1, 2,    7, 2026, 4290000.00, 'paid',   '2026-07-05 10:30:00'),  -- Phòng 1: User 2 đã trả → User 3 thấy đã trả
-(4, NULL, 7, 2026, 2300000.00, 'unpaid', NULL);                    -- Phòng 4: chưa ai trả
+-- CONTRACTS (SSOT move_in/out + snapshot giá + chỉ số ban đầu)
+-- Phòng A1 giá 3.5tr, 2 người ở → mỗi người chịu 1.75tr; cọc 1tr → mỗi người 500k
+INSERT INTO `contracts`
+(`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`,
+ `initial_electricity_index`, `initial_water_index`, `status`, `contract_date`) VALUES
+(1, 2, 1, '2026-01-01', NULL, 1750000.00, 500000.00, 1000.00, 48.00, 'active', '2026-01-01'),  -- Bình
+(2, 3, 1, '2026-02-01', NULL, 1750000.00, 500000.00, 1000.00, 48.00, 'active', '2026-02-01');  -- Chi
 
+-- PAYMENTS (hóa đơn tổng tháng 7/2026)
+INSERT INTO `payments` (`id`, `room_id`, `contract_id`, `user_id`, `month`, `year`, `amount`, `status`, `paid_at`) VALUES
+(1, 1, 1, 2, 7, 2026, 4290000.00, 'paid', '2026-07-05 10:30:00'),  -- Phòng 1: Bình trả → Chi thấy đã trả
+(2, 4, NULL, NULL, 7, 2026, 2300000.00, 'unpaid', NULL);            -- Phòng 4: chưa ai trả
+
+-- PAYMENT_ITEMS (chi tiết hóa đơn Phòng 1 tháng 7 — SNAPSHOT giá + cách tính)
+-- Tổng: 3.5tr + 350k + 100k + 40k + 100k + 100k + 100k = 4,290,000 ✓
+INSERT INTO `payment_items` (`payment_id`, `service_id`, `item_name`, `unit_price`, `quantity`, `amount`, `billing_mode`) VALUES
+(1, NULL, 'Tiền phòng',  3500000.00, 1,   3500000.00, 'fixed'),
+(1, 1,    'Tiền điện',   3500.00,    100, 350000.00,  'meter'),       -- 100 kwh × 3.500đ
+(1, 2,    'Tiền nước',   50000.00,   2,   100000.00,  'per_person'),  -- 2 người × 50.000đ
+(1, 3,    'Tiền rác',    20000.00,   2,   40000.00,   'per_person'),  -- 2 người × 20.000đ
+(1, 4,    'Wifi',        50000.00,   2,   100000.00,  'per_person'),  -- 2 người × 50.000đ
+(1, 7,    'Máy giặt',    50000.00,   2,   100000.00,  'per_person'),  -- 2 người × 50.000đ
+(1, 6,    'Sạc xe điện', 100000.00,  1,   100000.00,  'per_unit');    -- 1 xe × 100.000đ (của Chi)
+
+-- PRICE_CHANGES (lịch sử đổi giá, áp dụng từ tháng sau)
 INSERT INTO `price_changes` (`service_id`, `old_price`, `new_price`, `effective_month`, `effective_year`, `created_by`) VALUES
-(6, 100000.00, 150000.00, 8, 2026, 1),  -- Sạc xe điện: 100k → 150k, áp dụng từ 08/2026
-(1, 3500.00,   4000.00,   9, 2026, 1);  -- Tiền điện: 3.500 → 4.000 đ/kwh, áp dụng từ 09/2026
+(6, 100000.00, 150000.00, 8, 2026, 1),  -- Sạc xe điện: 100k → 150k, từ 08/2026
+(1, 3500.00,   4000.00,   9, 2026, 1);  -- Tiền điện: 3.500 → 4.000 đ/kwh, từ 09/2026
 
+-- NOTIFICATIONS (thông báo đổi giá)
 INSERT INTO `notifications` (`user_id`, `title`, `content`, `type`, `is_read`) VALUES
 (NULL, 'Thay đổi giá dịch vụ', 'Sạc xe điện: 100.000đ → 150.000đ/xe, áp dụng từ tháng 08/2026.', 'price_change', 0),
 (NULL, 'Thay đổi giá điện',    'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 09/2026.',       'price_change', 0);
@@ -483,13 +478,15 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`) VALUES
 ('stat_2_label', 'Dịch vụ tiện ích', 'stats'),
 ('stat_2_value', '20+', 'stats'),
 -- Nhóm moderation (cấu hình kiểm duyệt đánh giá)
-('min_days_to_review', '15', 'moderation'),
-('comment_edit_hours', '24', 'moderation'),
-('max_comment_attempts', '3', 'moderation'),
-('comment_lock_hours', '24', 'moderation'),
-('enable_gemini_moderation', '0', 'moderation'),
-('gemini_api_key', '', 'moderation'),
-('toxicity_threshold', '0.7', 'moderation');
+('enable_comment_moderation', '1', 'moderation'),   -- CÔNG TẮC TỔNG (admin thấy): 1=bật bộ lọc, 0=tắt
+('min_days_to_review', '15', 'moderation'),         -- Số ngày ở tối thiểu để đánh giá
+('comment_edit_hours', '24', 'moderation'),         -- Thời gian cho sửa/xóa (giờ)
+('max_comment_attempts', '3', 'moderation'),        -- Số lần all_bad trước khi khóa
+('comment_lock_hours', '24', 'moderation'),         -- Thời gian khóa sau vi phạm (giờ)
+-- Cấu hình nội bộ DEV (ẩn khỏi admin)
+('enable_gemini_moderation', '0', 'moderation'),    -- 0=tắt, 1=bật Gemini (dev kiểm soát)
+('gemini_api_key', '', 'moderation'),               -- API key Gemini (dev điền)
+('toxicity_threshold', '0.7', 'moderation');        -- Ngưỡng độc hại (0.0-1.0)
 
 INSERT INTO `amenities` (`icon`, `title`, `description`, `sort_order`, `is_active`) VALUES
 ('wifi', 'Wifi cáp quang', 'Tốc độ 200Mbps, không gián đoạn', 1, 1),
@@ -501,6 +498,7 @@ INSERT INTO `amenities` (`icon`, `title`, `description`, `sort_order`, `is_activ
 ('elevator', 'Thang máy', 'Di chuyển thuận tiện, an toàn', 7, 1),
 ('water_heater', 'Nóng lạnh 24/7', 'Máy nước nóng năng lượng mặt trời', 8, 1);
 
+-- BANNED_WORDS (dev quản lý — ĐÃ CHUẨN HÓA: bỏ dấu, chữ thường; KHÔNG có is_active)
 INSERT INTO `banned_words` (`word`, `type`, `replacement`) VALUES
 ('mat day', 'phrase', '***'),
 ('do mat day', 'phrase', '***'),
@@ -517,12 +515,11 @@ INSERT INTO `banned_words` (`word`, `type`, `replacement`) VALUES
 ('dkm', 'abbreviation', '***'),
 ('wtf', 'abbreviation', '***');
 
+-- COMMENTS (đánh giá mẫu)
 INSERT INTO `comments` (`room_id`, `user_id`, `content`, `rating`, `toxicity_score`, `is_spam`, `flagged_words`, `status`) VALUES
 (1, 2, 'Phòng rất tuyệt vời! An ninh tốt, chủ nhà nhiệt tình.', 5, 0.05, 0, NULL, 1),
 (1, 3, 'Ở 2 người rất thoải mái, tiện nghi đầy đủ.', 5, 0.08, 0, NULL, 1);
 
-INSERT INTO `room_history` (`user_id`, `room_id`, `move_in_date`, `move_out_date`) VALUES
-(2, 1, '2026-01-01', NULL),   -- Trần Văn Bình đang ở Phòng 1
-(3, 1, '2026-02-01', NULL);   -- Lê Thị Chi đang ở Phòng 1
+-- COMMENT_MODERATION & COMMENT_REPORTS: để trống (có dữ liệu khi phát sinh)
 
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
