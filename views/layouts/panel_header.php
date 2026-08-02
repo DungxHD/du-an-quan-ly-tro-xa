@@ -26,6 +26,13 @@ $panelTopLink = $panelTopLink ?? [
 $panelWelcome = $panelWelcome ?? (isset($_SESSION['full_name']) ? 'Xin chào, ' . $_SESSION['full_name'] : '');
 $panelContentClass = $panelContentClass ?? 'p-6 md:p-8 md:ml-64';
 $showFallbackBanner = !Database::hasConnection();
+$tenantNotificationUnreadCount = 0;
+$tenantNotificationRecent = [];
+
+if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
+    $tenantNotificationUnreadCount = NotificationModel::getUnreadCount((int)$_SESSION['user_id']);
+    $tenantNotificationRecent = NotificationModel::getRecentForUser((int)$_SESSION['user_id'], 5);
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -66,6 +73,71 @@ $showFallbackBanner = !Database::hasConnection();
                 <?= e($panelWelcome) ?>
             </span>
             <?php endif; ?>
+            <?php if ($panelTheme === 'tenant'): ?>
+            <details class="relative">
+                <summary class="list-none cursor-pointer">
+                    <div class="relative w-11 h-11 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 transition flex items-center justify-center">
+                        <span class="material-symbols-outlined text-gray-700">notifications</span>
+                        <?php if ($tenantNotificationUnreadCount > 0): ?>
+                        <span class="absolute -top-1 -right-1 min-w-[1.35rem] h-[1.35rem] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">
+                            <?= $tenantNotificationUnreadCount > 99 ? '99+' : (int)$tenantNotificationUnreadCount ?>
+                        </span>
+                        <?php endif; ?>
+                    </div>
+                </summary>
+                <div class="absolute right-0 mt-3 w-[380px] rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden z-50">
+                    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+                        <div>
+                            <p class="font-semibold text-gray-900">Thông báo</p>
+                            <p class="text-xs text-gray-500"><?= (int)$tenantNotificationUnreadCount ?> chưa đọc</p>
+                        </div>
+                        <form method="POST" action="<?= BASE_URL ?>?page=tenant-mark-notification-read">
+                            <input type="hidden" name="mark_all" value="1">
+                            <input type="hidden" name="redirect_page" value="<?= e($_GET['page'] ?? 'tenant-notifications') ?>">
+                            <button type="submit" class="text-xs font-semibold text-primary hover:underline">
+                                Đánh dấu tất cả
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="max-h-[360px] overflow-y-auto">
+                        <?php if (empty($tenantNotificationRecent)): ?>
+                        <div class="px-4 py-8 text-center text-sm text-gray-500">
+                            Chưa có thông báo nào.
+                        </div>
+                        <?php else: ?>
+                        <?php foreach ($tenantNotificationRecent as $notification): ?>
+                        <form method="POST" action="<?= BASE_URL ?>?page=tenant-mark-notification-read" class="border-b border-gray-100 last:border-b-0">
+                            <input type="hidden" name="notification_id" value="<?= (int)($notification['id'] ?? 0) ?>">
+                            <input type="hidden" name="redirect_page" value="tenant-notifications">
+                            <button type="submit" class="w-full px-4 py-3 text-left hover:bg-gray-50 transition <?= (int)($notification['is_read'] ?? 0) === 0 ? 'bg-blue-50' : 'bg-white' ?>">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p class="font-semibold text-gray-900"><?= e($notification['title'] ?? '') ?></p>
+                                        <p class="text-xs text-gray-500 mt-1 line-clamp-2"><?= e($notification['content'] ?? '') ?></p>
+                                    </div>
+                                    <?php if ((int)($notification['is_read'] ?? 0) === 0): ?>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1"></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="flex items-center justify-between mt-2">
+                                    <span class="text-[11px] font-semibold text-primary uppercase tracking-wide"><?= e($notification['type_label'] ?? '') ?></span>
+                                    <span class="text-[11px] text-gray-400"><?= e(!empty($notification['created_at']) ? date('d/m/Y H:i', strtotime((string)$notification['created_at'])) : '') ?></span>
+                                </div>
+                            </button>
+                        </form>
+                        <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="px-4 py-3 border-t border-gray-100">
+                        <a href="<?= BASE_URL ?>?page=tenant-notifications" class="text-sm font-semibold text-primary hover:underline">
+                            Xem tất cả
+                        </a>
+                    </div>
+                </div>
+            </details>
+            <?php endif; ?>
             <a href="<?= e($panelTopLink['url'] ?? (BASE_URL . '?page=home')) ?>"
                class="px-4 py-2 rounded-xl border <?= $panelTheme === 'admin' ? 'border-gray-700 text-gray-200 hover:bg-gray-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50' ?> text-sm font-semibold transition">
                 <?= e($panelTopLink['label'] ?? 'Trang chủ') ?>
@@ -101,6 +173,16 @@ $showFallbackBanner = !Database::hasConnection();
                     <?= e($item['label']) ?>
                 </a>
             <?php endforeach; ?>
+            <?php if ($panelTheme === 'tenant'): ?>
+            <a href="<?= BASE_URL ?>?page=tenant-notifications" class="relative px-4 py-2 rounded-xl text-sm whitespace-nowrap font-medium transition bg-white text-gray-700 border border-gray-200">
+                Thông báo
+                <?php if ($tenantNotificationUnreadCount > 0): ?>
+                <span class="ml-2 inline-flex min-w-[1.3rem] h-[1.3rem] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold items-center justify-center">
+                    <?= $tenantNotificationUnreadCount > 99 ? '99+' : (int)$tenantNotificationUnreadCount ?>
+                </span>
+                <?php endif; ?>
+            </a>
+            <?php endif; ?>
         </div>
 
         <?php if ($showFallbackBanner): ?>

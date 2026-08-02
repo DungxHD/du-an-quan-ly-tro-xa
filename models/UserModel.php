@@ -1,30 +1,92 @@
 <?php
 class UserModel {
+    /**
+     * Danh sách field hợp đồng cần mã hóa AES ở tầng model.
+     */
+    private const CONTRACT_FIELDS = [
+        'date_of_birth',
+        'permanent_address',
+        'identity_number',
+        'identity_issue_date',
+        'identity_issue_place',
+    ];
+
+    /**
+     * Lấy danh sách các field hợp đồng nhạy cảm để controller/view dùng thống nhất.
+     */
+    public static function getContractFields() {
+        return self::CONTRACT_FIELDS;
+    }
+
+    /**
+     * Chuẩn hóa record user sau khi đọc ra để mọi nơi luôn nhận được dữ liệu đã giải mã.
+     */
+    private static function hydrateUser(array $user) {
+        $user['id'] = (int)($user['id'] ?? 0);
+        $user['role'] = (int)($user['role'] ?? 0);
+        $user['room_id'] = isset($user['room_id']) && $user['room_id'] !== null ? (int)$user['room_id'] : null;
+        return Encryption::decryptFields($user, self::CONTRACT_FIELDS);
+    }
+
+    /**
+     * Chuẩn hóa payload trước khi update để field hợp đồng luôn được mã hóa đúng 1 lần.
+     */
+    private static function prepareUpdatePayload(array $data) {
+        if (isset($data['password']) && trim((string)$data['password']) !== '') {
+            $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        } else {
+            unset($data['password']);
+        }
+
+        foreach (self::CONTRACT_FIELDS as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = trim((string)($data[$field] ?? ''));
+            }
+        }
+
+        return Encryption::encryptFields($data, self::CONTRACT_FIELDS);
+    }
+
     public static function getAll() {
         if (Database::hasConnection()) {
-            return Database::fetchAll("SELECT u.*, r.name as room_name, b.name as building_name 
-                                        FROM users u 
-                                        LEFT JOIN rooms r ON u.room_id = r.id 
-                                        LEFT JOIN buildings b ON r.building_id = b.id
-                                        ORDER BY u.created_at DESC");
+            $users = Database::fetchAll(
+                "SELECT
+                    u.*,
+                    r.name AS room_name,
+                    f.name AS floor_name,
+                    a.name AS building_name
+                FROM users u
+                LEFT JOIN rooms r ON u.room_id = r.id
+                LEFT JOIN floors f ON r.floor_id = f.id
+                LEFT JOIN areas a ON f.area_id = a.id
+                ORDER BY u.created_at DESC"
+            );
+
+            return array_map([self::class, 'hydrateUser'], $users);
         }
 
         $rooms = [];
         foreach (Database::getTable('rooms') as $room) {
             $rooms[$room['id']] = $room;
         }
-        $buildings = [];
-        foreach (Database::getTable('buildings') as $building) {
-            $buildings[$building['id']] = $building;
+        $floors = [];
+        foreach (Database::getTable('floors') as $floor) {
+            $floors[$floor['id']] = $floor;
+        }
+        $areas = [];
+        foreach (Database::getTable('areas') as $area) {
+            $areas[$area['id']] = $area;
         }
 
-        $users = array_map(static function ($user) use ($rooms, $buildings) {
+        $users = array_map(static function ($user) use ($rooms, $floors, $areas) {
             $room = $rooms[$user['room_id']] ?? null;
-            $building = $room ? ($buildings[$room['building_id']] ?? null) : null;
+            $floor = $room ? ($floors[$room['floor_id']] ?? null) : null;
+            $area = $floor ? ($areas[$floor['area_id']] ?? null) : null;
             $user['room_name'] = $room['name'] ?? null;
             $user['room_price'] = $room['price'] ?? 0;
-            $user['building_name'] = $building['name'] ?? null;
-            return $user;
+            $user['floor_name'] = $floor['name'] ?? null;
+            $user['building_name'] = $area['name'] ?? null;
+            return self::hydrateUser($user);
         }, Database::getTable('users'));
 
         usort($users, static fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
@@ -32,8 +94,31 @@ class UserModel {
     }
     
     public static function getById($id) {
+        $id = (int)$id;
+        if ($id <= 0) {
+            return null;
+        }
+
+        if (Database::hasConnection()) {
+            $user = Database::fetchOne(
+                "SELECT
+                    u.*,
+                    r.name AS room_name,
+                    f.name AS floor_name,
+                    a.name AS building_name
+                FROM users u
+                LEFT JOIN rooms r ON u.room_id = r.id
+                LEFT JOIN floors f ON r.floor_id = f.id
+                LEFT JOIN areas a ON f.area_id = a.id
+                WHERE u.id = ?",
+                [$id]
+            );
+
+            return $user ? self::hydrateUser($user) : null;
+        }
+
         foreach (self::getAll() as $user) {
-            if ((int)($user['id'] ?? 0) === (int)$id) {
+            if ((int)($user['id'] ?? 0) === $id) {
                 return $user;
             }
         }
@@ -41,44 +126,152 @@ class UserModel {
     }
     
     public static function findByEmail($email) {
+        $normalizedEmail = mb_strtolower(trim((string)$email));
+
         if (Database::hasConnection()) {
-            return Database::fetchOne("SELECT * FROM users WHERE email = ?", [$email]);
+            $user = Database::fetchOne("SELECT * FROM users WHERE LOWER(email) = ?", [$normalizedEmail]);
+            return $user ? self::hydrateUser($user) : null;
         }
 
         foreach (Database::getTable('users') as $user) {
-            if (strcasecmp($user['email'] ?? '', $email) === 0) {
-                return $user;
+            if (mb_strtolower(trim((string)($user['email'] ?? ''))) === $normalizedEmail) {
+                return self::hydrateUser($user);
             }
         }
         return null;
+    }
+
+    /**
+     * Chỉ kiểm tra tồn tại email để bám đúng luồng đăng ký và tránh tải dư dữ liệu.
+     */
+    public static function emailExists($email) {
+        $normalizedEmail = mb_strtolower(trim((string)$email));
+
+        if (Database::hasConnection()) {
+            return (bool)Database::fetchOne("SELECT id FROM users WHERE LOWER(email) = ?", [$normalizedEmail]);
+        }
+
+        foreach (Database::getTable('users') as $user) {
+            if (mb_strtolower(trim((string)($user['email'] ?? ''))) === $normalizedEmail) {
+                return true;
+            }
+        }
+
+        return false;
     }
     
     public static function create($data) {
         $payload = [
             'full_name' => trim($data['full_name'] ?? ''),
-            'email' => trim($data['email'] ?? ''),
+            'email' => mb_strtolower(trim((string)($data['email'] ?? ''))),
             'phone' => trim($data['phone'] ?? ''),
             'password' => password_hash($data['password'], PASSWORD_DEFAULT),
             'role' => (int)($data['role'] ?? 0),
-            'status' => (int)($data['status'] ?? 1),
             'room_id' => $data['room_id'] ?? null,
-            'avatar' => $data['avatar'] ?? '',
         ];
         return Database::insert('users', $payload);
     }
     
     public static function update($id, $data) {
-        if (isset($data['password']) && !empty($data['password'])) {
-            $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
-        } else {
-            unset($data['password']);
+        $payload = self::prepareUpdatePayload($data);
+        Database::update('users', $payload, 'id = :id', ['id' => (int)$id]);
+    }
+
+    /**
+     * Cập nhật hồ sơ cơ bản của tenant mà không đụng tới email.
+     */
+    public static function updateProfile($id, array $data) {
+        $payload = [
+            'full_name' => trim((string)($data['full_name'] ?? '')),
+            'phone' => trim((string)($data['phone'] ?? '')),
+        ];
+
+        if (!empty($data['password'])) {
+            $payload['password'] = (string)$data['password'];
         }
-        Database::update('users', $data, 'id = :id', ['id' => $id]);
+
+        self::update($id, $payload);
+    }
+
+    /**
+     * Lưu thông tin phục vụ hợp đồng với cơ chế mã hóa AES trước khi ghi DB.
+     */
+    public static function updateContractInfo($id, array $data) {
+        $payload = [];
+        foreach (self::CONTRACT_FIELDS as $field) {
+            $payload[$field] = trim((string)($data[$field] ?? ''));
+        }
+
+        self::update($id, $payload);
     }
     
-    public static function assignToRoom($userId, $roomId) {
-        Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
-        Database::update('rooms', ['status' => 'rented'], 'id = :id', ['id' => $roomId]);
+    /**
+     * Gán tenant vào phòng và tạo hợp đồng active ngay trong cùng một luồng nghiệp vụ.
+     * Controller chỉ cần truyền payload hợp đồng đã được validate cơ bản.
+     */
+    public static function assignToRoom($userId, $roomId, array $contractData = []) {
+        $resolvedUserId = (int)$userId;
+        $resolvedRoomId = (int)$roomId;
+        $tenant = self::getById($resolvedUserId);
+        $room = RoomModel::getById($resolvedRoomId);
+
+        if (!$tenant || (int)($tenant['role'] ?? 0) !== 0) {
+            throw new RuntimeException('Người được chọn không phải tenant hợp lệ.');
+        }
+        if (!$room) {
+            throw new RuntimeException('Phòng được chọn không tồn tại.');
+        }
+        if (($room['status'] ?? '') !== 'available') {
+            throw new RuntimeException('Phòng này hiện không mở cho gán hợp đồng mới.');
+        }
+        if (!empty($tenant['room_id'])) {
+            throw new RuntimeException('Tenant này đang được gán vào một phòng khác.');
+        }
+        if (ContractModel::getActiveByUserId($resolvedUserId)) {
+            throw new RuntimeException('Tenant này đã có hợp đồng còn hiệu lực.');
+        }
+
+        $currentOccupants = RoomModel::countOccupants($resolvedRoomId);
+        $maxOccupancy = max(1, (int)($room['max_occupancy'] ?? 1));
+        if ($currentOccupants >= $maxOccupancy) {
+            throw new RuntimeException('Phòng đã đủ sức chứa tối đa.');
+        }
+
+        $payload = [
+            'user_id' => $resolvedUserId,
+            'room_id' => $resolvedRoomId,
+            'move_in_date' => trim((string)($contractData['move_in_date'] ?? '')),
+            'rent_price' => (float)($contractData['rent_price'] ?? 0),
+            'deposit_amount' => (float)($contractData['deposit_amount'] ?? 0),
+            'initial_electricity_index' => $contractData['initial_electricity_index'] ?? null,
+            'initial_water_index' => $contractData['initial_water_index'] ?? null,
+            'contract_date' => trim((string)($contractData['contract_date'] ?? '')) ?: date('Y-m-d'),
+        ];
+
+        $connection = Database::hasConnection() ? Database::getInstance() : null;
+        $useTransaction = $connection instanceof PDO;
+
+        if ($useTransaction) {
+            $connection->beginTransaction();
+        }
+
+        try {
+            $contractId = ContractModel::create($payload);
+            Database::update('users', ['room_id' => $resolvedRoomId], 'id = :id', ['id' => $resolvedUserId]);
+            ContractModel::syncRoomStatus($resolvedRoomId);
+
+            if ($useTransaction) {
+                $connection->commit();
+            }
+
+            return $contractId;
+        } catch (Throwable $exception) {
+            if ($useTransaction && $connection->inTransaction()) {
+                $connection->rollBack();
+            }
+
+            throw $exception;
+        }
     }
     
     public static function countByRole($role) {

@@ -1,9 +1,10 @@
 <?php
 // Gom sẵn một số giá trị để view gọn hơn và không phải lặp lại biểu thức dài.
-$selectedBuilding = $selectedBuilding ?? null;
+$selectedArea = $selectedArea ?? null;
+$areas = $areas ?? [];
 $featureOptions = $featureOptions ?? [];
 $filters = $filters ?? [];
-$selectedServices = $filters['services'] ?? [];
+$selectedAmenities = $filters['amenities'] ?? [];
 $filterMessages = $filters['messages'] ?? [];
 // Giữ sẵn URL reset để mọi hành động xóa lọc đều quay về đúng trang danh sách phòng.
 $roomFilterBaseUrl = BASE_URL . '?page=rooms';
@@ -13,12 +14,12 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="mb-8 reveal">
             <h1 class="text-4xl font-bold mb-2">
-                <?= $selectedBuilding ? 'Phòng tại <span class="gradient-text">' . e($selectedBuilding['name'] ?? '') . '</span>' : 'Danh sách <span class="gradient-text">phòng đang mở cho thuê</span>' ?>
+                <?= $selectedArea ? 'Phòng trống tại <span class="gradient-text">' . e($selectedArea['name'] ?? '') . '</span>' : 'Danh sách <span class="gradient-text">phòng đang còn trống</span>' ?>
             </h1>
             <p class="text-gray-600">
-                <?= $selectedBuilding
-                    ? 'Đang hiển thị các phòng còn trống hoặc đã có lịch trả phòng của khu nhà bạn đã chọn.'
-                    : 'Tìm thấy ' . count($rooms) . ' phòng còn trống hoặc sắp trống phù hợp.' ?>
+                <?= $selectedArea
+                    ? 'Đang hiển thị các phòng còn trống của khu bạn đã chọn để khách xem và liên hệ trực tiếp.'
+                    : 'Tìm thấy ' . count($rooms) . ' phòng còn trống phù hợp với nhu cầu hiện tại.' ?>
             </p>
         </div>
 
@@ -44,23 +45,14 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                     </h3>
                     
                     <div class="mb-6">
-                        <label class="block text-sm font-semibold mb-2">Khu nhà</label>
-                        <select name="building_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                            <option value="">Tất cả khu nhà</option>
-                            <?php foreach ($buildings as $building): ?>
-                                <option value="<?= (int)($building['id'] ?? 0) ?>" <?= (int)($filters['building_id'] ?? 0) === (int)($building['id'] ?? 0) ? 'selected' : '' ?>>
-                                    <?= e($building['name'] ?? 'Chưa có dữ liệu') ?>
+                        <label class="block text-sm font-semibold mb-2">Khu</label>
+                        <select name="area_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+                            <option value="">Tất cả khu</option>
+                            <?php foreach ($areas as $area): ?>
+                                <option value="<?= (int)($area['id'] ?? 0) ?>" <?= (int)($filters['area_id'] ?? 0) === (int)($area['id'] ?? 0) ? 'selected' : '' ?>>
+                                    <?= e($area['name'] ?? 'Chưa có dữ liệu') ?>
                                 </option>
                             <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <label class="block text-sm font-semibold mb-2">Thời điểm vào ở</label>
-                        <select name="status" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                            <option value="">Trống ngay và đã có lịch trả phòng</option>
-                            <option value="available" <?= ($filters['status'] ?? '') === 'available' ? 'selected' : '' ?>>Có thể vào ở ngay</option>
-                            <option value="upcoming" <?= ($filters['status'] ?? '') === 'upcoming' ? 'selected' : '' ?>>Đã có lịch trả phòng</option>
                         </select>
                     </div>
                     
@@ -105,13 +97,13 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                     </div>
 
                     <div class="mb-6">
-                        <label class="block text-sm font-semibold mb-3">Tiện ích và dịch vụ</label>
+                        <label class="block text-sm font-semibold mb-3">Tiện ích</label>
                         <div class="space-y-3">
                             <?php foreach ($featureOptions as $feature): ?>
                                 <label class="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:border-primary/40 hover:bg-primary/5 transition cursor-pointer">
-                                    <input type="checkbox" name="services[]" value="<?= e($feature['key'] ?? '') ?>"
+                                    <input type="checkbox" name="amenities[]" value="<?= e($feature['key'] ?? '') ?>"
                                            class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
-                                           <?= in_array($feature['key'] ?? '', $selectedServices, true) ? 'checked' : '' ?>>
+                                           <?= in_array($feature['key'] ?? '', $selectedAmenities, true) ? 'checked' : '' ?>>
                                     <span class="material-symbols-outlined text-primary text-base"><?= e($feature['icon'] ?? 'check') ?></span>
                                     <span class="text-sm font-medium text-gray-700"><?= e($feature['label'] ?? 'Chưa có dữ liệu') ?></span>
                                 </label>
@@ -141,9 +133,9 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                         <span class="px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700">
                             <?= count($rooms) ?> phòng phù hợp
                         </span>
-                        <?php if ($selectedBuilding): ?>
+                        <?php if ($selectedArea): ?>
                             <span class="px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                                <?= e($selectedBuilding['name'] ?? 'Chưa có dữ liệu') ?>
+                                <?= e($selectedArea['name'] ?? 'Chưa có dữ liệu') ?>
                             </span>
                         <?php endif; ?>
                     </div>
@@ -160,7 +152,10 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                                     </span>
                                 </div>
                                 <div class="p-6">
-                                    <p class="text-xs text-primary font-semibold mb-2"><?= e($room['building_name'] ?? 'Chưa có dữ liệu') ?></p>
+                                    <div class="mb-2 flex items-center justify-between gap-3">
+                                        <p class="text-xs text-primary font-semibold"><?= e($room['area_name'] ?? 'Chưa có dữ liệu') ?></p>
+                                        <p class="text-xs text-gray-500"><?= e($room['floor_name'] ?? 'Chưa có dữ liệu') ?></p>
+                                    </div>
                                     <h3 class="text-lg font-bold mb-3"><?= e($room['name'] ?? 'Chưa có dữ liệu') ?></h3>
                                     <div class="flex items-center gap-3 text-sm text-gray-500 mb-4">
                                         <span class="flex items-center gap-1">
@@ -174,7 +169,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                                     </div>
 
                                     <?php if (!empty($room['availabilityNote'])): ?>
-                                        <p class="mb-4 text-xs font-medium <?= !empty($room['isUpcoming']) ? 'text-amber-700' : 'text-green-700' ?>">
+                                        <p class="mb-4 text-xs font-medium text-green-700">
                                             <?= e($room['availabilityNote']) ?>
                                         </p>
                                     <?php endif; ?>
@@ -199,17 +194,6 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                                         </div>
                                         <span class="text-primary text-sm font-semibold">Xem chi tiết →</span>
                                     </div>
-
-                                    <?php if (!empty($room['isUpcoming']) && !empty($room['expectedVacantText'])): ?>
-                                        <div class="mt-4 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700">
-                                            <p class="font-semibold">Dự kiến trống từ <?= e($room['expectedVacantText']) ?></p>
-                                            <p class="mt-1">
-                                                <?= ($room['daysLeft'] ?? null) !== null
-                                                    ? 'Còn khoảng ' . e($room['daysLeft']) . ' ngày nữa có thể vào ở.'
-                                                    : 'Bạn có thể đặt trước để giữ chỗ.' ?>
-                                            </p>
-                                        </div>
-                                    <?php endif; ?>
                                 </div>
                             </a>
                         <?php endforeach; ?>

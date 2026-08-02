@@ -22,14 +22,20 @@ class SettingModel {
             : $default;
     }
     
-    public static function set($key, $value) {
-        Database::saveSetting($key, $value);
+    /**
+     * Lưu một setting đơn lẻ, cho phép chỉ định nhóm để đảm bảo UPSERT đúng `setting_group`.
+     */
+    public static function set($key, $value, $group = null) {
+        Database::saveSetting($key, $value, $group);
         self::$cache = null;
     }
     
-    public static function setMultiple($data) {
+    /**
+     * Lưu nhiều setting cùng lúc để controller admin không phải lặp logic truy cập DB.
+     */
+    public static function setMultiple($data, $group = null) {
         foreach ($data as $key => $value) {
-            self::set($key, $value);
+            self::set($key, $value, $group);
         }
     }
     

@@ -70,95 +70,196 @@ class HomeController extends BaseController {
                 'floor' => ['Tầng', 'bg-orange-500', 'layers'],
             ],
             'introStory' => [
-                'title' => 'Website này là trang giới thiệu chính thức của khu trọ, không chỉ là nơi đăng phòng trống.',
-                'text' => 'Khi người tìm trọ truy cập vào website, điều họ cần là thông tin rõ ràng, hình ảnh dễ xem và cách liên hệ nhanh. Vì vậy phần trang chủ được tổ chức theo hướng giới thiệu và marketing cho chính khu trọ này, để khách mới vẫn có thể vào xem và thuê trực tiếp.',
+                'eyebrow' => 'Giới thiệu khu trọ',
+                'title' => 'Một website gọn gàng để người tìm trọ hiểu đúng về nơi ở trước khi liên hệ.',
+                'text' => 'Khu trọ này được xây dựng theo hướng minh bạch: có khu rõ ràng, tầng rõ ràng, phòng rõ ràng và tiện ích được công khai ngay từ đầu. Mục tiêu không phải nói quá nhiều, mà là giúp người thuê nhìn vào là biết nơi này có phù hợp hay không.',
             ],
             'introValues' => [
                 [
                     'icon' => 'gpp_good',
-                    'title' => 'Giới thiệu đúng trọng tâm',
-                    'text' => 'Nội dung tập trung vào khu trọ này, giúp khách mới hiểu nhanh nơi ở, giá thuê và cách liên hệ.',
+                    'title' => 'Minh bạch từ thông tin cơ bản',
+                    'text' => 'Khách mới có thể xem khu, tầng, phòng, giá thuê và tiện ích mà không phải hỏi từng mẩu thông tin rời rạc.',
                 ],
                 [
                     'icon' => 'auto_awesome',
-                    'title' => 'Hình ảnh và thông tin đồng nhất',
-                    'text' => 'Ảnh phòng, tiện ích, trạng thái trống và lời giới thiệu được giữ cùng một cách trình bày để nhìn gọn và đáng tin hơn.',
+                    'title' => 'Trải nghiệm xem phòng mạch lạc',
+                    'text' => 'Ảnh đại diện, trạng thái phòng, số lượt xem và lối đi tới danh sách phòng được giữ thống nhất để người xem thao tác nhanh hơn.',
                 ],
                 [
-                    'icon' => 'account_tree',
-                    'title' => 'Chuẩn MVC để dễ mở rộng',
-                    'text' => 'Nội dung marketing được chuẩn hóa ở controller, giúp view gọn hơn và dễ phát triển tiếp.',
+                    'icon' => 'diversity_3',
+                    'title' => 'Tập trung vào cư dân thực tế',
+                    'text' => 'Mọi nội dung đều xoay quanh một khu trọ duy nhất, ưu tiên cảm giác tin cậy, dễ ở và dễ liên hệ lâu dài.',
                 ],
             ],
         ];
     }
 
     /**
+     * Đếm số cư dân theo đúng schema `users.role = 0`, không phụ thuộc
+     * vào `UserModel::getAll()` vì model cũ còn bám bảng `buildings`.
+     */
+    private function countResidents() {
+        if (Database::hasConnection()) {
+            $row = Database::fetchOne('SELECT COUNT(*) AS total FROM users WHERE role = ?', [0]);
+            return (int)($row['total'] ?? 0);
+        }
+
+        return count(array_filter(
+            Database::getTable('users'),
+            static fn($user) => (int)($user['role'] ?? -1) === 0
+        ));
+    }
+
+    /**
+     * Lấy danh sách phòng nổi bật đúng yêu cầu trang chủ:
+     * chỉ lấy phòng `available` và sắp theo lượt xem giảm dần.
+     */
+    private function getFeaturedAvailableRooms($limit = 6) {
+        $rooms = RoomModel::getAll(['status' => 'available']);
+        usort($rooms, static function ($left, $right) {
+            $viewCompare = (int)($right['views'] ?? 0) <=> (int)($left['views'] ?? 0);
+            if ($viewCompare !== 0) {
+                return $viewCompare;
+            }
+
+            return (int)($right['id'] ?? 0) <=> (int)($left['id'] ?? 0);
+        });
+
+        return array_slice($rooms, 0, (int)$limit);
+    }
+
+    /**
+     * Chuẩn hóa block khu nhà để view chỉ cần render card và link sang `?page=rooms&area_id=X`.
+     */
+    private function buildAreaShowcase(array $areas, array $rooms) {
+        $metricsByArea = [];
+        foreach ($rooms as $room) {
+            $areaId = (int)($room['area_id'] ?? 0);
+            if ($areaId <= 0) {
+                continue;
+            }
+
+            if (!isset($metricsByArea[$areaId])) {
+                $metricsByArea[$areaId] = [
+                    'upcoming_count' => 0,
+                    'views' => 0,
+                ];
+            }
+
+            $metricsByArea[$areaId]['views'] += (int)($room['views'] ?? 0);
+
+            if (
+                (int)($room['notice_given'] ?? 0) === 1
+                && ($room['status'] ?? '') === 'rented'
+                && !empty($room['expected_vacant_date'])
+            ) {
+                $metricsByArea[$areaId]['upcoming_count']++;
+            }
+        }
+
+        $cards = array_map(static function ($area) use ($metricsByArea) {
+            $areaId = (int)($area['id'] ?? 0);
+            $floors = $area['floors'] ?? [];
+            usort($floors, static fn($left, $right) => (int)($left['floor_number'] ?? 0) <=> (int)($right['floor_number'] ?? 0));
+
+            $extraMetrics = $metricsByArea[$areaId] ?? ['upcoming_count' => 0, 'views' => 0];
+            $area['upcoming_count'] = (int)($extraMetrics['upcoming_count'] ?? 0);
+            $area['open_room_count'] = (int)($area['available_count'] ?? 0) + $area['upcoming_count'];
+            $area['views'] = (int)($extraMetrics['views'] ?? 0);
+            $area['rooms_url'] = BASE_URL . '?page=rooms&area_id=' . $areaId;
+            $area['image'] = trim((string)($area['image'] ?? '')) ?: SettingModel::get(
+                'hero_image',
+                'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600'
+            );
+            $area['floor_labels'] = array_map(
+                static fn($floor) => trim((string)($floor['name'] ?? '')),
+                array_slice($floors, 0, 4)
+            );
+
+            return $area;
+        }, $areas);
+
+        usort($cards, static function ($left, $right) {
+            $openCompare = (int)($right['open_room_count'] ?? 0) <=> (int)($left['open_room_count'] ?? 0);
+            if ($openCompare !== 0) {
+                return $openCompare;
+            }
+
+            $viewCompare = (int)($right['views'] ?? 0) <=> (int)($left['views'] ?? 0);
+            if ($viewCompare !== 0) {
+                return $viewCompare;
+            }
+
+            return (int)($right['room_count'] ?? 0) <=> (int)($left['room_count'] ?? 0);
+        });
+
+        return $cards;
+    }
+
+    /**
      * Trang chủ ưu tiên trải nghiệm xem phòng nhanh, ít logic tại view.
      */
     public function index() {
-        $featuredRaw = RoomModel::getAvailableOrUpcoming(6);
-        $buildings = RoomModel::getBuildings();
-        $amenities = RoomModel::getAmenities();
-        $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
+        $siteName = SettingModel::get('site_name', 'NhaTroA');
+        $amenities = AmenityModel::getHomepageItems();
+        $featured = $this->getFeaturedAvailableRooms(6);
+        $areas = AreaModel::getTree();
+        $allRooms = RoomModel::getAll();
+        $areaShowcase = $this->buildAreaShowcase($areas, $allRooms);
+        $residentCount = $this->countResidents();
         $hero = [
-            // Dùng fallback sát ngữ cảnh "website chính thức của một khu trọ" thay vì slogan chung chung.
-            'siteSlogan' => RoomModel::getSetting('site_slogan', 'Trang chính thức của khu trọ'),
-            'siteDescription' => RoomModel::getSetting(
+            'siteSlogan' => SettingModel::get('site_slogan', 'Trang chính thức của khu trọ'),
+            'siteDescription' => SettingModel::get(
                 'hero_subheadline',
-                RoomModel::getSetting('site_description', 'Xem phòng trống, giá thuê và tiện ích rõ ràng trước khi liên hệ.')
+                SettingModel::get('site_description', 'Xem phòng trống, giá thuê và tiện ích rõ ràng trước khi liên hệ.')
             ),
-            'heroImage' => RoomModel::getSetting('hero_image', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600'),
-            'headline1' => RoomModel::getSetting('hero_headline_1', 'Xem Phòng Rõ'),
-            'headline2' => RoomModel::getSetting('hero_headline_2', 'Chọn Chỗ Ở Dễ'),
+            'heroImage' => SettingModel::get('hero_image', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600'),
+            'headline1' => SettingModel::get('hero_headline_1', 'Xem Phòng Rõ'),
+            'headline2' => SettingModel::get('hero_headline_2', 'Chọn Chỗ Ở Dễ'),
         ];
 
+        // Cho phép admin thay đổi trực tiếp 3 chỉ số nổi bật mà không phải sửa code landing page.
         $heroStats = [
-            ['value' => RoomModel::countByStatus('available'), 'suffix' => '+', 'label' => 'Phòng đang sẵn sàng'],
-            ['value' => count($buildings), 'suffix' => '', 'label' => 'Khu nhà được vận hành'],
-            ['value' => count($amenities), 'suffix' => '+', 'label' => 'Tiện ích cho cư dân'],
+            [
+                'value' => SettingModel::get('stat_1_value', RoomModel::countByStatus('available') . '+'),
+                'suffix' => '',
+                'label' => SettingModel::get('stat_1_label', 'Phòng đang trống'),
+            ],
+            [
+                'value' => SettingModel::get('stat_2_value', (string)count($areas)),
+                'suffix' => '',
+                'label' => SettingModel::get('stat_2_label', 'Khu đang vận hành'),
+            ],
+            [
+                'value' => SettingModel::get('stat_3_value', count($amenities) . '+'),
+                'suffix' => '',
+                'label' => SettingModel::get('stat_3_label', 'Tiện ích đang mở'),
+            ],
         ];
 
         $quickStats = [
             [
-                'icon' => 'local_fire_department',
-                'wrapperClass' => 'bg-red-100 text-red-600',
-                'value' => RoomModel::countByStatus('available'),
-                'label' => 'Phòng đang trống',
+                'icon' => 'apartment',
+                'wrapperClass' => 'bg-primary/10 text-primary',
+                'value' => count($areas),
+                'label' => 'Khu lưu trú rõ ràng',
                 'useCounter' => true,
             ],
             [
-                'icon' => 'payments',
-                'wrapperClass' => 'bg-primary/10 text-primary',
-                'value' => fallbackText(RoomModel::getSetting('stat_1_value', 'Hợp lý')),
-                'label' => fallbackText(RoomModel::getSetting('stat_1_label', 'Giá cả sinh viên')),
-                'useCounter' => false,
-                'valueClass' => 'text-primary',
+                'icon' => 'meeting_room',
+                'wrapperClass' => 'bg-green-100 text-green-600',
+                'value' => RoomModel::countByStatus('available'),
+                'label' => 'Phòng có thể xem ngay',
+                'useCounter' => true,
             ],
             [
-                'icon' => 'school',
+                'icon' => 'groups',
                 'wrapperClass' => 'bg-secondary/10 text-secondary',
-                'value' => fallbackText(RoomModel::getSetting('stat_2_value', '20+')),
-                'label' => fallbackText(RoomModel::getSetting('stat_2_label', 'Dịch vụ tiện ích')),
-                'useCounter' => false,
-                'valueClass' => 'text-secondary',
+                'value' => $residentCount,
+                'label' => 'Cư dân đang sinh hoạt',
+                'useCounter' => true,
             ],
         ];
-
-        $featured = array_map(static function ($room) {
-            $isUpcoming = ($room['notice_given'] ?? 0) == 1 && ($room['status'] ?? '') === 'rented';
-            $daysLeft = null;
-            $expectedVacantText = '';
-            if ($isUpcoming && !empty($room['expected_vacant_date'])) {
-                $daysLeft = RoomModel::getDaysUntilVacant($room['expected_vacant_date']);
-                $expectedVacantText = date('d/m/Y', strtotime($room['expected_vacant_date']));
-            }
-
-            $room['isUpcoming'] = $isUpcoming;
-            $room['daysLeft'] = $daysLeft;
-            $room['expectedVacantText'] = $expectedVacantText;
-            return $room;
-        }, $featuredRaw);
 
         extract($this->getMarketingContent());
         $pageTitle = 'Trang chủ - ' . $siteName;
@@ -167,7 +268,8 @@ class HomeController extends BaseController {
             'siteName',
             'amenities',
             'featured',
-            'buildings',
+            'areas',
+            'areaShowcase',
             'hero',
             'heroStats',
             'quickStats',
@@ -175,61 +277,72 @@ class HomeController extends BaseController {
             'marketingHighlights',
             'livingSteps',
             'testimonials',
-            'faqItems',
-            'buildingTypeMap'
+            'faqItems'
         ), 'home', $pageTitle);
     }
 
     public function intro() {
-        $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
+        $siteName = SettingModel::get('site_name', 'NhaTroA');
+        $areas = AreaModel::getTree();
+        $areaCount = count($areas);
+        $roomCount = RoomModel::count();
+        $residentCount = $this->countResidents();
+        $introImage = SettingModel::get('hero_image', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600');
+        foreach ($areas as $area) {
+            if (!empty($area['image'])) {
+                $introImage = $area['image'];
+                break;
+            }
+        }
+
         $introStats = [
-            ['value' => 5, 'suffix' => '+', 'label' => 'Năm kinh nghiệm vận hành'],
-            ['value' => BuildingModel::count(), 'suffix' => '', 'label' => 'Khu nhà đang quản lý'],
-            ['value' => RoomModel::count(), 'suffix' => '+', 'label' => 'Không gian lưu trú'],
-            ['value' => UserModel::countByRole(0), 'suffix' => '+', 'label' => 'Cư dân trong hệ thống'],
+            ['value' => $areaCount, 'suffix' => '', 'label' => 'Khu đang vận hành', 'note' => 'Mỗi khu có tầng và danh sách phòng riêng.'],
+            ['value' => $roomCount, 'suffix' => '+', 'label' => 'Phòng đang quản lý', 'note' => 'Tất cả phòng đều được tổ chức theo `areas -> floors -> rooms`.'],
+            ['value' => $residentCount, 'suffix' => '+', 'label' => 'Cư dân trong hệ thống', 'note' => 'Thống kê lấy trực tiếp từ nhóm tài khoản cư dân.'],
         ];
         $introJourney = [
-            ['title' => 'Khởi đầu từ nhu cầu thực', 'text' => 'Ý tưởng hình thành từ mong muốn tạo ra nơi ở gọn gàng, an toàn và thân thiện cho sinh viên, người đi làm.'],
-            ['title' => 'Chuẩn hóa trải nghiệm', 'text' => 'Không chỉ vận hành khu trọ, hệ thống còn tập trung trình bày thông tin rõ ràng để người thuê cảm thấy an tâm ngay từ online.'],
-            ['title' => 'Tối ưu để mở rộng', 'text' => 'Mô hình MVC và giao diện tách lớp giúp website dễ tiếp tục nâng cấp tính năng sau giai đoạn hoàn thiện hình ảnh thương hiệu.'],
+            ['title' => 'Bắt đầu từ nhu cầu ở thật', 'text' => 'Người tìm trọ thường mất thời gian vì thông tin rời rạc. Khu trọ này được giới thiệu theo cách ngắn gọn, xem là hiểu.'],
+            ['title' => 'Chuẩn hóa theo từng khu và tầng', 'text' => 'Mỗi khu đều có địa chỉ, ảnh đại diện, mô tả và số liệu phòng riêng để người xem nắm được bố cục tổng thể.'],
+            ['title' => 'Ưu tiên sự tin cậy lâu dài', 'text' => 'Mục tiêu không dừng ở việc lấp phòng trống, mà là xây dựng một nơi ở có trải nghiệm rõ ràng và ổn định cho cư dân.'],
         ];
+        $areasPreview = array_slice($areas, 0, 3);
         extract($this->getMarketingContent());
         $pageTitle = 'Giới thiệu - ' . $siteName;
 
         $this->renderPublic('views/pages/intro.php', compact(
             'siteName',
+            'areas',
+            'areasPreview',
+            'introImage',
             'introStats',
             'introJourney',
             'introStory',
             'introValues',
             'heroBadges',
-            'marketingHighlights',
-            'livingSteps',
-            'testimonials',
-            'faqItems'
+            'marketingHighlights'
         ), 'intro', $pageTitle);
     }
 
     public function rooms() {
-        // Trang public chỉ nhận những bộ lọc thực sự hữu ích cho người đi thuê.
+        // Trang public nhận query chuẩn mới theo `area_id` nhưng vẫn chấp nhận `building_id`
+        // để không làm gãy các link cũ ở những màn hình chưa refactor xong.
         $filters = RoomModel::normalizePublicFilters([
-            'building_id' => $_GET['building_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
+            'area_id' => $_GET['area_id'] ?? ($_GET['building_id'] ?? ''),
             'min_price' => $_GET['min_price'] ?? '',
             'max_price' => $_GET['max_price'] ?? '',
-            'services' => $_GET['services'] ?? [],
+            'amenities' => $_GET['amenities'] ?? ($_GET['services'] ?? []),
         ]);
 
         $rooms = RoomModel::getPublicCatalog($filters);
-        $buildings = BuildingModel::getAll();
+        $areas = AreaModel::getAllWithStats();
         $featureOptions = RoomModel::getPublicFeatureOptions();
-        $selectedBuilding = !empty($filters['building_id']) ? BuildingModel::getById($filters['building_id']) : null;
+        $selectedArea = !empty($filters['area_id']) ? AreaModel::getById($filters['area_id']) : null;
         $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
         $pageTitle = 'Danh sách phòng - ' . $siteName;
 
         $this->renderPublic(
             'views/pages/rooms.php',
-            compact('rooms', 'buildings', 'filters', 'siteName', 'featureOptions', 'selectedBuilding'),
+            compact('rooms', 'areas', 'filters', 'siteName', 'featureOptions', 'selectedArea'),
             'rooms',
             $pageTitle
         );

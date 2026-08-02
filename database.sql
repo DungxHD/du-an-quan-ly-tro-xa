@@ -18,7 +18,7 @@
 --   • users: GIỮ 5 cột thông tin cá nhân (mã hóa AES) + room_id (con trỏ nhanh)
 --   • contracts: thay room_history, mở rộng (rent_price, cọc, initial index)
 --   • payment_items: snapshot hóa đơn (audit trail)
---   • banned_words: BỎ is_active (dev quản lý qua INSERT/DELETE)
+--   • banned_words: GIỮ is_active để admin bật/tắt mềm không cần xóa dữ liệu
 --   • settings: THÊM enable_comment_moderation (công tắc tổng cho admin)
 -- =====================================================================
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
@@ -263,6 +263,20 @@ CREATE TABLE `notifications` (
   CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 13.1 NOTIFICATION_READS (Trạng thái đọc riêng theo tenant cho cả broadcast và thông báo cá nhân)
+--      Bảng này vá hạn chế của `notifications.is_read` khi `user_id = NULL` vì broadcast cần theo dõi đã đọc riêng từng tenant.
+CREATE TABLE `notification_reads` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `notification_id` INT UNSIGNED NOT NULL COMMENT 'FK → notifications',
+  `user_id`         INT UNSIGNED NOT NULL COMMENT 'FK → users (tenant đã đọc)',
+  `read_at`         TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Thời điểm tenant đọc thông báo',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_notification_user` (`notification_id`, `user_id`),
+  KEY `fk_nr_user` (`user_id`),
+  CONSTRAINT `fk_nr_notification` FOREIGN KEY (`notification_id`) REFERENCES `notifications` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_nr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =====================================================================
 -- PHẦN 4: ĐÁNH GIÁ + COMMENT + SETTINGS + AMENITIES
 -- =====================================================================
@@ -288,13 +302,14 @@ CREATE TABLE `amenities` (
   -- CODE MỞ: ALTER TABLE amenities ADD COLUMN area_id INT UNSIGNED DEFAULT NULL;
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 16. BANNED_WORDS (Danh sách từ cấm — dev quản lý qua INSERT/DELETE, BỎ is_active)
+-- 16. BANNED_WORDS (Danh sách từ cấm — admin quản lý thêm/sửa/xóa/bật-tắt)
 CREATE TABLE `banned_words` (
   `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `word`         VARCHAR(100) NOT NULL COMMENT 'Từ/cụm từ cấm (ĐÃ CHUẨN HÓA)',
   `type`         ENUM('word','phrase','abbreviation') NOT NULL DEFAULT 'word'
                  COMMENT 'word=từ đơn | phrase=cụm từ | abbreviation=viết tắt',
   `replacement`  VARCHAR(20) NOT NULL DEFAULT '***' COMMENT 'Chuỗi thay thế khi mã hóa',
+  `is_active`    TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=đang bật bộ lọc | 0=tắt mềm',
   `created_at`   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_word` (`word`)
@@ -477,6 +492,8 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`) VALUES
 ('stat_1_value', 'Hợp lý', 'stats'),
 ('stat_2_label', 'Dịch vụ tiện ích', 'stats'),
 ('stat_2_value', '20+', 'stats'),
+('stat_3_label', 'Hỗ trợ cư dân', 'stats'),
+('stat_3_value', '24/7', 'stats'),
 -- Nhóm moderation (cấu hình kiểm duyệt đánh giá)
 ('enable_comment_moderation', '1', 'moderation'),   -- CÔNG TẮC TỔNG (admin thấy): 1=bật bộ lọc, 0=tắt
 ('min_days_to_review', '15', 'moderation'),         -- Số ngày ở tối thiểu để đánh giá
@@ -498,22 +515,22 @@ INSERT INTO `amenities` (`icon`, `title`, `description`, `sort_order`, `is_activ
 ('elevator', 'Thang máy', 'Di chuyển thuận tiện, an toàn', 7, 1),
 ('water_heater', 'Nóng lạnh 24/7', 'Máy nước nóng năng lượng mặt trời', 8, 1);
 
--- BANNED_WORDS (dev quản lý — ĐÃ CHUẨN HÓA: bỏ dấu, chữ thường; KHÔNG có is_active)
-INSERT INTO `banned_words` (`word`, `type`, `replacement`) VALUES
-('mat day', 'phrase', '***'),
-('do mat day', 'phrase', '***'),
-('me may', 'phrase', '***'),
-('me kiep', 'phrase', '***'),
-('cho chet', 'phrase', '***'),
-('thang ngu', 'phrase', '***'),
-('con diem', 'phrase', '***'),
-('lua dao', 'phrase', '***'),
-('suc vat', 'phrase', '***'),
-('dm', 'abbreviation', '***'),
-('vcl', 'abbreviation', '***'),
-('vl', 'abbreviation', '***'),
-('dkm', 'abbreviation', '***'),
-('wtf', 'abbreviation', '***');
+-- BANNED_WORDS (dev/admin quản lý — ĐÃ CHUẨN HÓA: bỏ dấu, chữ thường)
+INSERT INTO `banned_words` (`word`, `type`, `replacement`, `is_active`) VALUES
+('mat day', 'phrase', '***', 1),
+('do mat day', 'phrase', '***', 1),
+('me may', 'phrase', '***', 1),
+('me kiep', 'phrase', '***', 1),
+('cho chet', 'phrase', '***', 1),
+('thang ngu', 'phrase', '***', 1),
+('con diem', 'phrase', '***', 1),
+('lua dao', 'phrase', '***', 1),
+('suc vat', 'phrase', '***', 1),
+('dm', 'abbreviation', '***', 1),
+('vcl', 'abbreviation', '***', 1),
+('vl', 'abbreviation', '***', 1),
+('dkm', 'abbreviation', '***', 1),
+('wtf', 'abbreviation', '***', 1);
 
 -- COMMENTS (đánh giá mẫu)
 INSERT INTO `comments` (`room_id`, `user_id`, `content`, `rating`, `toxicity_score`, `is_spam`, `flagged_words`, `status`) VALUES

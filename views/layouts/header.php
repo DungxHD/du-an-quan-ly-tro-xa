@@ -17,6 +17,12 @@ $metaDescription = $layout['meta']['description'] ?? '';
 $phone = $layout['contact']['phone'] ?? '';
 $phoneTel = trim((string)($layout['contact']['phoneTel'] ?? ''));
 $brandTagline = $layout['brand']['tagline'] ?? 'Xem phòng, đặt lịch và quản lý cư dân';
+$isLoggedIn = isset($_SESSION['user_id']);
+$isAdmin = (int)($_SESSION['role'] ?? 0) === 1;
+$sessionRoomId = $_SESSION['room_id'] ?? null;
+$userName = trim((string)($_SESSION['full_name'] ?? ''));
+$memberUrl = $sessionRoomId ? $tenantUrl : $roomsUrl;
+$memberLabel = $sessionRoomId ? 'Khu cư dân' : 'Tìm phòng';
 
 $navClass = static function ($id) use ($activePage) {
     $base = 'nav-link px-3 py-2 rounded-lg text-sm font-semibold transition';
@@ -77,17 +83,18 @@ $navClass = static function ($id) use ($activePage) {
                     </a>
                 <?php endif; ?>
 
-                <?php if (isset($_SESSION['role']) && $_SESSION['role'] == 1): ?>
-                    <a href="<?= $adminUrl ?>" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-95 transition">Quản trị</a>
-                    <a href="<?= $logoutUrl ?>" class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-bold hover:opacity-95 transition">Đăng xuất</a>
-                <?php elseif (isset($_SESSION['user_id'])): ?>
+                <?php if ($isLoggedIn): ?>
                     <div class="hidden xl:flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200">
                         <span class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                            <?= e(mb_substr($_SESSION['full_name'] ?? 'U', 0, 1)) ?>
+                            <?= e(mb_substr($userName !== '' ? $userName : 'U', 0, 1)) ?>
                         </span>
-                        <span class="text-sm font-semibold"><?= e($_SESSION['full_name'] ?? '') ?></span>
+                        <span class="text-sm font-semibold"><?= e($userName) ?></span>
                     </div>
-                    <a href="<?= $tenantUrl ?>" class="px-4 py-2 rounded-xl bg-secondary text-white text-sm font-bold hover:opacity-95 transition">Khu cư dân</a>
+                    <?php if ($isAdmin): ?>
+                        <a href="<?= $adminUrl ?>" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-95 transition">Quản trị</a>
+                    <?php else: ?>
+                        <a href="<?= $memberUrl ?>" class="px-4 py-2 rounded-xl bg-secondary text-white text-sm font-bold hover:opacity-95 transition"><?= e($memberLabel) ?></a>
+                    <?php endif; ?>
                     <a href="<?= $logoutUrl ?>" class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-bold hover:opacity-95 transition">Đăng xuất</a>
                 <?php else: ?>
                     <a href="<?= $registerUrl ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-bold hover:bg-gray-50 transition">Đăng ký</a>
@@ -125,15 +132,16 @@ $navClass = static function ($id) use ($activePage) {
 
         <div class="h-px bg-gray-100 my-3"></div>
 
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] == 1): ?>
-            <a href="<?= $adminUrl ?>" class="block px-4 py-3 rounded-xl bg-primary text-white font-bold">Quản trị</a>
-            <a href="<?= $logoutUrl ?>" class="block px-4 py-3 rounded-xl bg-red-500 text-white font-bold">Đăng xuất</a>
-        <?php elseif (isset($_SESSION['user_id'])): ?>
+        <?php if ($isLoggedIn): ?>
             <div class="px-4 py-3 rounded-xl bg-surface border border-gray-100">
                 <p class="text-xs text-gray-500">Xin chào</p>
-                <p class="font-bold"><?= e($_SESSION['full_name'] ?? '') ?></p>
+                <p class="font-bold"><?= e($userName) ?></p>
             </div>
-            <a href="<?= $tenantUrl ?>" class="block px-4 py-3 rounded-xl bg-secondary text-white font-bold">Khu cư dân</a>
+            <?php if ($isAdmin): ?>
+                <a href="<?= $adminUrl ?>" class="block px-4 py-3 rounded-xl bg-primary text-white font-bold">Quản trị</a>
+            <?php else: ?>
+                <a href="<?= $memberUrl ?>" class="block px-4 py-3 rounded-xl bg-secondary text-white font-bold"><?= e($memberLabel) ?></a>
+            <?php endif; ?>
             <a href="<?= $logoutUrl ?>" class="block px-4 py-3 rounded-xl bg-red-500 text-white font-bold">Đăng xuất</a>
         <?php else: ?>
             <a href="<?= $registerUrl ?>" class="block px-4 py-3 rounded-xl bg-white border border-gray-200 font-bold hover:bg-gray-50 transition">Đăng ký</a>
