@@ -1077,7 +1077,7 @@ class AdminController {
      */
     public function saveSettings() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-settings');
+            redirectTo('admin');
         }
     verify_csrf();
 
@@ -1105,7 +1105,7 @@ class AdminController {
             $validationError = $this->validateSettingField($field, $value);
             if ($validationError !== null) {
                 setFlash('admin_dashboard_error', $validationError);
-                redirectTo('admin-settings');
+                redirectTo('admin');
             }
 
             SettingModel::set($key, $value, $field['group'] ?? null);
@@ -1114,70 +1114,7 @@ class AdminController {
         RoomModel::resetSettingsCache();
         SettingModel::loadAll();
         setFlash('admin_dashboard_message', 'Đã lưu cấu hình thành công.');
-        redirectTo('admin-settings');
-    }
-
-    /**
-     * Trang cấu hình hệ thống: xem trước thu nhỏ website (home + intro) trước khi áp dụng.
-     */
-    public function settingsEditor() {
-        $settingSections = $this->populateAdminSettingSections();
-        $dashboardMessage = pullFlash('admin_dashboard_message');
-        $dashboardError = pullFlash('admin_dashboard_error');
-        $pageTitle = 'Cấu hình hệ thống - NhaTroA';
-        require_once BASE_PATH . 'views/admin/system/settings_editor.php';
-    }
-
-    /**
-     * Upload ảnh cho trình cấu hình (hero banner). Trả JSON để JS gắn URL vào ô nhập.
-     */
-    public function uploadImage() {
-        header('Content-Type: application/json; charset=utf-8');
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            echo json_encode(['ok' => false, 'message' => 'Phương thức không hợp lệ.']);
-            exit;
-        }
-        verify_csrf();
-
-        $file = $_FILES['image'] ?? null;
-        if (empty($file) || (int)($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'message' => 'Chưa chọn được tệp ảnh hợp lệ.']);
-            exit;
-        }
-        if ((int)($file['size'] ?? 0) > 5 * 1024 * 1024) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'message' => 'Ảnh vượt quá 5MB.']);
-            exit;
-        }
-
-        $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
-        $mime = $finfo ? (string)finfo_file($finfo, $file['tmp_name']) : (string)($file['type'] ?? '');
-        if ($finfo) {
-            finfo_close($finfo);
-        }
-        $allowedMimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
-        if (!isset($allowedMimes[$mime])) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'message' => 'Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF.']);
-            exit;
-        }
-
-        $uploadDir = BASE_PATH . '.uploads';
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0775, true);
-        }
-        $fileName = 'cms-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.' . $allowedMimes[$mime];
-        $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
-        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-            http_response_code(500);
-            echo json_encode(['ok' => false, 'message' => 'Không lưu được tệp ảnh. Kiểm tra thư mục .uploads.']);
-            exit;
-        }
-
-        echo json_encode(['ok' => true, 'url' => BASE_URL . '.uploads/' . $fileName]);
-        exit;
+        redirectTo('admin');
     }
     
     /**

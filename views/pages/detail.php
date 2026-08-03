@@ -207,6 +207,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                                     Sửa
                                 </a>
                                 <form method="POST" action="<?= BASE_URL ?>?page=tenant-delete-comment" onsubmit="return confirm('Bạn chắc chắn muốn xóa đánh giá này?');">
+<?= csrf_field() ?>
                                     <input type="hidden" name="comment_id" value="<?= (int)($ownerComment['id'] ?? 0) ?>">
                                     <input type="hidden" name="room_id" value="<?= (int)($ownerComment['room_id'] ?? 0) ?>">
                                     <button type="submit" class="px-4 py-2 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition">
@@ -225,6 +226,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                         </article>
                         <?php elseif ($isTenant && $canCreateComment): ?>
                         <form method="POST" action="<?= BASE_URL ?>?page=tenant-add-comment" class="space-y-4">
+<?= csrf_field() ?>
                             <input type="hidden" name="room_id" value="<?= (int)($room['id'] ?? 0) ?>">
                             <input type="hidden" name="rating" value="5" data-rating-input>
 
@@ -317,6 +319,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                                     <span class="material-symbols-outlined text-base">flag</span>
                                 </summary>
                                 <form method="POST" action="<?= BASE_URL ?>?page=tenant-report-comment" class="px-4 pb-4 space-y-3">
+<?= csrf_field() ?>
                                     <input type="hidden" name="comment_id" value="<?= (int)($c['id'] ?? 0) ?>">
                                     <input type="hidden" name="room_id" value="<?= (int)($room['id'] ?? 0) ?>">
                                     <textarea

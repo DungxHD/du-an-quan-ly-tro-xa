@@ -192,6 +192,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
             <?php if (($invoice['status'] ?? 'unpaid') === 'unpaid'): ?>
             <form method="POST" action="<?= BASE_URL ?>?page=tenant-pay-invoice" class="bg-primary/5 border border-primary/10 rounded-2xl p-5 space-y-4">
+<?= csrf_field() ?>
                 <input type="hidden" name="payment_id" value="<?= (int)($invoice['id'] ?? 0) ?>">
                 <input type="hidden" name="month" value="<?= (int)($currentPeriod['month'] ?? date('n')) ?>">
                 <input type="hidden" name="year" value="<?= (int)($currentPeriod['year'] ?? date('Y')) ?>">

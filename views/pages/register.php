@@ -19,6 +19,7 @@ $old = $old ?? [];
             </div>
 
             <form method="POST" class="space-y-4" data-register-form novalidate <?= !empty($errors) ? 'data-shake' : '' ?>>
+<?= csrf_field() ?>
                 <div class="auth-field">
                     <label for="register_full_name" class="block text-sm font-semibold mb-2">Họ và tên</label>
                     <input

@@ -164,49 +164,14 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
 
     <div class="flex pt-16 min-h-screen">
         <aside class="w-64 <?= e($panelSidebarClass) ?> min-h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 hidden md:block">
-            <nav class="space-y-1" id="panelSidebarNav">
+            <nav class="space-y-1">
                 <?php foreach ($panelNavItems as $item): ?>
-                    <?php if (!empty($item['children'])): ?>
-                        <?php
-                        $groupId = 'nav-group-' . $item['id'];
-                        $groupOpen = !empty($item['has_active_child']);
-                        $groupToggleClass = $groupOpen
-                            ? ($panelTheme === 'admin' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-900')
-                            : $panelLinkBaseClass;
-                        ?>
-                        <div data-nav-group>
-                            <button type="button"
-                                class="nav-group-toggle w-full flex items-center justify-between gap-2 px-4 py-3 rounded-2xl transition <?= e($groupToggleClass) ?>"
-                                aria-expanded="<?= $groupOpen ? 'true' : 'false' ?>"
-                                aria-controls="<?= e($groupId) ?>">
-                                <span class="flex items-center gap-3 min-w-0">
-                                    <span class="material-symbols-outlined"><?= e($item['icon']) ?></span>
-                                    <span class="font-medium truncate"><?= e($item['label']) ?></span>
-                                </span>
-                                <span class="material-symbols-outlined nav-group-chevron text-xl transition-transform duration-300 <?= $groupOpen ? 'rotate-180' : '' ?>">expand_more</span>
-                            </button>
-                            <div id="<?= e($groupId) ?>"
-                                class="nav-group-body overflow-hidden transition-[max-height] duration-300 ease-in-out <?= $groupOpen ? '' : 'max-h-0' ?>">
-                                <div class="mt-1 mb-1 ml-5 pl-3 space-y-1 <?= $panelTheme === 'admin' ? 'border-l border-gray-700' : 'border-l border-gray-200' ?>">
-                                    <?php foreach ($item['children'] as $child): ?>
-                                        <?php $childClass = !empty($child['active']) ? $panelAccentClass : $panelLinkBaseClass; ?>
-                                        <a href="<?= e($child['url']) ?>"
-                                            class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition <?= e($childClass) ?>">
-                                            <span class="material-symbols-outlined text-[20px]"><?= e($child['icon']) ?></span>
-                                            <span class="font-medium"><?= e($child['label']) ?></span>
-                                        </a>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        </div>
-                    <?php else: ?>
-                        <?php $linkClass = $item['active'] ? $panelAccentClass : $panelLinkBaseClass; ?>
-                        <a href="<?= e($item['url']) ?>"
-                            class="flex items-center gap-3 px-4 py-3 rounded-2xl transition <?= e($linkClass) ?>">
-                            <span class="material-symbols-outlined"><?= e($item['icon']) ?></span>
-                            <span class="font-medium"><?= e($item['label']) ?></span>
-                        </a>
-                    <?php endif; ?>
+                    <?php $linkClass = $item['active'] ? $panelAccentClass : $panelLinkBaseClass; ?>
+                    <a href="<?= e($item['url']) ?>"
+                        class="flex items-center gap-3 px-4 py-3 rounded-2xl transition <?= e($linkClass) ?>">
+                        <span class="material-symbols-outlined"><?= e($item['icon']) ?></span>
+                        <span class="font-medium"><?= e($item['label']) ?></span>
+                    </a>
                 <?php endforeach; ?>
             </nav>
         </aside>
@@ -214,21 +179,11 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
         <main class="flex-1 <?= e($panelContentClass) ?>">
             <div class="md:hidden mb-4 flex gap-2 overflow-x-auto pb-2">
                 <?php foreach ($panelNavItems as $item): ?>
-                    <?php if (!empty($item['children'])): ?>
-                        <?php foreach ($item['children'] as $child): ?>
-                            <?php $mobileClass = !empty($child['active']) ? $panelAccentClass : 'bg-white text-gray-700 border border-gray-200'; ?>
-                            <a href="<?= e($child['url']) ?>"
-                                class="px-4 py-2 rounded-xl text-sm whitespace-nowrap font-medium transition <?= e($mobileClass) ?>">
-                                <?= e($child['label']) ?>
-                            </a>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <?php $mobileClass = $item['active'] ? $panelAccentClass : 'bg-white text-gray-700 border border-gray-200'; ?>
-                        <a href="<?= e($item['url']) ?>"
-                            class="px-4 py-2 rounded-xl text-sm whitespace-nowrap font-medium transition <?= e($mobileClass) ?>">
-                            <?= e($item['label']) ?>
-                        </a>
-                    <?php endif; ?>
+                    <?php $mobileClass = $item['active'] ? $panelAccentClass : 'bg-white text-gray-700 border border-gray-200'; ?>
+                    <a href="<?= e($item['url']) ?>"
+                        class="px-4 py-2 rounded-xl text-sm whitespace-nowrap font-medium transition <?= e($mobileClass) ?>">
+                        <?= e($item['label']) ?>
+                    </a>
                 <?php endforeach; ?>
                 <?php if ($panelTheme === 'tenant'): ?>
                     <a href="<?= BASE_URL ?>?page=tenant-notifications" class="relative px-4 py-2 rounded-xl text-sm whitespace-nowrap font-medium transition bg-white text-gray-700 border border-gray-200">

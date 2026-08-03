@@ -22,7 +22,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 ?>
 
 <section class="relative min-h-[700px] flex items-center justify-center overflow-hidden">
-    <div class="hero-bg absolute inset-0 bg-cover bg-center" data-cms="hero_image" style="background-image: url('<?= e($heroImage) ?>');"></div>
+    <div class="hero-bg absolute inset-0 bg-cover bg-center" style="background-image: url('<?= e($heroImage) ?>');"></div>
     <div class="absolute inset-0 bg-gradient-to-br from-gray-950/85 via-gray-900/70 to-primary/40"></div>
 
     <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-white">
@@ -35,7 +35,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
                 <?= e($headline1) ?><br>
                 <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"><?= e($headline2) ?></span>
             </h1>
-            <p class="text-lg md:text-2xl text-gray-200 max-w-3xl mx-auto mb-10 reveal" data-cms="hero_subheadline">
+            <p class="text-lg md:text-2xl text-gray-200 max-w-3xl mx-auto mb-10 reveal">
                 <?= e($siteDescription) ?>
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center reveal">
@@ -147,7 +147,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 <section class="py-20 bg-surface">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-14 reveal">
-            <h2 class="text-4xl md:text-5xl font-bold mb-4">Tiện ích đang có tại <span class="gradient-text" data-cms="site_name"><?= e($siteName) ?></span></h2>
+            <h2 class="text-4xl md:text-5xl font-bold mb-4">Tiện ích đang có tại <span class="gradient-text"><?= e($siteName) ?></span></h2>
             <p class="text-gray-600 max-w-2xl mx-auto">Danh sách này chỉ hiển thị các tiện ích đang hoạt động để khách xem không bị nhiễu thông tin.</p>
         </div>
 

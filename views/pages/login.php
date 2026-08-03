@@ -34,6 +34,7 @@ $success = $success ?? '';
             <?php endif; ?>
 
             <form method="POST" class="space-y-4" <?= !empty($errors) ? 'data-shake' : '' ?>>
+<?= csrf_field() ?>
                 <div class="auth-field">
                     <label for="login_email" class="block text-sm font-semibold mb-2">Email</label>
                     <input
@@ -87,7 +88,7 @@ $success = $success ?? '';
             </form>
 
             <div class="mt-6 p-4 bg-blue-50 rounded-lg text-xs text-blue-900">
-                <p class="font-semibold mb-1">Tài khoản demo (mật khẩu: 123456):</p>
+                <p class="font-semibold mb-1">Tài khoản demo (mật khẩu: password):</p>
                 <p>Admin: admin@nhatroa.vn</p>
                 <p>Tenant: tenant1@gmail.com</p>
             </div>

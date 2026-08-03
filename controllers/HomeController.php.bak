@@ -218,22 +218,6 @@ class HomeController extends BaseController {
             'headline2' => SettingModel::get('hero_headline_2', 'Chọn Chỗ Ở Dễ'),
         ];
 
-        // Chế độ xem trước cho trang Cấu hình hệ thống: chỉ admin mới được ghi đè thiết lập qua query.
-        if (isset($_GET['cms_preview']) && (int)($_SESSION['role'] ?? -1) === 1) {
-            $cmsOverrides = is_array($_GET['ov'] ?? null) ? $_GET['ov'] : [];
-            $cmsSiteName = trim((string)($cmsOverrides['site_name'] ?? ''));
-            if ($cmsSiteName !== '') {
-                $siteName = $cmsSiteName;
-            }
-            if (array_key_exists('hero_subheadline', $cmsOverrides)) {
-                $hero['siteDescription'] = trim((string)$cmsOverrides['hero_subheadline']);
-            }
-            $cmsHeroImage = trim((string)($cmsOverrides['hero_image'] ?? ''));
-            if ($cmsHeroImage !== '') {
-                $hero['heroImage'] = $cmsHeroImage;
-            }
-        }
-
         // Cho phép admin thay đổi trực tiếp 3 chỉ số nổi bật mà không phải sửa code landing page.
         $heroStats = [
             [
@@ -311,19 +295,6 @@ class HomeController extends BaseController {
             }
         }
 
-        // Chế độ xem trước cho trang Cấu hình hệ thống (trang Giới thiệu).
-        if (isset($_GET['cms_preview']) && (int)($_SESSION['role'] ?? -1) === 1) {
-            $cmsOverrides = is_array($_GET['ov'] ?? null) ? $_GET['ov'] : [];
-            $cmsSiteName = trim((string)($cmsOverrides['site_name'] ?? ''));
-            if ($cmsSiteName !== '') {
-                $siteName = $cmsSiteName;
-            }
-            $cmsHeroImage = trim((string)($cmsOverrides['hero_image'] ?? ''));
-            if ($cmsHeroImage !== '') {
-                $introImage = $cmsHeroImage;
-            }
-        }
-
         $introStats = [
             ['value' => $areaCount, 'suffix' => '', 'label' => 'Khu đang vận hành', 'note' => 'Mỗi khu có tầng và danh sách phòng riêng.'],
             ['value' => $roomCount, 'suffix' => '+', 'label' => 'Phòng đang quản lý', 'note' => 'Tất cả phòng đều được tổ chức theo `areas -> floors -> rooms`.'],
@@ -377,4 +348,26 @@ class HomeController extends BaseController {
         );
     }
     
+    public function admin() {
+        $brandSettings = RoomModel::getSettingsByGroup('brand');
+        $heroSettings = RoomModel::getSettingsByGroup('hero');
+        $contactSettings = RoomModel::getSettingsByGroup('contact');
+        $pageTitle = 'Cấu hình giao diện - ' . RoomModel::getSetting('site_name', 'NhaTroA');
+        
+        require_once BASE_PATH . 'views/admin/dashboard.php';
+    }
+    
+    public function saveSettings() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verify_csrf();
+            foreach ($_POST as $key => $value) {
+                if (strpos($key, 'setting_') === 0) {
+                    $realKey = substr($key, 8);
+                    RoomModel::saveSetting($realKey, $value);
+                }
+            }
+        }
+        header('Location: ' . BASE_URL . '?page=admin&saved=1');
+        exit;
+    }
 }

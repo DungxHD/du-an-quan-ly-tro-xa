@@ -140,6 +140,7 @@ class TenantController {
         $error = pullFlash('tenant_profile_error', '');
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verify_csrf();
             $data = [
                 'full_name' => trim((string)($_POST['full_name'] ?? '')),
                 'phone' => trim((string)($_POST['phone'] ?? '')),
@@ -186,6 +187,7 @@ class TenantController {
         $error = pullFlash('tenant_contract_error', '');
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verify_csrf();
             $data = [
                 'date_of_birth' => trim((string)($_POST['date_of_birth'] ?? '')),
                 'permanent_address' => trim((string)($_POST['permanent_address'] ?? '')),
@@ -219,6 +221,7 @@ class TenantController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('tenant-services');
         }
+    verify_csrf();
 
         $user = $this->getAuthenticatedTenant();
         if (!$user || !$user['room_id']) {
@@ -261,6 +264,7 @@ class TenantController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('tenant-invoice');
         }
+    verify_csrf();
 
         $user = $this->getAuthenticatedTenant();
         $period = PaymentModel::normalizePeriod($_POST['month'] ?? null, $_POST['year'] ?? null);
@@ -288,6 +292,7 @@ class TenantController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('tenant-notifications');
         }
+    verify_csrf();
 
         $user = $this->getAuthenticatedTenant();
         $notificationId = (int)($_POST['notification_id'] ?? 0);
@@ -328,6 +333,7 @@ class TenantController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('rooms');
         }
+    verify_csrf();
 
         $user = $this->getAuthenticatedTenant();
         $roomId = (int)($_POST['room_id'] ?? 0);
@@ -376,6 +382,7 @@ class TenantController {
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verify_csrf();
             try {
                 $updatedComment = CommentModel::updateByOwner(
                     $commentId,
@@ -417,6 +424,7 @@ class TenantController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('tenant');
         }
+    verify_csrf();
 
         $user = $this->getAuthenticatedTenant();
         $commentId = (int)($_POST['comment_id'] ?? 0);
@@ -443,6 +451,7 @@ class TenantController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('rooms');
         }
+    verify_csrf();
 
         $user = $this->getAuthenticatedTenant();
         $commentId = (int)($_POST['comment_id'] ?? 0);

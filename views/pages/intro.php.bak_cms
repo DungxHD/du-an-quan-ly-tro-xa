@@ -19,7 +19,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
                 <span class="material-symbols-outlined text-base">home_work</span>
                 <?= e($introStory['eyebrow'] ?? 'Giới thiệu khu trọ') ?>
             </span>
-            <h1 class="text-5xl md:text-6xl font-black mb-5">Về <span class="gradient-text" data-cms="site_name"><?= e($siteName) ?></span></h1>
+            <h1 class="text-5xl md:text-6xl font-black mb-5">Về <span class="gradient-text"><?= e($siteName) ?></span></h1>
             <p class="text-xl text-gray-600">
                 Trang này tập trung vào chính khu trọ đang vận hành, không dùng nội dung chung chung kiểu landing page.
             </p>
@@ -27,7 +27,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
             <div class="reveal-left">
-                <img src="<?= e($introImage) ?>" alt="<?= e($siteName) ?>" data-cms="hero_image" class="w-full rounded-3xl shadow-2xl object-cover min-h-[320px]">
+                <img src="<?= e($introImage) ?>" alt="<?= e($siteName) ?>" class="w-full rounded-3xl shadow-2xl object-cover min-h-[320px]">
             </div>
             <div class="reveal-right">
                 <h2 class="text-3xl md:text-4xl font-bold mb-5"><?= e($introStory['title'] ?? '') ?></h2>

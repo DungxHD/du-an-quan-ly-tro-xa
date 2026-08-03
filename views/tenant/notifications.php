@@ -43,6 +43,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div class="flex justify-end">
         <form method="POST" action="<?= BASE_URL ?>?page=tenant-mark-notification-read">
+<?= csrf_field() ?>
             <input type="hidden" name="mark_all" value="1">
             <input type="hidden" name="redirect_page" value="tenant-notifications">
             <button type="submit" class="px-5 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
@@ -87,6 +88,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         <div class="flex flex-wrap items-center gap-3">
                             <?php if ((int)($notification['is_read'] ?? 0) === 0): ?>
                             <form method="POST" action="<?= BASE_URL ?>?page=tenant-mark-notification-read">
+<?= csrf_field() ?>
                                 <input type="hidden" name="notification_id" value="<?= (int)($notification['id'] ?? 0) ?>">
                                 <input type="hidden" name="redirect_page" value="tenant-notifications">
                                 <button type="submit" class="px-4 py-2 rounded-xl border border-blue-200 text-blue-700 font-semibold hover:bg-blue-100 transition">

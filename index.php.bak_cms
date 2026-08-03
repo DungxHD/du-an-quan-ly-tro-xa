@@ -113,7 +113,6 @@ function getPanelNavigation($role, $active = '')
     $menus = [
         'admin' => [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
-            ['id' => 'settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune', 'url' => BASE_URL . '?page=admin-settings'],
             [
                 'id' => 'group-rooms', 'label' => 'Quản lý phòng trọ', 'icon' => 'meeting_room',
                 'children' => [
@@ -218,11 +217,7 @@ switch ($page) {
         break;
     case 'admin-settings':
         requireAdmin();
-        (new AdminController())->settingsEditor();
-        break;
-    case 'admin-upload-image':
-        requireAdmin();
-        (new AdminController())->uploadImage();
+        redirectTo('admin');
         break;
     case 'admin-save-settings':
         requireAdmin();

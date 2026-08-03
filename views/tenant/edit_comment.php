@@ -39,6 +39,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <section class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <form method="POST" action="<?= BASE_URL ?>?page=tenant-edit-comment" class="space-y-5">
+<?= csrf_field() ?>
                 <input type="hidden" name="comment_id" value="<?= (int)($comment['id'] ?? 0) ?>">
                 <input type="hidden" name="room_id" value="<?= (int)($comment['room_id'] ?? 0) ?>">
                 <input type="hidden" name="rating" value="<?= (int)($comment['rating'] ?? 5) ?>" data-rating-input>

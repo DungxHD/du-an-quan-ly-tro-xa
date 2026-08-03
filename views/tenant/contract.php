@@ -54,6 +54,7 @@ $formatContractDate = static function ($value) {
 
                     <!-- Form hợp đồng tách riêng để backend mã hóa đúng 5 field nhạy cảm, không ảnh hưởng hồ sơ thường. -->
                     <form method="POST" class="space-y-5">
+<?= csrf_field() ?>
                         <div>
                             <label class="block text-sm font-semibold mb-2">Ngày sinh</label>
                             <input type="date" name="date_of_birth"

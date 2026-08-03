@@ -48,6 +48,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 
                 <!-- Form hồ sơ chỉ xử lý thông tin cơ bản, không trộn với dữ liệu hợp đồng để tránh lưu nhầm. -->
                 <form method="POST" data-validate class="space-y-5">
+<?= csrf_field() ?>
                     <div>
                         <label class="block text-sm font-semibold mb-2">Họ và tên</label>
                         <input type="text" name="full_name" required 

@@ -342,39 +342,3 @@ function initRoomPriceFilters(form) {
 document.querySelectorAll('form[data-room-filter-form]').forEach((form) => {
     initRoomPriceFilters(form);
 });
-
-/**
- * Sidebar accordion cho panel (admin/tenant).
- * Nhom menu [data-nav-group]: click vao nut cha de so/thu danh sach con.
- * Animation dung max-height inline de muot va khong giap giat.
- */
-(function initPanelNavAccordion() {
-    const groups = document.querySelectorAll('[data-nav-group]');
-    if (!groups.length) {
-        return;
-    }
-
-    groups.forEach((group) => {
-        const toggle = group.querySelector('.nav-group-toggle');
-        const body = group.querySelector('.nav-group-body');
-        const chevron = group.querySelector('.nav-group-chevron');
-        if (!toggle || !body) {
-            return;
-        }
-
-        let open = toggle.getAttribute('aria-expanded') === 'true';
-
-        // Chuan hoa trang thai ban dau: bo max-h-0, dung inline max-height.
-        body.classList.remove('max-h-0');
-        body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
-
-        toggle.addEventListener('click', () => {
-            open = !open;
-            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            if (chevron) {
-                chevron.classList.toggle('rotate-180', open);
-            }
-            body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
-        });
-    });
-})();

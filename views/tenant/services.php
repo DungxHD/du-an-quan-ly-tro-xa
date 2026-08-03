@@ -80,6 +80,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 </div>
                             </div>
                             <form method="POST" action="<?= BASE_URL ?>?page=tenant-register-service">
+<?= csrf_field() ?>
                                 <input type="hidden" name="service_id" value="<?= (int)($service['id'] ?? 0) ?>">
                                 <input type="hidden" name="service_action" value="cancel">
                                 <button type="submit" class="px-4 py-2 rounded-xl border border-red-200 text-red-600 font-semibold hover:bg-red-50 transition">
@@ -146,6 +147,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         </div>
 
                         <form method="POST" action="<?= BASE_URL ?>?page=tenant-register-service" class="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-end gap-3">
+<?= csrf_field() ?>
                             <input type="hidden" name="service_id" value="<?= (int)($service['id'] ?? 0) ?>">
                             <input type="hidden" name="service_action" value="register">
                             <div class="sm:w-40">

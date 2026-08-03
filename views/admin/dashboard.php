@@ -3,62 +3,14 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
 $panelActive = 'dashboard';
 $panelTitle = $siteName . ' Admin';
-$panelSubtitle = 'Tổng quan vận hành khu trọ, KPI phòng/tenant/doanh thu và cấu hình quản trị';
+$panelSubtitle = 'Tổng quan vận hành khu trọ, KPI phòng/tenant/doanh thu';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
-$panelPageScripts = <<<'HTML'
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const heroInput = document.getElementById('hero-image-input');
-    const heroPreview = document.getElementById('hero-image-preview');
-    const heroPlaceholder = document.getElementById('hero-image-placeholder');
-
-    const refreshHeroPreview = () => {
-        if (!heroInput || !heroPreview || !heroPlaceholder) {
-            return;
-        }
-
-        const value = heroInput.value.trim();
-        if (value === '') {
-            heroPreview.classList.add('hidden');
-            heroPreview.removeAttribute('src');
-            heroPlaceholder.classList.remove('hidden');
-            return;
-        }
-
-        heroPreview.src = value;
-        heroPreview.classList.remove('hidden');
-        heroPlaceholder.classList.add('hidden');
-    };
-
-    if (heroInput) {
-        heroInput.addEventListener('input', refreshHeroPreview);
-        refreshHeroPreview();
-    }
-
-    if (heroPreview) {
-        heroPreview.addEventListener('error', () => {
-            heroPreview.classList.add('hidden');
-            heroPlaceholder.classList.remove('hidden');
-        });
-    }
-});
-</script>
-HTML;
 require BASE_PATH . 'views/layouts/panel_header.php';
 ?>
 <div class="max-w-7xl mx-auto space-y-6">
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-            <h2 class="text-3xl font-bold">Bảng điều khiển quản trị</h2>
-            <p class="text-gray-500 mt-1">Theo dõi nhanh toàn bộ khu, phòng, người thuê và doanh thu dự kiến trước khi đi vào từng module chi tiết.</p>
-        </div>
-        <div class="flex flex-wrap gap-3">
-            <a href="<?= BASE_URL ?>?page=admin-areas" class="px-4 py-2 bg-white border rounded-xl font-semibold hover:border-primary hover:text-primary">Khu</a>
-            <a href="<?= BASE_URL ?>?page=admin-floors" class="px-4 py-2 bg-white border rounded-xl font-semibold hover:border-primary hover:text-primary">Tầng</a>
-            <a href="<?= BASE_URL ?>?page=admin-rooms" class="px-4 py-2 bg-white border rounded-xl font-semibold hover:border-primary hover:text-primary">Phòng</a>
-            <a href="<?= BASE_URL ?>?page=admin-amenities" class="px-4 py-2 bg-white border rounded-xl font-semibold hover:border-primary hover:text-primary">Tiện ích</a>
-            <a href="<?= BASE_URL ?>?page=admin-stats" class="px-4 py-2 bg-primary text-white rounded-xl font-semibold">Thống kê</a>
-        </div>
+    <div>
+        <h2 class="text-3xl font-bold">Bảng điều khiển quản trị</h2>
+        <p class="text-gray-500 mt-1">Theo dõi nhanh toàn bộ khu, phòng, người thuê và doanh thu dự kiến trước khi đi vào từng module chi tiết.</p>
     </div>
 
     <div class="grid grid-cols-2 xl:grid-cols-6 gap-4">
@@ -149,132 +101,5 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
         </div>
     </div>
-
-    <form method="POST" action="<?= BASE_URL ?>?page=admin-save-settings" class="space-y-6">
-        <?php foreach ($settingSections as $section): ?>
-        <section class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
-                <div>
-                    <h3 class="text-xl font-bold flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary"><?= e($section['icon'] ?? 'settings') ?></span>
-                        <?= e($section['title'] ?? 'Cấu hình') ?>
-                    </h3>
-                    <p class="text-sm text-gray-500 mt-1"><?= e($section['description'] ?? '') ?></p>
-                </div>
-
-                <?php if (($section['id'] ?? '') === 'hero'): ?>
-                <div class="w-full lg:w-72 rounded-2xl border border-dashed border-gray-200 p-3 bg-gray-50">
-                    <p class="text-sm font-semibold mb-3">Xem trước ảnh hero</p>
-                    <div class="aspect-[16/10] rounded-2xl overflow-hidden bg-white border border-gray-200 flex items-center justify-center">
-                        <img
-                            id="hero-image-preview"
-                            src="<?= e($heroImagePreview ?? '') ?>"
-                            alt="Ảnh hero xem trước"
-                            class="<?= !empty($heroImagePreview) ? '' : 'hidden' ?> w-full h-full object-cover"
-                        >
-                        <div id="hero-image-placeholder" class="<?= !empty($heroImagePreview) ? 'hidden' : '' ?> text-center px-6 text-sm text-gray-400">
-                            Nhập URL ảnh hero để xem preview ngay tại đây.
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <?php foreach ($section['fields'] as $field): ?>
-                <?php
-                    $fieldType = $field['type'] ?? 'text';
-                    $fieldKey = $field['key'] ?? '';
-                    $fieldValue = $field['value'] ?? '';
-                    $fieldId = $fieldKey === 'hero_image' ? 'hero-image-input' : 'setting-' . $fieldKey;
-                    $isWideField = in_array($fieldType, ['textarea'], true);
-                    $wrapperClass = $isWideField ? 'md:col-span-2' : '';
-                    $inputType = in_array($fieldType, ['text', 'url', 'email', 'tel', 'number'], true)
-                        ? $fieldType
-                        : ($fieldType === 'decimal' ? 'number' : 'text');
-                ?>
-                <div class="<?= e($wrapperClass) ?>">
-                    <label for="<?= e($fieldId) ?>" class="block text-sm font-semibold mb-2 text-gray-800">
-                        <span class="inline-flex items-center gap-1">
-                            <span><?= e($field['label'] ?? $fieldKey) ?></span>
-                            <?php if (!empty($field['tooltip'])): ?>
-                            <span class="material-symbols-outlined text-base text-gray-400 cursor-help" title="<?= e($field['tooltip']) ?>">help</span>
-                            <?php endif; ?>
-                        </span>
-                    </label>
-
-                    <?php if ($fieldType === 'textarea'): ?>
-                    <textarea
-                        id="<?= e($fieldId) ?>"
-                        name="settings[<?= e($fieldKey) ?>]"
-                        rows="<?= (int)($field['rows'] ?? 3) ?>"
-                        placeholder="<?= e($field['placeholder'] ?? '') ?>"
-                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
-                    ><?= e($fieldValue) ?></textarea>
-                    <?php elseif ($fieldType === 'toggle'): ?>
-                    <label class="inline-flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50">
-                        <input type="hidden" name="settings[<?= e($fieldKey) ?>]" value="0">
-                        <input
-                            id="<?= e($fieldId) ?>"
-                            type="checkbox"
-                            name="settings[<?= e($fieldKey) ?>]"
-                            value="1"
-                            <?= $fieldValue === '1' ? 'checked' : '' ?>
-                            class="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
-                        >
-                        <span class="text-sm text-gray-700">Bật tính năng này</span>
-                    </label>
-                    <?php elseif ($fieldType === 'password'): ?>
-                    <div class="space-y-3">
-                        <input
-                            id="<?= e($fieldId) ?>"
-                            type="password"
-                            name="settings[<?= e($fieldKey) ?>]"
-                            placeholder="<?= e($field['placeholder'] ?? '') ?>"
-                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
-                        >
-                        <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
-                            <span class="text-gray-500">
-                                <?= !empty($field['has_value']) ? 'Đã có API key được lưu.' : 'Chưa lưu API key.' ?>
-                            </span>
-                            <label class="inline-flex items-center gap-2 text-red-600">
-                                <input type="checkbox" name="settings_clear[<?= e($fieldKey) ?>]" value="1" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
-                                Xóa khóa hiện tại
-                            </label>
-                        </div>
-                    </div>
-                    <?php else: ?>
-                    <div class="relative">
-                        <input
-                            id="<?= e($fieldId) ?>"
-                            type="<?= e($inputType) ?>"
-                            name="settings[<?= e($fieldKey) ?>]"
-                            value="<?= e($fieldValue) ?>"
-                            placeholder="<?= e($field['placeholder'] ?? '') ?>"
-                            min="<?= isset($field['min']) ? e((string)$field['min']) : '' ?>"
-                            max="<?= isset($field['max']) ? e((string)$field['max']) : '' ?>"
-                            step="<?= e((string)($field['step'] ?? ($fieldType === 'number' ? '1' : 'any'))) ?>"
-                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none <?= !empty($field['suffix']) ? 'pr-16' : '' ?>"
-                        >
-                        <?php if (!empty($field['suffix'])): ?>
-                        <span class="absolute inset-y-0 right-4 flex items-center text-sm text-gray-400"><?= e($field['suffix']) ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <?php endif; ?>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </section>
-        <?php endforeach; ?>
-
-        <div class="flex flex-col md:flex-row gap-3">
-            <button type="submit" class="md:flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:bg-opacity-90 transition">
-                Lưu toàn bộ cấu hình
-            </button>
-            <a href="<?= BASE_URL ?>?page=home" target="_blank" rel="noreferrer" class="md:w-56 py-3 text-center bg-white border border-gray-200 rounded-xl font-semibold hover:border-primary hover:text-primary transition">
-                Mở trang chủ
-            </a>
-        </div>
-    </form>
 </div>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>
