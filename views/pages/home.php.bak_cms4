@@ -62,12 +62,12 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
             <?php if (!empty($heroStats)): ?>
                 <div class="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto reveal">
-                    <?php foreach ($heroStats as $stat): ?>
+                    <?php foreach ($heroStats as $statIndex => $stat): ?>
                         <div class="rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md px-6 py-5 text-white">
-                            <p class="text-3xl font-extrabold">
+                            <p class="text-3xl font-extrabold" data-cms="stat_<?= $statIndex + 1 ?>_value">
                                 <span data-target="<?= e($stat['value'] ?? 0) ?>">0</span><?= e($stat['suffix'] ?? '') ?>
                             </p>
-                            <p class="text-sm text-gray-100/90 mt-1"><?= e($stat['label'] ?? '') ?></p>
+                            <p class="text-sm text-gray-100/90 mt-1" data-cms="stat_<?= $statIndex + 1 ?>_label"><?= e($stat['label'] ?? '') ?></p>
                         </div>
                     <?php endforeach; ?>
                 </div>

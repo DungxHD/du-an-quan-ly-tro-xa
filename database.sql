@@ -373,6 +373,99 @@ CREATE TABLE `comment_reports` (
   CONSTRAINT `fk_cr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Yêu cầu thuê phòng (khách vãng lai / tenant gửi)
+CREATE TABLE `rental_requests` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`         INT UNSIGNED NOT NULL COMMENT 'Người gửi yêu cầu',
+  `room_id`         INT UNSIGNED NOT NULL COMMENT 'Phòng muốn thuê',
+  `move_in_date`    DATE NOT NULL COMMENT 'Ngày dự kiến vào ở',
+  `gender`          ENUM('male','female','other') NOT NULL,
+  `occupant_count`  TINYINT NOT NULL DEFAULT 1 COMMENT 'Số người sẽ vào ở',
+  `status`          ENUM('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
+  `admin_note`      TEXT COMMENT 'Phản hồi của admin',
+  `created_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_rr_user` (`user_id`),
+  KEY `idx_rr_room` (`room_id`),
+  KEY `idx_rr_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Yêu cầu ở ghép (người B xin ở cùng người A)
+CREATE TABLE `roommate_requests` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `requester_id`    INT UNSIGNED NOT NULL COMMENT 'Người B — người gửi yêu cầu',
+  `target_user_id`  INT UNSIGNED NOT NULL COMMENT 'Người A — người đang ở phòng',
+  `room_id`         INT UNSIGNED NOT NULL,
+  `gender`          ENUM('male','female','other') NOT NULL,
+  `relationship`    VARCHAR(100) DEFAULT NULL COMMENT 'Mối quan hệ với người A',
+  `status`          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `created_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_rm_requester` (`requester_id`),
+  KEY `idx_rm_target` (`target_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- PHASE 3 (LUỒNG D): 3 BẢNG MỚI
+-- Chạy trong database `manage`. Không phá dữ liệu cũ.
+-- =====================================================
+
+-- 1) YÊU CẦU THUÊ PHÒNG (khách/tenant gửi, admin duyệt)
+CREATE TABLE IF NOT EXISTS `rental_requests` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`         INT UNSIGNED NOT NULL COMMENT 'Người gửi yêu cầu',
+  `room_id`         INT UNSIGNED NOT NULL COMMENT 'Phòng muốn thuê',
+  `move_in_date`    DATE NOT NULL COMMENT 'Ngày dự kiến vào ở',
+  `gender`          ENUM('male','female','other') NOT NULL DEFAULT 'other' COMMENT 'Giới tính',
+  `occupant_count`  TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Số người sẽ vào ở',
+  `status`          ENUM('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
+  `admin_note`      TEXT NULL COMMENT 'Phản hồi của admin khi duyệt/từ chối',
+  `created_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_rr_user` (`user_id`),
+  KEY `idx_rr_room` (`room_id`),
+  KEY `idx_rr_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2) YÊU CẦU Ở GHÉP (người B xin ở cùng người A)
+CREATE TABLE IF NOT EXISTS `roommate_requests` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `requester_id`    INT UNSIGNED NOT NULL COMMENT 'Người B - người xin ở ghép',
+  `host_user_id`    INT UNSIGNED NOT NULL COMMENT 'Người A - người đang ở phòng',
+  `room_id`         INT UNSIGNED NOT NULL COMMENT 'Phòng của người A',
+  `gender`          ENUM('male','female','other') NOT NULL DEFAULT 'other' COMMENT 'Giới tính người B',
+  `relationship`    VARCHAR(100) NULL COMMENT 'Mối quan hệ với người A',
+  `status`          ENUM('pending','approved','rejected','admin_rejected') NOT NULL DEFAULT 'pending',
+  `created_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_rm_requester` (`requester_id`),
+  KEY `idx_rm_host` (`host_user_id`),
+  KEY `idx_rm_room` (`room_id`),
+  KEY `idx_rm_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3) ĐỀ XUẤT BẢO TRÌ PHÒNG ĐANG THUÊ
+CREATE TABLE IF NOT EXISTS `maintenance_requests` (
+  `id`                  INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `room_id`             INT UNSIGNED NOT NULL,
+  `admin_id`            INT UNSIGNED NOT NULL COMMENT 'Admin tạo đề xuất',
+  `reason`              TEXT NOT NULL COMMENT 'Lý do bảo trì',
+  `duration_days`       INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Số ngày bảo trì',
+  `start_date`          DATE NOT NULL COMMENT 'Ngày bắt đầu bảo trì',
+  `status`              ENUM('pending','active','rejected','completed') NOT NULL DEFAULT 'pending',
+  `rejected_by_user_id` INT UNSIGNED NULL COMMENT 'Người thuê đã từ chối (nếu có)',
+  `created_at`          TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`          TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_mr_room` (`room_id`),
+  KEY `idx_mr_status` (`status`),
+  KEY `idx_mr_start` (`start_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =====================================================================
 -- DỮ LIỆU MẪU (nhất quán giữa các phần)
 -- =====================================================================
@@ -609,3 +702,37 @@ INSERT INTO `comments` (`room_id`, `user_id`, `content`, `rating`, `toxicity_sco
 -- COMMENT_MODERATION & COMMENT_REPORTS: để trống (có dữ liệu khi phát sinh)
 
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
+
+
+-- =====================================================
+-- NHOM YEU CAU PHONG: tien nghi + anh + lich su gia
+-- =====================================================
+ALTER TABLE `rooms` ADD COLUMN `amenities` TEXT NULL COMMENT 'Tiện nghi phòng (JSON array)' AFTER `description`;
+
+CREATE TABLE `room_images` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `room_id`    INT UNSIGNED NOT NULL COMMENT 'FK -> rooms',
+  `image_url`  VARCHAR(255) NOT NULL COMMENT 'Đường dẫn ảnh',
+  `is_primary` TINYINT NOT NULL DEFAULT 0 COMMENT '1 = ảnh chính (avatar phòng)',
+  `sort_order` INT NOT NULL DEFAULT 0 COMMENT 'Thứ tự hiển thị ảnh phụ',
+  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ri_room` (`room_id`),
+  CONSTRAINT `fk_ri_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `room_price_changes` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `room_id`         INT UNSIGNED NOT NULL COMMENT 'FK -> rooms',
+  `old_price`       DECIMAL(10,2) NOT NULL COMMENT 'Giá cũ',
+  `new_price`       DECIMAL(10,2) NOT NULL COMMENT 'Giá mới',
+  `effective_month` TINYINT NOT NULL COMMENT 'Tháng bắt đầu áp dụng',
+  `effective_year`  SMALLINT NOT NULL COMMENT 'Năm bắt đầu áp dụng',
+  `applied`         TINYINT NOT NULL DEFAULT 0 COMMENT '1 = đã áp dụng vào giá/hợp đồng',
+  `created_by`      INT UNSIGNED DEFAULT NULL COMMENT 'Admin thực hiện',
+  `created_at`      TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_rpc_room` (`room_id`),
+  KEY `idx_rpc_effective` (`effective_year`, `effective_month`),
+  CONSTRAINT `fk_rpc_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

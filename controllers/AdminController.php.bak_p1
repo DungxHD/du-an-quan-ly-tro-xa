@@ -978,7 +978,6 @@ class AdminController {
         // ==== CHE DO SUA: chi cap nhat thong tin khu ====
         if ($id > 0) {
             AreaModel::save($data, $id);
-            $this->cleanupAppliedSlotImage($data['image'], 'image_khu_' . $id);
             setFlash('admin_area_message', 'Đã cập nhật thông tin khu.');
             redirectTo('admin-areas', ['area' => $id]);
         }
@@ -993,9 +992,6 @@ class AdminController {
             setFlash('admin_area_error', 'Không tạo được khu. Vui lòng thử lại.');
             redirectTo('admin-areas');
         }
-
-        // Chuyen anh nhap (image_khu_new) sang image_khu_{id} neu anh duoc upload
-        $data['image'] = $this->finalizeNewAreaImage($areaId, $data['image']);
 
         $floorIds = [];
         for ($n = 1; $n <= $floorCount; $n++) {
@@ -1067,25 +1063,8 @@ class AdminController {
      * Xóa khu theo schema mới. DB sẽ tự cascade tầng và phòng liên quan.
      */
     public function deleteArea($id) {
-        $areaId = (int)$id;
-        if ($areaId > 0) {
-            $area = AreaModel::getById($areaId);
-            if (!$area) {
-                setFlash('admin_area_error', 'Khu không tồn tại.');
-                redirectTo('admin-areas');
-            }
-            $roomCount = 0;
-            $rentedCount = 0;
-            foreach (FloorModel::getByAreaId($areaId) as $floor) {
-                $roomCount += (int)($floor['room_count'] ?? 0);
-                $rentedCount += (int)($floor['rented_count'] ?? 0);
-            }
-            if ($rentedCount > 0) {
-                setFlash('admin_area_error', 'Khu ' . ($area['name'] ?? '') . ' không thể xóa. Lý do: Khu ' . ($area['name'] ?? '') . ' này có phòng vẫn đang hoạt động, không thể xóa.');
-                redirectTo('admin-areas', ['area' => $areaId]);
-            }
-            AreaModel::delete($areaId);
-            setFlash('admin_area_message', 'Đã xóa khu ' . ($area['name'] ?? '') . ($roomCount > 0 ? ' cùng ' . $roomCount . ' phòng trống.' : '.'));
+        if ((int)$id > 0) {
+            AreaModel::delete($id);
         }
 
         redirectTo('admin-areas');
@@ -1120,21 +1099,8 @@ class AdminController {
     public function deleteFloor($id) {
         $floor = FloorModel::getById($id);
         if ($floor) {
-            $areaId = (int)($floor['area_id'] ?? 0);
-            $rentedCount = 0;
-            foreach (FloorModel::getByAreaId($areaId) as $f) {
-                if ((int)($f['id'] ?? 0) === (int)$id) {
-                    $rentedCount = (int)($f['rented_count'] ?? 0);
-                    break;
-                }
-            }
-            if ($rentedCount > 0) {
-                setFlash('admin_area_error', 'Tầng ' . ($floor['name'] ?? '') . ' không thể xóa. Lý do: Tầng này có phòng vẫn đang hoạt động, không thể xóa.');
-                redirectTo('admin-floors', ['area_id' => $areaId]);
-            }
             FloorModel::delete($id);
-            setFlash('admin_area_message', 'Đã xóa tầng ' . ($floor['name'] ?? '') . '.');
-            redirectTo('admin-floors', ['area_id' => $areaId]);
+            redirectTo('admin-floors', ['area_id' => (int)($floor['area_id'] ?? 0)]);
         }
 
         redirectTo('admin-floors');
@@ -1229,9 +1195,6 @@ class AdminController {
             SettingModel::set($key, $value, $field['group'] ?? null);
         }
 
-        // Don anh hero cu trong image_page_home: chi giu anh dang duoc dung
-        $this->cleanupAppliedSlotImage(trim((string)($submittedValues['hero_image'] ?? '')), 'image_page_home');
-
         RoomModel::resetSettingsCache();
         SettingModel::loadAll();
         setFlash('admin_dashboard_message', 'Đã lưu cấu hình thành công.');
@@ -1250,8 +1213,7 @@ class AdminController {
     }
 
     /**
-     * Upload ảnh theo slot: home | area_new | area_{id}.
-     * File được đặt vào thư mục con tương ứng trong .uploads và đổi tên theo ngữ cảnh.
+     * Upload ảnh cho trình cấu hình (hero banner). Trả JSON để JS gắn URL vào ô nhập.
      */
     public function uploadImage() {
         header('Content-Type: application/json; charset=utf-8');
@@ -1286,34 +1248,11 @@ class AdminController {
             exit;
         }
 
-        $slot = trim((string)($_POST['slot'] ?? 'home'));
-        $subFolder = 'image_page_home';
-        $filePrefix = 'home-hero';
-        if ($slot === 'area_new') {
-            $subFolder = 'image_khu_new';
-            $filePrefix = 'khu-new';
-        } elseif (preg_match('/^area_(\d+)$/', $slot, $slotMatch)) {
-            $subFolder = 'image_khu_' . (int)$slotMatch[1];
-            $filePrefix = 'khu-' . (int)$slotMatch[1];
-        } elseif ($slot === 'room_new') {
-            $subFolder = 'image_phong_new';
-            $filePrefix = 'phong-new';
-        } elseif (preg_match('/^room_(\d+)$/', $slot, $slotMatch)) {
-            $subFolder = 'image_phong_' . (int)$slotMatch[1];
-            $filePrefix = 'phong-' . (int)$slotMatch[1];
-        } elseif ($slot === 'room_new') {
-            $subFolder = 'image_phong_new';
-            $filePrefix = 'phong-new';
-        } elseif (preg_match('/^room_(\d+)$/', $slot, $slotMatch)) {
-            $subFolder = 'image_phong_' . (int)$slotMatch[1];
-            $filePrefix = 'phong-' . (int)$slotMatch[1];
-        }
-
-        $uploadDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . $subFolder;
+        $uploadDir = BASE_PATH . '.uploads';
         if (!is_dir($uploadDir)) {
             @mkdir($uploadDir, 0775, true);
         }
-        $fileName = $filePrefix . '-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.' . $allowedMimes[$mime];
+        $fileName = 'cms-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.' . $allowedMimes[$mime];
         $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
         if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
             http_response_code(500);
@@ -1321,79 +1260,8 @@ class AdminController {
             exit;
         }
 
-        echo json_encode(['ok' => true, 'url' => BASE_URL . '.uploads/' . $subFolder . '/' . $fileName]);
+        echo json_encode(['ok' => true, 'url' => BASE_URL . '.uploads/' . $fileName]);
         exit;
-    }
-
-    /**
-     * Đối chiếu URL ảnh upload về đường dẫn file cục bộ (chặn path traversal).
-     */
-    private function resolveUploadLocalPath($url) {
-        $prefix = BASE_URL . '.uploads/';
-        if (!is_string($url) || strpos($url, $prefix) !== 0) {
-            return null;
-        }
-        $rel = substr($url, strlen($prefix));
-        if (strpos($rel, '..') !== false) {
-            return null;
-        }
-        $local = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
-        return is_file($local) ? $local : null;
-    }
-
-    /**
-     * Sau khi áp dụng ảnh mới: chỉ giữ ảnh đang dùng, xóa các ảnh khác cùng thư mục slot.
-     */
-    private function cleanupAppliedSlotImage($imageUrl, $folderName) {
-        $local = $this->resolveUploadLocalPath($imageUrl);
-        if ($local === null || basename(dirname($local)) !== $folderName) {
-            return;
-        }
-        $dir = dirname($local);
-        $keep = basename($local);
-        foreach (scandir($dir) as $entry) {
-            if ($entry === '.' || $entry === '..' || $entry === $keep) {
-                continue;
-            }
-            $path = $dir . DIRECTORY_SEPARATOR . $entry;
-            if (is_file($path)) {
-                @unlink($path);
-            }
-        }
-    }
-
-    /**
-     * Khu mới tạo: chuyển ảnh từ image_khu_new sang image_khu_{id}, cập nhật DB,
-     * rồi dọn ảnh nháp còn sót trong image_khu_new.
-     */
-    private function finalizeNewAreaImage($areaId, $imageUrl) {
-        $local = $this->resolveUploadLocalPath($imageUrl);
-        if ($local === null || basename(dirname($local)) !== 'image_khu_new') {
-            return $imageUrl;
-        }
-        $destDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . 'image_khu_' . (int)$areaId;
-        if (!is_dir($destDir)) {
-            @mkdir($destDir, 0775, true);
-        }
-        $fileName = basename($local);
-        $dest = $destDir . DIRECTORY_SEPARATOR . $fileName;
-        if (!@rename($local, $dest)) {
-            return $imageUrl;
-        }
-        $newUrl = BASE_URL . '.uploads/image_khu_' . (int)$areaId . '/' . $fileName;
-        Database::update('areas', ['image' => $newUrl], 'id = :id', ['id' => (int)$areaId]);
-
-        $tmpDir = dirname($local);
-        foreach (scandir($tmpDir) as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-            $path = $tmpDir . DIRECTORY_SEPARATOR . $entry;
-            if (is_file($path)) {
-                @unlink($path);
-            }
-        }
-        return $newUrl;
     }
     
     /**
@@ -2156,313 +2024,5 @@ class AdminController {
             setFlash('admin_tenant_old', $oldInput);
             redirectTo('admin-tenants');
         }
-    }
-
-    /**
-     * Trang quản lý yêu cầu thuê phòng (hàng đợi pending + lịch sử).
-     */
-    public function rentRequests() {
-        $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
-        $allowedStatuses = ['pending', 'approved', 'rejected', 'cancelled'];
-        if (!in_array($statusFilter, $allowedStatuses, true)) {
-            $statusFilter = 'pending';
-        }
-        $requests = RentalRequestModel::getAllWithDetails(['status' => $statusFilter]);
-        $message = pullFlash('rent_request_message', '');
-        $error = pullFlash('rent_request_error', '');
-        $pageTitle = 'Yêu cầu thuê phòng - NhaTroA';
-        require_once BASE_PATH . 'views/admin/tenants/rent_requests.php';
-    }
-
-    /**
-     * Duyệt yêu cầu thuê: kiểm tra trùng hợp đồng + sức chứa, tạo contract, đồng bộ phòng, báo cho user.
-     */
-    public function approveRentRequest() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-rent-requests'); }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RentalRequestModel::getById($requestId);
-
-        if (!$request) {
-            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($request['status'] ?? '') !== 'pending') {
-            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $userId = (int)($request['user_id'] ?? 0);
-        $roomId = (int)($request['room_id'] ?? 0);
-        $room = RoomModel::getById($roomId);
-        if (!$room) {
-            setFlash('rent_request_error', 'Phòng trong yêu cầu không còn tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if (ContractModel::getActiveByUserId($userId)) {
-            setFlash('rent_request_error', 'Người này đã có hợp đồng đang hoạt động, không thể duyệt thêm.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $currentOccupants = RoomModel::countOccupants($roomId);
-        $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
-        if ($currentOccupants + 1 > $maxOcc) {
-            setFlash('rent_request_error', 'Phòng đã đủ sức chứa (' . $currentOccupants . '/' . $maxOcc . '), không thể duyệt thêm người.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
-        try {
-            $contractId = ContractModel::create([
-                'user_id' => $userId,
-                'room_id' => $roomId,
-                'move_in_date' => $moveInDate,
-                'rent_price' => (float)($room['price'] ?? 0),
-                'deposit_amount' => 0,
-                'initial_electricity_index' => null,
-                'initial_water_index' => null,
-                'contract_date' => date('Y-m-d'),
-            ]);
-            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
-            ContractModel::syncRoomStatus($roomId);
-            RentalRequestModel::setStatus($requestId, 'approved', 'Yêu cầu đã được duyệt.');
-            NotificationModel::create([
-                'user_id' => $userId,
-                'type' => 'general',
-                'title' => 'Yêu cầu thuê phòng đã được duyệt',
-                'content' => 'Chúc mừng! Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" của bạn đã được admin duyệt. Ngày vào ở: ' . date('d/m/Y', strtotime($moveInDate)) . '.',
-            ]);
-            setFlash('rent_request_message', 'Đã duyệt yêu cầu và tạo hợp đồng cho phòng "' . ($room['name'] ?? '') . '".');
-        } catch (Throwable $exception) {
-            setFlash('rent_request_error', 'Không duyệt được yêu cầu: ' . $exception->getMessage());
-        }
-        redirectTo('admin-rent-requests');
-    }
-
-    /**
-     * Từ chối yêu cầu thuê: ghi lý do, báo cho user (user được gửi yêu cầu phòng khác).
-     */
-    public function rejectRentRequest() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-rent-requests'); }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $adminNote = trim((string)($_POST['admin_note'] ?? ''));
-        $request = RentalRequestModel::getById($requestId);
-
-        if (!$request) {
-            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($request['status'] ?? '') !== 'pending') {
-            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $note = $adminNote !== '' ? $adminNote : 'Admin chưa phản hồi lý do cụ thể.';
-        RentalRequestModel::setStatus($requestId, 'rejected', $note);
-        $room = RoomModel::getById((int)($request['room_id'] ?? 0));
-        NotificationModel::create([
-            'user_id' => (int)($request['user_id'] ?? 0),
-            'type' => 'general',
-            'title' => 'Yêu cầu thuê phòng bị từ chối',
-            'content' => 'Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" của bạn đã bị từ chối. Lý do: ' . $note . '. Bạn có thể gửi yêu cầu cho phòng khác.',
-        ]);
-        setFlash('rent_request_message', 'Đã từ chối yêu cầu thuê.');
-        redirectTo('admin-rent-requests');
-    }
-
-    /**
-     * Admin xem danh sách yêu cầu ở ghép (kèm tên người gửi / người nhận / phòng).
-     */
-    public function roommateRequests() {
-        $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
-        $allowed = ['pending', 'approved', 'rejected', 'admin_rejected'];
-        if (!in_array($statusFilter, $allowed, true)) { $statusFilter = 'pending'; }
-        $requests = RoommateRequestModel::getAll(['status' => $statusFilter]);
-        foreach ($requests as &$row) {
-            $req = UserModel::getById((int)$row['requester_id']);
-            $host = UserModel::getById((int)$row['host_user_id']);
-            $room = RoomModel::getById((int)$row['room_id']);
-            $row['requester_name'] = (string)($req['full_name'] ?? '');
-            $row['host_name'] = (string)($host['full_name'] ?? '');
-            $row['room_name'] = (string)($room['name'] ?? '');
-        }
-        unset($row);
-        $message = pullFlash('roommate_admin_message', '');
-        $error = pullFlash('roommate_admin_error', '');
-        $pageTitle = 'Yêu cầu ở ghép - NhaTroA';
-        require_once BASE_PATH . 'views/admin/tenants/roommate_requests.php';
-    }
-
-    /**
-     * Admin veto yêu cầu ở ghép: nếu đã duyệt (B đã vào phòng) thì gỡ B ra.
-     */
-    public function vetoRoommate() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-roommate-requests'); }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RoommateRequestModel::getById($requestId);
-        if (!$request) {
-            setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-roommate-requests');
-        }
-        $status = (string)$request['status'];
-        $requesterId = (int)$request['requester_id'];
-        $roomId = (int)$request['room_id'];
-
-        if ($status === 'approved') {
-            $contract = ContractModel::getActiveByUserId($requesterId);
-            try {
-                if ($contract && (int)$contract['room_id'] === $roomId) {
-                    ContractModel::terminate((int)$contract['id'], date('Y-m-d'));
-                } else {
-                    Database::update('users', ['room_id' => null], 'id = :id', ['id' => $requesterId]);
-                    ContractModel::syncRoomStatus($roomId);
-                }
-            } catch (Throwable $exception) {
-                setFlash('roommate_admin_error', 'Không gỡ được người ở ghép: ' . $exception->getMessage());
-                redirectTo('admin-roommate-requests');
-            }
-            RoommateRequestModel::setStatus($requestId, 'admin_rejected');
-            NotificationModel::create([
-                'user_id' => $requesterId,
-                'type' => 'general',
-                'title' => 'Yêu cầu ở ghép bị admin từ chối',
-                'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn và gỡ bạn khỏi phòng.',
-            ]);
-            setFlash('roommate_admin_message', 'Đã veto và gỡ người ở ghép khỏi phòng.');
-        } elseif ($status === 'pending') {
-            RoommateRequestModel::setStatus($requestId, 'admin_rejected');
-            NotificationModel::create([
-                'user_id' => $requesterId,
-                'type' => 'general',
-                'title' => 'Yêu cầu ở ghép bị admin từ chối',
-                'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn.',
-            ]);
-            setFlash('roommate_admin_message', 'Đã từ chối yêu cầu ở ghép.');
-        } else {
-            setFlash('roommate_admin_error', 'Yêu cầu đã được xử lý trước đó.');
-        }
-        redirectTo('admin-roommate-requests');
-    }
-
-    /**
-     * Trang quản lý bảo trì: danh sách đề xuất + form tạo mới + chạy lazy date-trigger.
-     */
-    public function maintenance() {
-        MaintenanceRequestModel::activateDue();
-        $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
-        $allowed = ['pending', 'active', 'rejected', 'completed'];
-        if (!in_array($statusFilter, $allowed, true)) { $statusFilter = 'pending'; }
-        $requests = MaintenanceRequestModel::getAll(['status' => $statusFilter]);
-        $roomsMap = [];
-        foreach (RoomModel::getAll() as $roomRow) {
-            $roomsMap[(int)($roomRow['id'] ?? 0)] = $roomRow;
-        }
-        foreach ($requests as &$row) {
-            $roomInfo = $roomsMap[(int)($row['room_id'] ?? 0)] ?? null;
-            $row['room_name'] = (string)($roomInfo['name'] ?? '');
-            $row['area_name'] = (string)($roomInfo['area_name'] ?? '');
-        }
-        unset($row);
-        $rentedRooms = RoomModel::getAll(['status' => 'rented']);
-        $message = pullFlash('maintenance_admin_message', '');
-        $error = pullFlash('maintenance_admin_error', '');
-        $pageTitle = 'Bảo trì - NhaTroA';
-        require_once BASE_PATH . 'views/admin/rooms/maintenance.php';
-    }
-
-    /**
-     * Admin đề xuất bảo trì phòng đang thuê + thông báo cho toàn bộ cư dân trong phòng.
-     */
-    public function proposeMaintenance() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-maintenance'); }
-        verify_csrf();
-        $roomId = (int)($_POST['room_id'] ?? 0);
-        $reason = trim((string)($_POST['reason'] ?? ''));
-        $durationDays = (int)($_POST['duration_days'] ?? 1);
-        $startDate = trim((string)($_POST['start_date'] ?? ''));
-
-        $room = RoomModel::getById($roomId);
-        if (!$room) {
-            setFlash('maintenance_admin_error', 'Phòng không tồn tại.');
-            redirectTo('admin-maintenance');
-        }
-        if ((string)($room['status'] ?? '') !== 'rented') {
-            setFlash('maintenance_admin_error', 'Chỉ đề xuất bảo trì cho phòng đang thuê.');
-            redirectTo('admin-maintenance');
-        }
-        if ($reason === '') {
-            setFlash('maintenance_admin_error', 'Lý do bảo trì là bắt buộc.');
-            redirectTo('admin-maintenance');
-        }
-        if ($durationDays < 1) {
-            setFlash('maintenance_admin_error', 'Số ngày bảo trì phải lớn hơn 0.');
-            redirectTo('admin-maintenance');
-        }
-        if ($startDate === '' || strtotime($startDate) === false) {
-            setFlash('maintenance_admin_error', 'Ngày bắt đầu bảo trì không hợp lệ.');
-            redirectTo('admin-maintenance');
-        }
-        if (MaintenanceRequestModel::getPendingByRoom($roomId)) {
-            setFlash('maintenance_admin_error', 'Phòng này đã có đề xuất bảo trì đang chờ duyệt.');
-            redirectTo('admin-maintenance');
-        }
-
-        MaintenanceRequestModel::create([
-            'room_id' => $roomId,
-            'admin_id' => (int)($_SESSION['user_id'] ?? 0),
-            'reason' => $reason,
-            'duration_days' => $durationDays,
-            'start_date' => $startDate,
-        ]);
-
-        $occupants = array_filter(
-            UserModel::getAll(),
-            static fn($u) => (int)($u['room_id'] ?? 0) === $roomId && (int)($u['role'] ?? 1) === 0
-        );
-        foreach ($occupants as $occupant) {
-            NotificationModel::create([
-                'user_id' => (int)$occupant['id'],
-                'type' => 'general',
-                'title' => 'Đề xuất bảo trì phòng',
-                'content' => 'Phòng ' . ($room['name'] ?? '') . ' dự kiến bảo trì từ ' . date('d/m/Y', strtotime($startDate)) . ' trong ' . $durationDays . ' ngày. Lý do: ' . $reason . '. Nếu không đồng ý, hãy vào mục "Bảo trì" để từ chối trước ngày bắt đầu.',
-            ]);
-        }
-        setFlash('maintenance_admin_message', 'Đã gửi đề xuất bảo trì tới ' . count($occupants) . ' cư dân trong phòng.');
-        redirectTo('admin-maintenance');
-    }
-
-    /**
-     * Admin hoàn tất bảo trì: đánh dấu completed và trả phòng về trạng thái phù hợp.
-     */
-    public function completeMaintenance() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-maintenance'); }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = MaintenanceRequestModel::getById($requestId);
-        if (!$request || (string)$request['status'] !== 'active') {
-            setFlash('maintenance_admin_error', 'Đề xuất bảo trì không hợp lệ hoặc chưa đang diễn ra.');
-            redirectTo('admin-maintenance');
-        }
-        $roomId = (int)$request['room_id'];
-        MaintenanceRequestModel::markCompleted($requestId);
-        $nextStatus = RoomModel::countOccupants($roomId) > 0 ? 'rented' : 'available';
-        RoomModel::updateStatus($roomId, $nextStatus);
-
-        $occupants = array_filter(
-            UserModel::getAll(),
-            static fn($u) => (int)($u['room_id'] ?? 0) === $roomId && (int)($u['role'] ?? 1) === 0
-        );
-        foreach ($occupants as $occupant) {
-            NotificationModel::create([
-                'user_id' => (int)$occupant['id'],
-                'type' => 'general',
-                'title' => 'Bảo trì hoàn tất',
-                'content' => 'Phòng của bạn đã hoàn tất bảo trì và trở lại sử dụng bình thường.',
-            ]);
-        }
-        setFlash('maintenance_admin_message', 'Đã hoàn tất bảo trì và khôi phục trạng thái phòng.');
-        redirectTo('admin-maintenance');
     }
 }

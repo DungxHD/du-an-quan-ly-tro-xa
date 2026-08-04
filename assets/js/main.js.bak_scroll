@@ -440,16 +440,3 @@ document.querySelectorAll('form[data-room-filter-form]').forEach((form) => {
         link.addEventListener('click', () => setHidden(true));
     });
 })();
-/**
- * FIX: sidebar panel (admin + tenant) bị tràn khi menu dài hơn màn hình.
- * Giới hạn chiều cao sidebar bằng phần viewport còn lại và bật cuộn dọc.
- * Chạy ở mọi trang panel (có aside.fixed), không ảnh hưởng trang công khai.
- */
-(function initPanelSidebarScroll() {
-    const aside = document.querySelector('aside.fixed');
-    if (!aside) { return; }
-    const topOffset = Math.round(aside.getBoundingClientRect().top);
-    aside.style.maxHeight = 'calc(100vh - ' + topOffset + 'px)';
-    aside.style.overflowY = 'auto';
-    aside.style.overscrollBehavior = 'contain';
-})();

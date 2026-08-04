@@ -113,15 +113,11 @@ function getPanelNavigation($role, $active = '')
     $menus = [
         'admin' => [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
+            ['id' => 'rent-requests', 'label' => 'Yêu cầu thuê', 'icon' => 'inbox', 'url' => BASE_URL . '?page=admin-rent-requests'],
+            ['id' => 'roommate-requests', 'label' => 'Yêu cầu ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=admin-roommate-requests'],
+            ['id' => 'maintenance', 'label' => 'Bảo trì', 'icon' => 'build', 'url' => BASE_URL . '?page=admin-maintenance'],
             ['id' => 'settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune', 'url' => BASE_URL . '?page=admin-settings'],
-            [
-                'id' => 'group-rooms', 'label' => 'Quản lý phòng trọ', 'icon' => 'meeting_room',
-                'children' => [
-                    ['id' => 'areas', 'label' => 'Khu nhà', 'icon' => 'location_city', 'url' => BASE_URL . '?page=admin-areas'],
-                    ['id' => 'floors', 'label' => 'Tầng', 'icon' => 'stairs_2', 'url' => BASE_URL . '?page=admin-floors'],
-                    ['id' => 'rooms', 'label' => 'Phòng trọ', 'icon' => 'door_open', 'url' => BASE_URL . '?page=admin-rooms'],
-                ],
-            ],
+            ['id' => 'areas', 'label' => 'Khu nhà', 'icon' => 'location_city', 'url' => BASE_URL . '?page=admin-areas'],
             [
                 'id' => 'group-services', 'label' => 'Dịch vụ & Giá', 'icon' => 'home_repair_service',
                 'children' => [
@@ -168,6 +164,8 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=tenant-notifications'],
             ['id' => 'profile', 'label' => 'Hồ sơ', 'icon' => 'person', 'url' => BASE_URL . '?page=tenant-profile'],
             ['id' => 'contract', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=tenant-contract'],
+            ['id' => 'roommate', 'label' => 'Ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=tenant-roommate'],
+            ['id' => 'maintenance', 'label' => 'Bảo trì', 'icon' => 'build', 'url' => BASE_URL . '?page=tenant-maintenance'],
             ['id' => 'rooms', 'label' => 'Tìm phòng', 'icon' => 'search', 'url' => BASE_URL . '?page=rooms'],
         ],
     ];
@@ -186,6 +184,15 @@ function getPanelNavigation($role, $active = '')
         return $item;
     }, $menus[$role] ?? []);
 }
+// [CMS-GUEST-PREVIEW] Khung xem trước cấu hình luôn render như khách chưa đăng nhập.
+$GLOBALS['cmsPreviewAdmin'] = isset($_GET['cms_preview']) && (int)($_SESSION['role'] ?? -1) === 1;
+if (!empty($GLOBALS['cmsPreviewAdmin'])) {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close(); // Giữ nguyên phiên đăng nhập thật; thay đổi bên dưới không bị lưu
+    }
+    unset($_SESSION['user_id'], $_SESSION['full_name'], $_SESSION['email'], $_SESSION['role'], $_SESSION['room_id']);
+}
+
 // Router chính: ưu tiên page ngắn, view-first, dễ nối route mới.
 $page = $_GET['page'] ?? 'home';
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -202,6 +209,15 @@ switch ($page) {
         break;
     case 'detail':
         (new RoomController())->detail($id);
+        break;
+    case 'request-rent':
+        (new RoomController())->requestRent($id);
+        break;
+    case 'submit-rent-request':
+        (new RoomController())->submitRentRequest($id);
+        break;
+    case 'cancel-rent-request':
+        (new RoomController())->cancelRentRequest();
         break;
     case 'login':
         (new AuthController())->login();
@@ -235,6 +251,10 @@ switch ($page) {
     case 'admin-save-area':
         requireAdmin();
         (new AdminController())->saveArea();
+        break;
+    case 'admin-add-floor':
+        requireAdmin();
+        (new AdminController())->addFloorQuick();
         break;
     case 'admin-delete-area':
         requireAdmin();
@@ -311,6 +331,56 @@ switch ($page) {
     case 'admin-tenants':
         requireAdmin();
         (new AdminController())->tenants();
+        break;
+    case 'admin-rent-requests':
+        requireAdmin();
+        (new AdminController())->rentRequests();
+        break;
+    case 'admin-approve-rent-request':
+        requireAdmin();
+        (new AdminController())->approveRentRequest();
+        break;
+    case 'admin-reject-rent-request':
+        requireAdmin();
+        (new AdminController())->rejectRentRequest();
+        break;
+    case 'tenant-roommate':
+        (new TenantController())->roommate();
+        break;
+    case 'tenant-send-roommate-request':
+        (new TenantController())->sendRoommateRequest();
+        break;
+    case 'tenant-approve-roommate':
+        (new TenantController())->approveRoommate();
+        break;
+    case 'tenant-reject-roommate':
+        (new TenantController())->rejectRoommate();
+        break;
+    case 'admin-roommate-requests':
+        requireAdmin();
+        (new AdminController())->roommateRequests();
+        break;
+    case 'admin-veto-roommate':
+        requireAdmin();
+        (new AdminController())->vetoRoommate();
+        break;
+    case 'tenant-maintenance':
+        (new TenantController())->maintenance();
+        break;
+    case 'tenant-reject-maintenance':
+        (new TenantController())->rejectMaintenance();
+        break;
+    case 'admin-maintenance':
+        requireAdmin();
+        (new AdminController())->maintenance();
+        break;
+    case 'admin-propose-maintenance':
+        requireAdmin();
+        (new AdminController())->proposeMaintenance();
+        break;
+    case 'admin-complete-maintenance':
+        requireAdmin();
+        (new AdminController())->completeMaintenance();
         break;
     case 'admin-add-tenant':
         requireAdmin();

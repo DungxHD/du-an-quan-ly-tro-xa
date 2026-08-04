@@ -24,6 +24,23 @@ $formatMoney = static function ($value) {
 $tenantCount = count($tenants);
 $tenantWithoutRoom = count(array_filter($tenants, static fn($tenant) => empty($tenant['room_id'])));
 $activeContractCount = count($activeContractsByUserId);
+
+/**
+ * Danh sách tài khoản CHƯA gán phòng (không room_id, không hợp đồng active)
+ * để ô tìm kiếm ở form gán phòng chỉ hiện nhóm có thể gán.
+ */
+$assignableTenants = [];
+foreach ($tenants as $assignableTenant) {
+    $assignableId = (int)($assignableTenant['id'] ?? 0);
+    if (empty($assignableTenant['room_id']) && !isset($activeContractsByUserId[$assignableId])) {
+        $assignableTenants[] = [
+            'id' => $assignableId,
+            'name' => (string)($assignableTenant['full_name'] ?? ''),
+            'email' => (string)($assignableTenant['email'] ?? ''),
+            'phone' => (string)($assignableTenant['phone'] ?? ''),
+        ];
+    }
+}
 ?>
         <div class="space-y-6">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -83,27 +100,17 @@ $activeContractCount = count($activeContractsByUserId);
                     <form method="POST" action="<?= BASE_URL ?>?page=admin-add-tenant" class="grid grid-cols-1 md:grid-cols-2 gap-4">
 <?= csrf_field() ?>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-semibold mb-2">Tenant</label>
-                            <select name="user_id" required class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                                <option value="">-- Chọn người thuê --</option>
-                                <?php foreach ($tenants as $tenant): ?>
-                                    <?php
-                                    $tenantId = (int)($tenant['id'] ?? 0);
-                                    $hasActiveContract = isset($activeContractsByUserId[$tenantId]);
-                                    $tenantRoomLabel = !empty($tenant['room_name'])
-                                        ? 'Đang ở: ' . $tenant['room_name']
-                                        : 'Chưa có phòng';
-                                    ?>
-                                <option value="<?= $tenantId ?>"
-                                        <?= (int)($assignmentForm['user_id'] ?? 0) === $tenantId ? 'selected' : '' ?>
-                                        <?= $hasActiveContract ? 'disabled' : '' ?>>
-                                    <?= e($tenant['full_name'] ?? 'Tenant') ?>
-                                    - <?= e($tenant['email'] ?? '') ?>
-                                    - <?= e($tenantRoomLabel) ?>
-                                    <?= $hasActiveContract ? ' - Đã có hợp đồng active' : '' ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label class="block text-sm font-semibold mb-2">Tìm tài khoản chưa gán phòng</label>
+                            <div class="relative mb-2">
+                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                                <input type="text"
+                                       id="tenant-search"
+                                       placeholder="Tìm theo tên, email hoặc số điện thoại..."
+                                       autocomplete="off"
+                                       class="w-full pl-10 pr-4 py-3 rounded-xl text-gray-900 bg-white outline-none">
+                            </div>
+                            <select name="user_id" id="tenant-select" required size="6" class="w-full px-4 py-3 rounded-xl text-gray-900 bg-white outline-none"></select>
+                            <p id="tenant-search-count" class="text-xs text-white/75 mt-1"></p>
                         </div>
 
                         <div class="md:col-span-2">
@@ -357,4 +364,52 @@ $activeContractCount = count($activeContractsByUserId);
                 </div>
             </div>
         </div>
+<script>
+(() => {
+    const assignable = <?= json_encode($assignableTenants, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+    const searchInput = document.getElementById('tenant-search');
+    const select = document.getElementById('tenant-select');
+    const countEl = document.getElementById('tenant-search-count');
+    const preselected = <?= (int)($assignmentForm['user_id'] ?? 0) ?>;
+
+    if (!searchInput || !select) { return; }
+
+    const normalize = (value) => String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd');
+
+    const render = (query) => {
+        const q = normalize(query);
+        select.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Chọn tài khoản để gán --';
+        select.appendChild(placeholder);
+
+        const matches = q === ''
+            ? assignable
+            : assignable.filter((t) => normalize(t.name).includes(q)
+                || normalize(t.email).includes(q)
+                || normalize(t.phone).includes(q));
+
+        matches.forEach((t) => {
+            const option = document.createElement('option');
+            option.value = String(t.id);
+            option.textContent = t.name + ' — ' + t.email + (t.phone ? ' — ' + t.phone : '');
+            if (t.id === preselected) { option.selected = true; }
+            select.appendChild(option);
+        });
+
+        if (countEl) {
+            countEl.textContent = 'Tìm thấy ' + matches.length + '/' + assignable.length + ' tài khoản chưa gán phòng';
+        }
+    };
+
+    searchInput.addEventListener('input', () => render(searchInput.value));
+    render('');
+})();
+</script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>

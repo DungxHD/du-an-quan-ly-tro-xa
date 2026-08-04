@@ -16,22 +16,22 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-                <h3 class="text-white text-xl font-bold mb-4"><?= e($siteName) ?></h3>
-                <p class="text-sm"><?= e($metaDescription) ?></p>
+                <h3 class="text-white text-xl font-bold mb-4" data-cms="site_name"><?= e($siteName) ?></h3>
+                <p class="text-sm" data-cms="site_description"><?= e($metaDescription) ?></p>
             </div>
             <div>
                 <h4 class="text-white font-semibold mb-4">Liên hệ</h4>
                 <p class="text-sm flex items-center gap-2 mb-2">
                     <span class="material-symbols-outlined text-sm">location_on</span>
-                    <?= e($contactAddress) ?>
+                    <span data-cms="contact_address"><?= e($contactAddress) ?></span>
                 </p>
                 <p class="text-sm flex items-center gap-2 mb-2">
                     <span class="material-symbols-outlined text-sm">call</span>
-                    <?= e($contactPhone) ?>
+                    <span data-cms="contact_phone"><?= e($contactPhone) ?></span>
                 </p>
                 <p class="text-sm flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">mail</span>
-                    <?= e($contactEmail) ?>
+                    <span data-cms="contact_email"><?= e($contactEmail) ?></span>
                 </p>
             </div>
             <div>
@@ -44,7 +44,7 @@
             </div>
         </div>
         <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            &copy; <?= date('Y') ?> <?= e($siteName) ?>. All rights reserved.
+            &copy; <?= date('Y') ?> <span data-cms="site_name"><?= e($siteName) ?></span>. All rights reserved.
         </div>
     </div>
 </footer>

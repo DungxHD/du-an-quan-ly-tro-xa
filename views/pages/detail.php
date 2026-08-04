@@ -13,7 +13,7 @@ $canCreateComment = $isTenant && !$ownerComment && !empty($commentEligibility['a
 $commentBlockedReason = $isTenant && !$ownerComment && empty($commentEligibility['allowed'])
     ? trim((string)($commentEligibility['message'] ?? ''))
     : '';
-$requestRentUrl = $isLoggedIn ? (BASE_URL . '?page=tenant') : (BASE_URL . '?page=login');
+$requestRentUrl = BASE_URL . '?page=request-rent&id=' . (int)($room['id'] ?? 0);
 $registerUrl = BASE_URL . '?page=register';
 $contactPhone = RoomModel::getSetting('contact_phone', '');
 $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);

@@ -114,7 +114,12 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
             <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
                 <div class="xl:col-span-1">
-                    <div class="sticky top-20 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <?php if (!$isEditing): ?>
+                    <button type="button" id="room-form-toggle" class="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 font-semibold text-white transition hover:bg-opacity-90">
+                        <span class="material-symbols-outlined text-base">add_home</span> Thêm phòng
+                    </button>
+                    <?php endif; ?>
+                    <div id="room-form-card" class="<?= $isEditing ? '' : 'hidden' ?> sticky top-20 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
                         <div class="mb-5 flex items-center justify-between gap-3">
                             <div>
                                 <h3 class="text-lg font-bold"><?= $isEditing ? 'Sửa phòng' : 'Thêm phòng mới' ?></h3>
@@ -425,6 +430,35 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 thumbnailInput.addEventListener('input', updatePreview);
                 thumbnailPreview.addEventListener('error', () => {
                     thumbnailPreview.src = fallbackImage;
+                });
+            }
+
+            // Pre-fill khu/tầng khi đi từ nút "Thêm phòng" bên trang Quản lý Khu.
+            const urlParams = new URLSearchParams(window.location.search);
+            const prefillArea = urlParams.get('area_id') || '';
+            const prefillFloor = urlParams.get('floor_id') || '';
+            const roomAdminForm = document.querySelector('[data-room-admin-form]');
+            const editingRoom = roomAdminForm && roomAdminForm.querySelector('input[name="id"]');
+            if (roomAdminForm && !editingRoom && prefillArea !== '') {
+                const roomAreaSelect = document.getElementById('room-area-id');
+                const roomFloorSelect = document.getElementById('room-floor-id');
+                if (roomAreaSelect) {
+                    roomAreaSelect.value = prefillArea;
+                    if (roomFloorSelect) {
+                        roomFloorSelect.dataset.selectedValue = prefillFloor;
+                        renderFloorOptions(roomFloorSelect, prefillArea, roomFloorSelect.dataset.placeholder || 'Chọn tầng');
+                    }
+                }
+            }
+            // An/hien form them phong
+            const roomToggle = document.getElementById('room-form-toggle');
+            const roomCard = document.getElementById('room-form-card');
+            if (roomToggle && roomCard) {
+                roomToggle.addEventListener('click', () => {
+                    const hidden = roomCard.classList.toggle('hidden');
+                    roomToggle.innerHTML = hidden
+                        ? '<span class="material-symbols-outlined text-base">add_home</span> Thêm phòng'
+                        : '<span class="material-symbols-outlined text-base">close</span> Đóng form';
                 });
             }
         })();

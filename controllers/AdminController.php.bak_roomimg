@@ -1301,12 +1301,6 @@ class AdminController {
         } elseif (preg_match('/^room_(\d+)$/', $slot, $slotMatch)) {
             $subFolder = 'image_phong_' . (int)$slotMatch[1];
             $filePrefix = 'phong-' . (int)$slotMatch[1];
-        } elseif ($slot === 'room_new') {
-            $subFolder = 'image_phong_new';
-            $filePrefix = 'phong-new';
-        } elseif (preg_match('/^room_(\d+)$/', $slot, $slotMatch)) {
-            $subFolder = 'image_phong_' . (int)$slotMatch[1];
-            $filePrefix = 'phong-' . (int)$slotMatch[1];
         }
 
         $uploadDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . $subFolder;

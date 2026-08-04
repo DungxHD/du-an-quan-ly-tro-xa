@@ -29,7 +29,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <div class="max-w-4xl text-center mx-auto">
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-sm mb-6 reveal">
                 <span class="material-symbols-outlined text-base">verified</span>
-                <span data-cms="site_slogan"><?= e($siteSlogan) ?></span>
+                <?= e($siteSlogan) ?>
             </div>
             <h1 class="text-5xl md:text-7xl font-black leading-tight mb-6 reveal">
                 <?= e($headline1) ?><br>

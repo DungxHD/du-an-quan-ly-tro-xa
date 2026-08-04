@@ -219,7 +219,7 @@ class HomeController extends BaseController {
         ];
 
         // Chế độ xem trước cho trang Cấu hình hệ thống: chỉ admin mới được ghi đè thiết lập qua query.
-        if (!empty($GLOBALS['cmsPreviewAdmin'])) {
+        if (isset($_GET['cms_preview']) && (int)($_SESSION['role'] ?? -1) === 1) {
             $cmsOverrides = is_array($_GET['ov'] ?? null) ? $_GET['ov'] : [];
             $cmsSiteName = trim((string)($cmsOverrides['site_name'] ?? ''));
             if ($cmsSiteName !== '') {
@@ -231,9 +231,6 @@ class HomeController extends BaseController {
             $cmsHeroImage = trim((string)($cmsOverrides['hero_image'] ?? ''));
             if ($cmsHeroImage !== '') {
                 $hero['heroImage'] = $cmsHeroImage;
-            }
-            if (array_key_exists('site_slogan', $cmsOverrides) && trim((string)$cmsOverrides['site_slogan']) !== '') {
-                $hero['siteSlogan'] = trim((string)$cmsOverrides['site_slogan']);
             }
         }
 
@@ -315,7 +312,7 @@ class HomeController extends BaseController {
         }
 
         // Chế độ xem trước cho trang Cấu hình hệ thống (trang Giới thiệu).
-        if (!empty($GLOBALS['cmsPreviewAdmin'])) {
+        if (isset($_GET['cms_preview']) && (int)($_SESSION['role'] ?? -1) === 1) {
             $cmsOverrides = is_array($_GET['ov'] ?? null) ? $_GET['ov'] : [];
             $cmsSiteName = trim((string)($cmsOverrides['site_name'] ?? ''));
             if ($cmsSiteName !== '') {
