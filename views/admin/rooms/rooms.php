@@ -29,6 +29,17 @@ $formRoom = $formRoom ?? null;
 $isEditing = !empty($formRoom['id']);
 $formThumbnail = trim((string)($formRoom['thumbnail'] ?? ''));
 $previewThumbnail = $formThumbnail !== '' ? $formThumbnail : 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900';
+$roomAmenityOptions = $roomAmenityOptions ?? [];
+$roomImages = $roomImages ?? [];
+$auxImageUrls = array_values(array_map(static fn($img) => (string)($img['url'] ?? ''), $roomImages));
+$existingAmenities = is_array($formRoom['amenities_list'] ?? null) ? $formRoom['amenities_list'] : [];
+$knownAmenities = [];
+$customAmenitiesList = [];
+foreach ($existingAmenities as $existingAmenity) {
+    if (in_array($existingAmenity, $roomAmenityOptions, true)) { $knownAmenities[] = $existingAmenity; }
+    else { $customAmenitiesList[] = $existingAmenity; }
+}
+$roomSlotJs = $isEditing ? "'room_' + " . (int)($formRoom['id'] ?? 0) : "'room_new'";
 
 require BASE_PATH . 'views/layouts/panel_header.php';
 ?>
@@ -197,9 +208,43 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 </div>
                             </div>
 
+                            <input type="hidden" name="thumbnail" id="room-thumbnail-hidden" value="<?= e($formThumbnail) ?>">
+
                             <div>
-                                <label for="room-thumbnail" class="mb-1 block text-sm font-semibold text-gray-700">URL ảnh thumbnail</label>
-                                <input id="room-thumbnail" type="url" name="thumbnail" value="<?= e($formThumbnail) ?>" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" placeholder="https://...">
+                                <label class="mb-1 block text-sm font-semibold text-gray-700">Tiện nghi phòng</label>
+                                <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
+                                    <?php foreach ($roomAmenityOptions as $amenityOption): ?>
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 hover:border-primary cursor-pointer">
+                                        <input type="checkbox" name="amenities[]" value="<?= e($amenityOption) ?>" <?= in_array($amenityOption, $knownAmenities, true) ? 'checked' : '' ?> class="w-4 h-4 text-primary">
+                                        <?= e($amenityOption) ?>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <input type="text" name="custom_amenities" value="<?= e(implode(', ', $customAmenitiesList)) ?>" placeholder="Tiện nghi khác, phân tách bằng dấu phẩy" class="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block text-sm font-semibold text-gray-700">Ảnh phòng (chỉ tải file lên)</label>
+                                <input type="hidden" name="main_image" id="room-main-image-input" value="">
+                                <div id="room-aux-images-holder"></div>
+                                <div class="flex flex-wrap gap-2">
+                                    <label class="inline-flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary hover:text-primary transition">
+                                        <span class="material-symbols-outlined text-base">image</span> Ảnh chính
+                                        <input type="file" id="room-main-image-file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+                                    </label>
+                                    <label class="inline-flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary hover:text-primary transition">
+                                        <span class="material-symbols-outlined text-base">photo_library</span> Ảnh phụ
+                                        <input type="file" id="room-aux-images-file" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden">
+                                    </label>
+                                </div>
+                                <div class="mt-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-3">
+                                    <p class="mb-2 text-xs font-semibold text-gray-500">Ảnh chính (avatar phòng)</p>
+                                    <img src="<?= e($previewThumbnail) ?>" alt="Ảnh chính" class="h-48 w-full rounded-2xl object-cover" data-room-main-preview>
+                                </div>
+                                <div class="mt-2">
+                                    <p class="mb-2 text-xs font-semibold text-gray-500">Ảnh phụ (hiển thị nhỏ)</p>
+                                    <div id="room-aux-preview" class="flex flex-wrap gap-2"></div>
+                                </div>
                             </div>
 
                             <div class="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-3">
@@ -459,6 +504,89 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     roomToggle.innerHTML = hidden
                         ? '<span class="material-symbols-outlined text-base">add_home</span> Thêm phòng'
                         : '<span class="material-symbols-outlined text-base">close</span> Đóng form';
+                });
+            }
+            // ===== Upload + quan ly anh phong =====
+            const uploadUrl = '<?= BASE_URL ?>?page=admin-upload-image';
+            const csrfToken = '<?= e(csrf_token()) ?>';
+            const roomSlot = <?= $roomSlotJs ?>;
+            const mainImageInput = document.getElementById('room-main-image-input');
+            const mainImageFile = document.getElementById('room-main-image-file');
+            const mainPreview = document.querySelector('[data-room-main-preview]');
+            const thumbnailHidden = document.getElementById('room-thumbnail-hidden');
+            const auxFile = document.getElementById('room-aux-images-file');
+            const auxPreview = document.getElementById('room-aux-preview');
+            const auxHolder = document.getElementById('room-aux-images-holder');
+            const existingAuxImages = <?= json_encode($auxImageUrls, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
+
+            const addAuxInput = (url) => {
+                if (!auxHolder) { return; }
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'aux_images[]';
+                input.value = url;
+                auxHolder.appendChild(input);
+            };
+            const renderAuxThumbs = () => {
+                if (!auxPreview) { return; }
+                auxPreview.innerHTML = '';
+                document.querySelectorAll('input[name="aux_images[]"]').forEach((input) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'relative h-20 w-20';
+                    const img = document.createElement('img');
+                    img.src = input.value;
+                    img.className = 'h-20 w-20 rounded-lg object-cover border border-gray-200';
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.textContent = '✕';
+                    removeBtn.className = 'absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center';
+                    removeBtn.addEventListener('click', () => { wrapper.remove(); input.remove(); });
+                    wrapper.appendChild(img);
+                    wrapper.appendChild(removeBtn);
+                    auxPreview.appendChild(wrapper);
+                });
+            };
+            existingAuxImages.forEach((url) => { if (url) { addAuxInput(url); } });
+            renderAuxThumbs();
+
+            if (mainImageInput && mainPreview) {
+                mainImageInput.addEventListener('change', () => {
+                    const value = mainImageInput.value;
+                    if (mainPreview) { mainPreview.src = value || ''; }
+                    if (thumbnailHidden) { thumbnailHidden.value = value; }
+                });
+            }
+            const uploadRoomImage = async (file) => {
+                const fd = new FormData();
+                fd.append('image', file);
+                fd.append('_csrf_token', csrfToken);
+                fd.append('slot', roomSlot);
+                const res = await fetch(uploadUrl, { method: 'POST', body: fd });
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok || !payload.ok) { alert(payload.message || 'Tải ảnh lên thất bại.'); return ''; }
+                return payload.url;
+            };
+            if (mainImageFile) {
+                mainImageFile.addEventListener('change', async () => {
+                    const file = mainImageFile.files && mainImageFile.files[0];
+                    if (!file) { return; }
+                    const url = await uploadRoomImage(file);
+                    if (url && mainImageInput) {
+                        mainImageInput.value = url;
+                        mainImageInput.dispatchEvent(new Event('change'));
+                    }
+                    mainImageFile.value = '';
+                });
+            }
+            if (auxFile) {
+                auxFile.addEventListener('change', async () => {
+                    const files = Array.from(auxFile.files || []);
+                    for (const file of files) {
+                        const url = await uploadRoomImage(file);
+                        if (url) { addAuxInput(url); }
+                    }
+                    renderAuxThumbs();
+                    auxFile.value = '';
                 });
             }
         })();

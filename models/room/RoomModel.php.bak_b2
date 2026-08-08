@@ -312,9 +312,7 @@ class RoomModel {
                 return null;
             }
 
-            $room = self::normalizeJoinedRoom($room);
-            $room['images'] = self::getRoomImages($id);
-            return self::hydrateRoomDetail($room);
+            return self::hydrateRoomDetail(self::normalizeJoinedRoom($room));
         }
 
         foreach (self::getAll() as $room) {
@@ -343,7 +341,6 @@ class RoomModel {
             'area' => (float)($data['area'] ?? 0),
             'max_occupancy' => (int)($data['max_occupancy'] ?? 2),
             'description' => trim((string)($data['description'] ?? '')),
-            'amenities' => trim((string)($data['amenities'] ?? '')),
             'status' => $data['status'] ?? 'available',
             'thumbnail' => trim((string)($data['thumbnail'] ?? '')) ?: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900',
         ];
@@ -459,39 +456,12 @@ class RoomModel {
         $room['max_occupancy'] = (int)($room['max_occupancy'] ?? 0);
         $room['views'] = (int)($room['views'] ?? 0);
         $room['thumbnail'] = trim((string)($room['thumbnail'] ?? '')) ?: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900';
-        $rawAmenities = $room['amenities'] ?? null;
-        $decodedAmenities = is_string($rawAmenities) ? json_decode($rawAmenities, true) : null;
-        $room['amenities_list'] = is_array($decodedAmenities)
-            ? array_values(array_filter(array_map(static fn($a) => trim((string)$a), $decodedAmenities), static fn($a) => $a !== ''))
-            : [];
         $room['area_name'] = $room['area_name'] ?? ($room['building_name'] ?? 'Chưa có khu');
         $room['area_image'] = trim((string)($room['area_image'] ?? ''));
         $room['building_name'] = $room['building_name'] ?? $room['area_name'];
         $room['floor_name'] = $room['floor_name'] ?? ('Tầng ' . $room['floor_number']);
         $room['building_type'] = $room['building_type'] ?? 'area';
         return $room;
-    }
-
-    /**
-     * Ảnh phụ của phòng (bảng room_images). Ảnh chính nằm trong rooms.thumbnail.
-     */
-    public static function getRoomImages($roomId) {
-        $roomId = (int)$roomId;
-        if ($roomId <= 0 || !Database::hasConnection()) {
-            return [];
-        }
-        $rows = Database::fetchAll(
-            'SELECT id, image_url AS url, is_primary, sort_order FROM room_images WHERE room_id = ? ORDER BY sort_order ASC, id ASC',
-            [$roomId]
-        );
-        return array_map(static function ($row) {
-            return [
-                'id' => (int)($row['id'] ?? 0),
-                'url' => trim((string)($row['url'] ?? '')),
-                'is_primary' => (int)($row['is_primary'] ?? 0),
-                'sort_order' => (int)($row['sort_order'] ?? 0),
-            ];
-        }, is_array($rows) ? $rows : []);
     }
 
     public static function getTotalRevenue() {
@@ -903,10 +873,10 @@ class RoomModel {
      * Gallery tận dụng ảnh thật đang có trong hệ thống, tránh lặp thumb vô nghĩa.
      */
     private static function buildGalleryImages(array $room) {
-        $images = array_values(array_filter(array_unique(array_merge(
-            [trim((string)($room['thumbnail'] ?? ''))],
-            array_map(static fn($img) => trim((string)($img['url'] ?? '')), $room['images'] ?? [])
-        ))));
+        $images = array_values(array_filter(array_unique([
+            trim((string)($room['thumbnail'] ?? '')),
+            trim((string)($room['area_image'] ?? '')),
+        ])));
 
         if (empty($images)) {
             $images[] = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900';
