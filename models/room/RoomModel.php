@@ -1,14 +1,17 @@
 <?php
+
 /**
  * RoomModel ưu tiên giao diện:
  * - Trả dữ liệu đã được ghép/join sẵn để view chỉ việc render.
  * - Khi thiếu DB, mọi dữ liệu được lấy từ lớp fallback của Database.
  */
-class RoomModel {
+class RoomModel
+{
     private static $settingsCache = null;
 
     // ========== SETTINGS ==========
-    public static function loadSettings() {
+    public static function loadSettings()
+    {
         if (self::$settingsCache !== null) {
             return self::$settingsCache;
         }
@@ -25,14 +28,16 @@ class RoomModel {
         return self::$settingsCache;
     }
 
-    public static function getSetting($key, $default = '') {
+    public static function getSetting($key, $default = '')
+    {
         self::loadSettings();
         return isset(self::$settingsCache[$key]) && self::$settingsCache[$key] !== ''
             ? self::$settingsCache[$key]
             : $default;
     }
 
-    public static function saveSetting($key, $value) {
+    public static function saveSetting($key, $value)
+    {
         Database::saveSetting($key, $value);
         self::$settingsCache = null;
     }
@@ -40,11 +45,13 @@ class RoomModel {
     /**
      * Xóa cache settings để các màn hình public/admin đọc lại dữ liệu mới nhất ngay sau khi admin lưu.
      */
-    public static function resetSettingsCache() {
+    public static function resetSettingsCache()
+    {
         self::$settingsCache = null;
     }
 
-    public static function getSettingsByGroup($group) {
+    public static function getSettingsByGroup($group)
+    {
         if (Database::hasConnection()) {
             return Database::fetchAll(
                 'SELECT * FROM settings WHERE setting_group = ? ORDER BY setting_key ASC',
@@ -62,7 +69,8 @@ class RoomModel {
 
 
     // ========== ROOMS ==========
-    public static function getAvailableOrUpcoming($limit = 6) {
+    public static function getAvailableOrUpcoming($limit = 6)
+    {
         $rooms = self::getAll();
         $rooms = array_filter($rooms, static function ($room) {
             return ($room['status'] ?? '') === 'available'
@@ -87,7 +95,8 @@ class RoomModel {
      * Chuẩn hoá bộ lọc cho trang public để controller và view dùng chung một cấu trúc.
      * Giá hỗ trợ nhập ngắn như "2", "2.5", "1500", "2tr",...
      */
-    public static function normalizePublicFilters($filters = []) {
+    public static function normalizePublicFilters($filters = [])
+    {
         $featureMap = [];
         foreach (self::getPublicFeatureOptions() as $feature) {
             $featureMap[$feature['key']] = $feature;
@@ -129,7 +138,8 @@ class RoomModel {
      * Danh sách phòng public chỉ hiển thị phòng còn trống để tránh lộ dữ liệu
      * các phòng đã kín hoặc đang bảo trì.
      */
-    public static function getPublicCatalog($filters = []) {
+    public static function getPublicCatalog($filters = [])
+    {
         $normalized = self::normalizePublicFilters($filters);
         $rooms = Database::hasConnection()
             ? self::getPublicCatalogRowsFromDatabase($normalized)
@@ -162,7 +172,8 @@ class RoomModel {
      * Lấy danh sách phòng và join ngược lên `floors -> areas`.
      * Đồng thời giữ lại alias `building_*` để các màn hình cũ chưa refactor hết vẫn dùng được.
      */
-    public static function getAll($filters = []) {
+    public static function getAll($filters = [])
+    {
         $areaFilterId = (int)($filters['area_id'] ?? ($filters['building_id'] ?? 0));
 
         if (Database::hasConnection()) {
@@ -277,7 +288,8 @@ class RoomModel {
         return array_values($rooms);
     }
 
-    public static function getById($id, $options = []) {
+    public static function getById($id, $options = [])
+    {
         $id = (int)$id;
         $publicOnly = (bool)($options['public_only'] ?? false);
         if ($id <= 0) {
@@ -333,31 +345,33 @@ class RoomModel {
     /**
      * Lưu phòng theo schema mới: `rooms.floor_id` là bắt buộc và không còn `area_id`.
      */
-    public static function save($data, $id = null) {
+    public static function save($data, $id = null)
+    {
         $payload = [
-            'floor_id' => (int)($data['floor_id'] ?? 0),
-            'name' => trim((string)($data['name'] ?? '')),
-            'price' => (float)($data['price'] ?? 0),
-            'area' => (float)($data['area'] ?? 0),
+            'floor_id'      => (int)($data['floor_id'] ?? 0),
+            'name'          => trim((string)($data['name'] ?? '')),
+            'position'      => (int)($data['position'] ?? 0),
+            'price'         => (float)($data['price'] ?? 0),
+            'area'          => (float)($data['area'] ?? 0),
             'max_occupancy' => (int)($data['max_occupancy'] ?? 2),
-            'description' => trim((string)($data['description'] ?? '')),
-            'status' => $data['status'] ?? 'available',
-            'thumbnail' => trim((string)($data['thumbnail'] ?? '')) ?: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900',
+            'description'   => trim((string)($data['description'] ?? '')),
+            'amenities'     => isset($data['amenities']) ? trim((string)$data['amenities']) : null,
+            'status'        => $data['status'] ?? 'draft',
+            'thumbnail'     => trim((string)($data['thumbnail'] ?? '')) ?: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900',
+            'views'         => (int)($data['views'] ?? 0),
         ];
-
         if ($id) {
             Database::update('rooms', $payload, 'id = :id', ['id' => (int)$id]);
             return (int)$id;
         }
-
-        $payload['views'] = (int)($data['views'] ?? 0);
-        return Database::insert('rooms', $payload);
+        return (int)Database::insert('rooms', $payload);
     }
 
     /**
      * Kiểm tra tầng có tồn tại hay không để controller validate trước khi lưu.
      */
-    public static function floorExists($floorId) {
+    public static function floorExists($floorId)
+    {
         return FloorModel::getById((int)$floorId) !== null;
     }
 
@@ -365,14 +379,15 @@ class RoomModel {
      * Đếm số người đang được gán trực tiếp vào phòng.
      * Đây là chốt chặn tối thiểu trước khi cho phép xóa phòng.
      */
-    public static function countOccupants($roomId) {
+    public static function countOccupants($roomId)
+    {
         $roomId = (int)$roomId;
 
         if (Database::hasConnection()) {
-    $row = Database::fetchOne(
-        "SELECT COUNT(*) AS total FROM contracts WHERE room_id = ? AND status = 'active'",
-        [$roomId]
-    );
+            $row = Database::fetchOne(
+                "SELECT COUNT(*) AS total FROM contracts WHERE room_id = ? AND status = 'active'",
+                [$roomId]
+            );
 
             return (int)($row['total'] ?? 0);
         }
@@ -386,14 +401,16 @@ class RoomModel {
     /**
      * Trả về true khi phòng vẫn còn người ở để controller chặn thao tác xóa.
      */
-    public static function hasActiveOccupants($roomId) {
+    public static function hasActiveOccupants($roomId)
+    {
         return self::countOccupants($roomId) > 0;
     }
 
     /**
      * Cập nhật nhanh trạng thái phòng cho dropdown thao tác tại danh sách admin.
      */
-    public static function updateStatus($id, $status) {
+    public static function updateStatus($id, $status)
+    {
         Database::update(
             'rooms',
             ['status' => $status],
@@ -405,12 +422,14 @@ class RoomModel {
     /**
      * Xóa phòng theo ID.
      */
-    public static function delete($id) {
+    public static function delete($id)
+    {
         Database::delete('rooms', 'id = :id', ['id' => (int)$id]);
     }
 
 
-    public static function incrementViews($id) {
+    public static function incrementViews($id)
+    {
         $room = self::getById($id);
         if (!$room) {
             return;
@@ -418,11 +437,13 @@ class RoomModel {
         Database::update('rooms', ['views' => (int)($room['views'] ?? 0) + 1], 'id = :id', ['id' => (int)$id]);
     }
 
-    public static function count() {
+    public static function count()
+    {
         return count(self::getAll());
     }
 
-    public static function countByStatus($status) {
+    public static function countByStatus($status)
+    {
         $resolvedStatus = trim((string)$status);
         if ($resolvedStatus === '') {
             return 0;
@@ -445,7 +466,8 @@ class RoomModel {
     /**
      * Chuẩn hóa dữ liệu phòng sau khi join để DB thật và fallback trả về cùng shape.
      */
-    private static function normalizeJoinedRoom($room) {
+    private static function normalizeJoinedRoom($room)
+    {
         $room['floor_id'] = (int)($room['floor_id'] ?? 0);
         $room['area_id'] = (int)($room['area_id'] ?? 0);
         $room['building_id'] = (int)($room['building_id'] ?? ($room['area_id'] ?? 0));
@@ -464,7 +486,8 @@ class RoomModel {
         return $room;
     }
 
-    public static function getTotalRevenue() {
+    public static function getTotalRevenue()
+    {
         if (Database::hasConnection()) {
             $row = Database::fetchOne(
                 "SELECT COALESCE(SUM(price), 0) AS total_revenue FROM rooms WHERE status = 'rented'"
@@ -489,7 +512,8 @@ class RoomModel {
      * Thống kê số phòng theo từng khu để admin xem tổng phòng, phòng trống và tỷ lệ lấp đầy.
      * Có hỗ trợ lọc 1 khu cụ thể để tái sử dụng cho trang thống kê.
      */
-    public static function getStatsByArea($areaId = 0) {
+    public static function getStatsByArea($areaId = 0)
+    {
         $resolvedAreaId = (int)$areaId;
 
         if (Database::hasConnection()) {
@@ -549,7 +573,8 @@ class RoomModel {
         return $rows;
     }
 
-    public static function getDaysUntilVacant($dateStr) {
+    public static function getDaysUntilVacant($dateStr)
+    {
         if (!$dateStr) {
             return null;
         }
@@ -563,7 +588,8 @@ class RoomModel {
      * Bộ lọc tiện ích phòng được thiết kế tách riêng để sau này có thể nâng cấp
      * sang bảng room_features mà không phải thay đổi controller/view.
      */
-    public static function getPublicFeatureOptions() {
+    public static function getPublicFeatureOptions()
+    {
         return [
             [
                 'key' => 'air_conditioner',
@@ -595,7 +621,8 @@ class RoomModel {
     /**
      * Bổ sung metadata chỉ phục vụ trang public để view không cần suy diễn thêm.
      */
-    private static function attachPublicCatalogMeta(array $rooms) {
+    private static function attachPublicCatalogMeta(array $rooms)
+    {
         $roomIds = array_map(static fn($room) => (int)($room['id'] ?? 0), $rooms);
         $serviceMap = ServiceModel::getRoomServiceMap($roomIds);
 
@@ -624,13 +651,15 @@ class RoomModel {
         }, $rooms);
     }
 
-    private static function isUpcomingVacancy(array $room) {
+    private static function isUpcomingVacancy(array $room)
+    {
         return (int)($room['notice_given'] ?? 0) === 1
             && ($room['status'] ?? '') === 'rented'
             && !empty($room['expected_vacant_date']);
     }
 
-    private static function roomMatchesFeature(array $room, $featureKey) {
+    private static function roomMatchesFeature(array $room, $featureKey)
+    {
         $feature = null;
         foreach (self::getPublicFeatureOptions() as $item) {
             if (($item['key'] ?? '') === $featureKey) {
@@ -668,7 +697,8 @@ class RoomModel {
         return false;
     }
 
-    private static function parseHumanPrice($value) {
+    private static function parseHumanPrice($value)
+    {
         $rawValue = trim((string)$value);
         if ($rawValue === '') {
             return null;
@@ -696,7 +726,8 @@ class RoomModel {
         return (int)round($number);
     }
 
-    public static function formatPriceInput($price) {
+    public static function formatPriceInput($price)
+    {
         if ($price === null || (float)$price <= 0) {
             return '';
         }
@@ -713,7 +744,8 @@ class RoomModel {
         return number_format($price / 1000, 0, ',', '.') . ' nghìn';
     }
 
-    public static function formatExpectedVacantText($dateStr) {
+    public static function formatExpectedVacantText($dateStr)
+    {
         if (!$dateStr) {
             return '';
         }
@@ -723,7 +755,8 @@ class RoomModel {
     /**
      * Dùng định dạng ngày ngắn cho badge để nội dung không bị dài và vỡ layout thẻ phòng.
      */
-    private static function formatCompactDate($dateStr) {
+    private static function formatCompactDate($dateStr)
+    {
         if (!$dateStr) {
             return '';
         }
@@ -731,12 +764,14 @@ class RoomModel {
     }
 
     // ========== AMENITIES ==========
-    public static function getAmenities() {
+    public static function getAmenities()
+    {
         return AmenityModel::getAllActive();
     }
 
     // ========== COMMENTS ==========
-    public static function getCommentsByRoom($roomId) {
+    public static function getCommentsByRoom($roomId)
+    {
         if (Database::hasConnection()) {
             $comments = Database::fetchAll(
                 "
@@ -794,7 +829,8 @@ class RoomModel {
     /**
      * Truy vấn danh sách phòng public theo schema mới `areas -> floors -> rooms`.
      */
-    private static function getPublicCatalogRowsFromDatabase(array $filters) {
+    private static function getPublicCatalogRowsFromDatabase(array $filters)
+    {
         $sql = "
             SELECT
                 r.*,
@@ -833,7 +869,8 @@ class RoomModel {
     /**
      * Fallback public catalog mô phỏng cùng shape dữ liệu với DB thật.
      */
-    private static function getPublicCatalogRowsFromFallback(array $filters) {
+    private static function getPublicCatalogRowsFromFallback(array $filters)
+    {
         $rooms = array_filter(self::getAll(), static function ($room) use ($filters) {
             if (($room['status'] ?? '') !== 'available') {
                 return false;
@@ -857,7 +894,8 @@ class RoomModel {
     /**
      * Bổ sung dữ liệu tiện ích, gallery và nhãn trạng thái cho trang chi tiết public.
      */
-    private static function hydrateRoomDetail(array $room) {
+    private static function hydrateRoomDetail(array $room)
+    {
         $room = self::attachPublicCatalogMeta([$room])[0];
         $room['services'] = ServiceModel::getByRoom((int)($room['id'] ?? 0));
         $room['gallery_images'] = self::buildGalleryImages($room);
@@ -872,7 +910,8 @@ class RoomModel {
     /**
      * Gallery tận dụng ảnh thật đang có trong hệ thống, tránh lặp thumb vô nghĩa.
      */
-    private static function buildGalleryImages(array $room) {
+    private static function buildGalleryImages(array $room)
+    {
         $images = array_values(array_filter(array_unique([
             trim((string)($room['thumbnail'] ?? '')),
             trim((string)($room['area_image'] ?? '')),
@@ -888,7 +927,8 @@ class RoomModel {
     /**
      * Chuẩn hoá bình luận công khai để view không cần tự vá dữ liệu thiếu.
      */
-    private static function normalizePublicComment(array $comment) {
+    private static function normalizePublicComment(array $comment)
+    {
         $comment['full_name'] = trim((string)($comment['full_name'] ?? '')) ?: 'Khách thuê';
         $comment['avatar'] = trim((string)($comment['avatar'] ?? ''));
         $comment['content'] = trim((string)($comment['content'] ?? ''));
@@ -901,7 +941,8 @@ class RoomModel {
     /**
      * Chuẩn hóa một dòng thống kê khu để controller/view không phải tự tính lại.
      */
-    private static function normalizeAreaStatRow(array $row) {
+    private static function normalizeAreaStatRow(array $row)
+    {
         $row['id'] = (int)($row['id'] ?? 0);
         $row['name'] = trim((string)($row['name'] ?? '')) ?: 'Chưa có khu';
         $row['total_rooms'] = (int)($row['total_rooms'] ?? 0);
@@ -917,7 +958,8 @@ class RoomModel {
     }
 
     // ========== USERS ==========
-    public static function findUserByEmail($email) {
+    public static function findUserByEmail($email)
+    {
         return UserModel::findByEmail($email);
     }
 }
