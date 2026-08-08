@@ -1,12 +1,15 @@
 <?php
+
 /**
  * Model tầng phục vụ CRUD, lọc theo khu và thống kê số phòng từng tầng.
  */
-class FloorModel {
+class FloorModel
+{
     /**
      * Lấy danh sách tầng. Có thể truyền `areaId` để chỉ lấy tầng của một khu.
      */
-    public static function getAll($areaId = 0) {
+    public static function getAll($areaId = 0)
+    {
         $areaId = (int)$areaId;
 
         if (Database::hasConnection()) {
@@ -73,14 +76,16 @@ class FloorModel {
     /**
      * Alias dễ đọc hơn cho controller khi cần lọc tầng theo khu.
      */
-    public static function getByAreaId($areaId) {
+    public static function getByAreaId($areaId)
+    {
         return self::getAll($areaId);
     }
 
     /**
      * Lấy một tầng theo ID.
      */
-    public static function getById($id) {
+    public static function getById($id)
+    {
         if (Database::hasConnection()) {
             $sql = "
                 SELECT f.*, a.name AS area_name
@@ -104,27 +109,28 @@ class FloorModel {
     /**
      * Tạo mới hoặc cập nhật tầng.
      */
-    public static function save($data, $id = null) {
+    public static function save($data, $id = null)
+    {
         $floorNumber = (int)($data['floor_number'] ?? 1);
         $payload = [
-            'area_id' => (int)($data['area_id'] ?? 0),
-            'name' => trim((string)($data['name'] ?? '')) ?: ($floorNumber === 0 ? 'Tầng trệt' : 'Tầng ' . $floorNumber),
+            'area_id'      => (int)($data['area_id'] ?? 0),
+            'name'         => trim((string)($data['name'] ?? '')) ?: ($floorNumber === 0 ? 'Tầng trệt' : 'Tầng ' . $floorNumber),
             'floor_number' => $floorNumber,
+            'room_limit'   => max(0, (int)($data['room_limit'] ?? 0)),
         ];
-
         if ($id) {
             Database::update('floors', $payload, 'id = :id', ['id' => (int)$id]);
             return (int)$id;
         }
-
-        return Database::insert('floors', $payload);
+        return (int)Database::insert('floors', $payload);
     }
 
     /**
      * Xóa tầng. Theo `database.sql` hiện tại, thao tác này sẽ kéo theo xóa phòng liên quan do FK cascade.
      * Nếu muốn `SET NULL`, bắt buộc phải đổi schema trước.
      */
-    public static function delete($id) {
+    public static function delete($id)
+    {
         $id = (int)$id;
 
         if (!Database::hasConnection()) {
@@ -143,7 +149,8 @@ class FloorModel {
     /**
      * Chuẩn hóa kiểu số giữa DB thật và fallback.
      */
-    private static function normalizeFloorStats($floor) {
+    private static function normalizeFloorStats($floor)
+    {
         $floor['area_id'] = (int)($floor['area_id'] ?? 0);
         $floor['floor_number'] = (int)($floor['floor_number'] ?? 0);
         $floor['room_count'] = (int)($floor['room_count'] ?? 0);

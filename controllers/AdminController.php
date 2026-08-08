@@ -1,9 +1,12 @@
 <?php
-class AdminController {
+
+class AdminController
+{
     /**
      * Trang tổng quan admin.
      */
-    public function dashboard() {
+    public function dashboard()
+    {
         $areaStats = RoomModel::getStatsByArea();
         $availableRooms = array_values(array_filter(
             RoomModel::getAll(['status' => 'available']),
@@ -33,12 +36,69 @@ class AdminController {
         $pageTitle = 'Admin Dashboard - NhaTroA';
         require_once BASE_PATH . 'views/admin/dashboard.php';
     }
-    
-    
+
+    /** Suy ra mã khu: ưu tiên mã admin nhập; nếu không lấy chữ HOA đơn lập đầu tiên ("Khu A - ..." => "A") */
+    private function deriveAreaCode($name, $override = '')
+    {
+        $override = mb_strtoupper(trim((string)$override));
+        if ($override !== '') {
+            $clean = preg_replace('/[^A-Z0-9]/u', '', $override);
+            if ($clean !== '') {
+                return mb_substr($clean, 0, 1);
+            }
+        }
+        if (preg_match('/\b([A-Z])\b/u', (string)$name, $m)) {
+            return $m[1];
+        }
+        $first = mb_substr(trim((string)$name), 0, 1);
+        return mb_strtoupper($first) ?: 'K';
+    }
+
+    /** Phòng đã đủ dữ liệu để đăng web chưa? */
+    /** Phòng đã đủ dữ liệu để đăng web chưa? */
+    private function roomIsComplete(array $room)
+    {
+        return (float)($room['price'] ?? 0) > 0
+            && (float)($room['area'] ?? 0) > 0
+            && trim((string)($room['description'] ?? '')) !== '';
+    }
+
+    /** Tạo sẵn N phòng NHÁP đặt tên tự động: {MãKhu}{Tầng}{STT 2 chữ số} */
+
+    /**
+     * [DEV-QWEN-A][NHOM-2][2026-08-07]
+     * Tạo sẵn N phòng NHÁP đặt tên theo vị trí: 01, 02, 03...
+     * Thay đổi: Bỏ areaCode khỏi tên, chỉ dùng số thứ tự 2 chữ số.
+     */
+    private function createRoomSlots($floorId, $floorNumber, $roomCount)
+    {
+        $created = 0;
+        $existing = count(RoomModel::getAll(['floor_id' => (int)$floorId]));
+
+        for ($i = 1; $i <= $roomCount; $i++) {
+            $position = $existing + $i;
+            RoomModel::save([
+                'floor_id'      => (int)$floorId,
+                'name'          => str_pad((string)$position, 2, '0', STR_PAD_LEFT),
+                'position'      => $position,
+                'price'         => 0,
+                'area'          => 0,
+                'max_occupancy' => 2,
+                'description'   => '',
+                'amenities'     => '',
+                'status'        => 'draft',
+            ], null);
+            $created++;
+        }
+        return $created;
+    }
+
+
     /**
      * Quản lý khu theo schema mới `areas`.
      */
-    public function areas() {
+    public function areas()
+    {
         $areas = AreaModel::getAllWithStats();
         $areaTree = AreaModel::getTree();
         $editId = (int)($_GET['edit'] ?? 0);
@@ -51,7 +111,8 @@ class AdminController {
     /**
      * Quản lý tầng thuộc khu.
      */
-    public function floors() {
+    public function floors()
+    {
         $areas = AreaModel::getAllWithStats();
         $editId = (int)($_GET['edit'] ?? 0);
         $editFloor = $editId > 0 ? FloorModel::getById($editId) : null;
@@ -65,7 +126,8 @@ class AdminController {
     /**
      * Quản lý tiện ích landing page, cho phép thêm/sửa/xóa/bật-tắt ngay trên một màn hình.
      */
-    public function amenities() {
+    public function amenities()
+    {
         $amenities = AmenityModel::getAll();
         $editId = (int)($_GET['edit'] ?? 0);
         $editAmenity = $editId > 0 ? AmenityModel::getById($editId) : null;
@@ -89,7 +151,8 @@ class AdminController {
      * Danh sách phòng admin theo schema mới `areas -> floors -> rooms`.
      * Màn hình này gom cả filter, form thêm/sửa và bảng thao tác nhanh trạng thái.
      */
-    public function rooms() {
+    public function rooms()
+    {
         $filters = $this->getRoomAdminFilters($_GET);
         $areas = AreaModel::getAllWithStats();
         $allFloors = FloorModel::getAll();
@@ -129,11 +192,12 @@ class AdminController {
         $pageTitle = 'Quản lý Phòng - NhaTroA';
         require_once BASE_PATH . 'views/admin/rooms/rooms.php';
     }
-    
+
     /**
      * Danh sách tenant và form gán phòng kèm tạo hợp đồng.
      */
-    public function tenants() {
+    public function tenants()
+    {
         $tenants = array_values(array_filter(
             UserModel::getAll(),
             static fn($user) => (int)($user['role'] ?? 0) === 0
@@ -173,7 +237,8 @@ class AdminController {
     /**
      * Danh sách toàn bộ hợp đồng để admin tra cứu nhanh.
      */
-    public function contracts() {
+    public function contracts()
+    {
         $contracts = ContractModel::getAll();
         $selectedContract = null;
         $contractMessage = pullFlash('admin_contract_message');
@@ -186,7 +251,8 @@ class AdminController {
     /**
      * Xem chi tiết một hợp đồng và giải mã thông tin tenant phục vụ in giấy.
      */
-    public function viewContract($id) {
+    public function viewContract($id)
+    {
         $contractId = (int)$id;
         $selectedContract = $contractId > 0 ? ContractModel::getById($contractId) : null;
 
@@ -209,7 +275,8 @@ class AdminController {
     /**
      * Trang quản lý hóa đơn tháng: preview, danh sách và xác nhận thanh toán tiền mặt.
      */
-    public function invoices() {
+    public function invoices()
+    {
         $period = PaymentModel::normalizePeriod($_GET['month'] ?? null, $_GET['year'] ?? null);
         $filters = [
             'month' => $period['month'],
@@ -263,11 +330,12 @@ class AdminController {
     /**
      * Tạo hóa đơn cho 1 phòng hoặc toàn bộ phòng đang ở trong kỳ đã chọn.
      */
-    public function generateInvoice() {
+    public function generateInvoice()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-invoices');
         }
-    verify_csrf();
+        verify_csrf();
 
         $period = PaymentModel::normalizePeriod($_POST['month'] ?? null, $_POST['year'] ?? null);
         $generateScope = trim((string)($_POST['generate_scope'] ?? 'single'));
@@ -326,11 +394,12 @@ class AdminController {
     /**
      * Xác nhận tenant đã thanh toán tiền mặt cho hóa đơn đang chọn.
      */
-    public function confirmPayment() {
+    public function confirmPayment()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-invoices');
         }
-    verify_csrf();
+        verify_csrf();
 
         $paymentId = (int)($_POST['payment_id'] ?? 0);
         $payerUserId = (int)($_POST['payer_user_id'] ?? 0);
@@ -359,11 +428,12 @@ class AdminController {
     /**
      * Kết thúc hợp đồng đang active và giải phóng phòng tương ứng.
      */
-    public function terminateContract($id) {
+    public function terminateContract($id)
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-contracts');
         }
-    verify_csrf();
+        verify_csrf();
 
         $contractId = (int)($id ?: ($_POST['contract_id'] ?? 0));
         $moveOutDate = trim((string)($_POST['move_out_date'] ?? ''));
@@ -384,8 +454,9 @@ class AdminController {
             redirectTo('admin-view-contract', ['id' => $contractId]);
         }
     }
-    
-    public function stats() {
+
+    public function stats()
+    {
         $selectedAreaId = (int)($_GET['area_id'] ?? 0);
         $selectedYear = max(2000, (int)($_GET['year'] ?? date('Y')));
         $areas = AreaModel::getAllWithStats();
@@ -413,7 +484,8 @@ class AdminController {
     /**
      * Quản lý toàn bộ dịch vụ và thao tác gán dịch vụ theo phòng.
      */
-    public function services() {
+    public function services()
+    {
         $services = ServiceModel::getAll();
         $rooms = array_map(static function ($room) {
             $room['occupant_count'] = RoomModel::countOccupants((int)($room['id'] ?? 0));
@@ -467,7 +539,8 @@ class AdminController {
     /**
      * Trang đổi giá dịch vụ theo tháng hiệu lực tương lai.
      */
-    public function priceChanges() {
+    public function priceChanges()
+    {
         $services = ServiceModel::getAll();
         $selectedServiceId = (int)($_GET['service_id'] ?? 0);
         if ($selectedServiceId <= 0 && !empty($services[0]['id'])) {
@@ -496,11 +569,12 @@ class AdminController {
     /**
      * Lưu lịch sử đổi giá và tự phát sinh thông báo broadcast cho tenant.
      */
-    public function savePriceChange() {
+    public function savePriceChange()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-price-changes');
         }
-    verify_csrf();
+        verify_csrf();
 
         $payload = [
             'service_id' => (int)($_POST['service_id'] ?? 0),
@@ -531,7 +605,8 @@ class AdminController {
     /**
      * Trang gửi thông báo thủ công và xem lịch sử thông báo đã phát hành.
      */
-    public function notifications() {
+    public function notifications()
+    {
         $tenants = array_values(array_filter(
             UserModel::getAll(),
             static fn($user) => (int)($user['role'] ?? 0) === 0
@@ -562,7 +637,8 @@ class AdminController {
     /**
      * Quản lý toàn bộ đánh giá phòng, gồm cả comment spam hoặc đang bị ẩn.
      */
-    public function comments() {
+    public function comments()
+    {
         $commentFilters = [
             'status' => trim((string)($_GET['status'] ?? '')),
             'spam' => trim((string)($_GET['spam'] ?? '')),
@@ -579,7 +655,8 @@ class AdminController {
     /**
      * Quản lý danh sách từ cấm, hỗ trợ thêm/sửa/xóa/bật-tắt ngay trên một màn hình.
      */
-    public function bannedWords() {
+    public function bannedWords()
+    {
         $bannedWordFilters = BannedWordModel::normalizeFilters($_GET);
         $bannedWords = BannedWordModel::getAll($bannedWordFilters);
         $bannedWordStats = BannedWordModel::getStats($bannedWords);
@@ -604,11 +681,12 @@ class AdminController {
     /**
      * Lưu hoặc xóa từ cấm từ form admin.
      */
-    public function saveBannedWord() {
+    public function saveBannedWord()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-banned-words');
         }
-    verify_csrf();
+        verify_csrf();
 
         $id = (int)($_POST['id'] ?? 0);
         $action = trim((string)($_POST['form_action'] ?? 'save'));
@@ -652,7 +730,8 @@ class AdminController {
     /**
      * Trang quản lý báo cáo cộng đồng cho comment.
      */
-    public function commentReports() {
+    public function commentReports()
+    {
         $commentReportFilters = CommentReportModel::normalizeFilters($_GET);
         $commentReports = CommentReportModel::getAdminReports($commentReportFilters);
         $commentReportStats = CommentReportModel::getStats($commentReports);
@@ -665,11 +744,12 @@ class AdminController {
     /**
      * Admin giải quyết hoặc bác bỏ báo cáo comment.
      */
-    public function resolveReport() {
+    public function resolveReport()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-comment-reports');
         }
-    verify_csrf();
+        verify_csrf();
 
         $reportId = (int)($_POST['report_id'] ?? 0);
         $action = trim((string)($_POST['resolve_action'] ?? ''));
@@ -696,11 +776,12 @@ class AdminController {
     /**
      * Bật/tắt hiển thị comment theo quyết định của admin.
      */
-    public function toggleComment() {
+    public function toggleComment()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-comments');
         }
-    verify_csrf();
+        verify_csrf();
 
         $commentId = (int)($_POST['comment_id'] ?? 0);
         $targetStatus = isset($_POST['target_status']) ? (int)$_POST['target_status'] : null;
@@ -724,11 +805,12 @@ class AdminController {
     /**
      * Gửi thông báo cho toàn bộ tenant hoặc một tenant cụ thể.
      */
-    public function sendNotification() {
+    public function sendNotification()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-notifications');
         }
-    verify_csrf();
+        verify_csrf();
 
         $recipientScope = trim((string)($_POST['recipient_scope'] ?? 'all'));
         $payload = [
@@ -769,11 +851,12 @@ class AdminController {
     /**
      * Tạo mới hoặc cập nhật cấu hình dịch vụ.
      */
-    public function saveService() {
+    public function saveService()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-services');
         }
-    verify_csrf();
+        verify_csrf();
 
         $id = (int)($_POST['id'] ?? 0);
         $returnRoomId = (int)($_POST['return_room_id'] ?? 0);
@@ -835,7 +918,8 @@ class AdminController {
     /**
      * Xóa dịch vụ khi được phép. Dịch vụ bắt buộc sẽ bị chặn ở tầng model.
      */
-    public function deleteService($id) {
+    public function deleteService($id)
+    {
         $redirectParams = [];
         if ((int)($_GET['room_id'] ?? 0) > 0) {
             $redirectParams['room_id'] = (int)$_GET['room_id'];
@@ -854,11 +938,12 @@ class AdminController {
     /**
      * Gán hoặc gỡ dịch vụ theo phòng từ màn quản lý dịch vụ.
      */
-    public function assignServiceToRoom() {
+    public function assignServiceToRoom()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-services');
         }
-    verify_csrf();
+        verify_csrf();
 
         $roomId = (int)($_POST['room_id'] ?? 0);
         $serviceId = (int)($_POST['service_id'] ?? 0);
@@ -893,7 +978,8 @@ class AdminController {
     /**
      * Trang nhập chỉ số điện/nước theo tháng cho các phòng có dịch vụ tính theo công tơ.
      */
-    public function meterReadings() {
+    public function meterReadings()
+    {
         $period = MeterReadingModel::normalizePeriod($_GET['month'] ?? null, $_GET['year'] ?? null);
         $meterData = MeterReadingModel::getAdminMatrix($period['month'], $period['year']);
         $meterMessage = pullFlash('admin_meter_message');
@@ -907,11 +993,12 @@ class AdminController {
     /**
      * Lưu chỉ số hàng loạt hoặc theo từng dòng phòng nhưng vẫn giữ validate độc lập từng ô.
      */
-    public function saveMeterReadings() {
+    public function saveMeterReadings()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-meter-readings');
         }
-    verify_csrf();
+        verify_csrf();
 
         $period = MeterReadingModel::normalizePeriod($_POST['month'] ?? null, $_POST['year'] ?? null);
         $submittedReadings = $_POST['readings'] ?? [];
@@ -951,12 +1038,21 @@ class AdminController {
             'year' => $period['year'],
         ]);
     }
-    
+
 
     /**
      * Tạo mới hoặc cập nhật khu theo module `areas`.
      */
-    public function saveArea() {
+    /**
+     * [DEV-QWEN-A][NHOM-2][2026-08-07]
+     * Chức năng: Tạo/sửa khu.
+     * Thay đổi:
+     *   - Bỏ area_code, tự suy mã từ tên
+     *   - Ảnh khu: xử lý file upload thay vì URL text
+     *   - Floor builder mới: nhận floor_rooms[N] từ hidden inputs
+     */
+    public function saveArea()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-areas');
         }
@@ -964,109 +1060,140 @@ class AdminController {
 
         $id = (int)($_POST['id'] ?? 0);
         $data = [
-            'name' => trim((string)($_POST['name'] ?? '')),
-            'address' => trim((string)($_POST['address'] ?? '')),
+            'name'        => trim((string)($_POST['name'] ?? '')),
+            'address'     => trim((string)($_POST['address'] ?? '')),
             'description' => trim((string)($_POST['description'] ?? '')),
-            'image' => trim((string)($_POST['image'] ?? '')),
+            'image'       => '',
         ];
 
+        // Nếu không nhập tên, tự đặt tên mặc định
         if ($data['name'] === '') {
-            setFlash('admin_area_error', 'Tên khu là bắt buộc.');
-            redirectTo('admin-areas', $id > 0 ? ['edit' => $id] : []);
+            $data['name'] = 'Khu mới ' . date('d/m/Y H:i');
         }
 
-        // ==== CHE DO SUA: chi cap nhat thong tin khu ====
+        // === XỬ LÝ UPLOAD ẢNH KHU ===
+        $uploadedImageUrl = $this->handleAreaImageUpload($id);
+        if ($uploadedImageUrl !== null) {
+            $data['image'] = $uploadedImageUrl;
+        } elseif ($id > 0) {
+            // Khi sửa, nếu không upload ảnh mới thì giữ ảnh cũ
+            $existingArea = AreaModel::getById($id);
+            $data['image'] = $existingArea['image'] ?? '';
+        }
+
+        // ==== CHỨC NĂNG SỬA: chỉ cập nhật thông tin khu ====
         if ($id > 0) {
             AreaModel::save($data, $id);
-            $this->cleanupAppliedSlotImage($data['image'], 'image_khu_' . $id);
             setFlash('admin_area_message', 'Đã cập nhật thông tin khu.');
             redirectTo('admin-areas', ['area' => $id]);
         }
 
-        // ==== CHE DO TAO: khu -> tang -> phong long ====
-        $floorCount = (int)($_POST['floor_count'] ?? 1);
-        if ($floorCount < 1) { $floorCount = 1; }
-        if ($floorCount > 50) { $floorCount = 50; }
+        // ==== CHỨC NĂNG TẠO MỚI: khu -> tầng -> phòng nháp ====
+        $areaCode = $this->deriveAreaCode($data['name'], '');
+        $floorCount = max(1, min(50, (int)($_POST['floor_count'] ?? 1)));
+        $floorRooms = is_array($_POST['floor_rooms'] ?? null) ? $_POST['floor_rooms'] : [];
 
         $areaId = (int)AreaModel::save($data, null);
-        if ($areaId <= 0) {
-            setFlash('admin_area_error', 'Không tạo được khu. Vui lòng thử lại.');
-            redirectTo('admin-areas');
-        }
+        $createdRooms = 0;
 
-        // Chuyen anh nhap (image_khu_new) sang image_khu_{id} neu anh duoc upload
-        $data['image'] = $this->finalizeNewAreaImage($areaId, $data['image']);
-
-        $floorIds = [];
         for ($n = 1; $n <= $floorCount; $n++) {
+            $roomLimit = max(0, min(50, (int)($floorRooms[$n] ?? 0)));
             $floorId = (int)FloorModel::save([
-                'area_id' => $areaId,
-                'name' => '',
+                'area_id'      => $areaId,
+                'name'         => 'Tầng ' . $n,
                 'floor_number' => $n,
+                'room_limit'   => $roomLimit,
             ], null);
-            if ($floorId > 0) { $floorIds[$n] = $floorId; }
+            $createdRooms += $this->createRoomSlots($floorId, $n, $roomLimit);
         }
 
-        $rooms = is_array($_POST['rooms'] ?? null) ? $_POST['rooms'] : [];
-        $roomCreated = 0;
-        $roomSkipped = 0;
-        foreach ($rooms as $roomInput) {
-            if (!is_array($roomInput)) { continue; }
-            $floorNumber = (int)($roomInput['floor_number'] ?? 0);
-            $roomName = trim((string)($roomInput['name'] ?? ''));
-            $roomPrice = (float)($roomInput['price'] ?? 0);
-            $floorId = $floorIds[$floorNumber] ?? 0;
-            if ($floorId <= 0 || $roomName === '' || $roomPrice <= 0) { $roomSkipped++; continue; }
-            RoomModel::save([
-                'floor_id' => $floorId,
-                'name' => $roomName,
-                'price' => $roomPrice,
-                'area' => (float)($roomInput['area'] ?? 0),
-                'max_occupancy' => (int)($roomInput['max_occupancy'] ?? 2),
-                'description' => trim((string)($roomInput['description'] ?? '')),
-                'thumbnail' => trim((string)($roomInput['thumbnail'] ?? '')),
-                'status' => 'available',
-            ], null);
-            $roomCreated++;
-        }
-
-        $msg = 'Đã tạo khu với ' . $floorCount . ' tầng' . ($roomCreated > 0 ? ' và ' . $roomCreated . ' phòng.' : '.');
-        if ($roomSkipped > 0) { $msg .= ' (Bỏ qua ' . $roomSkipped . ' phòng thiếu thông tin.)'; }
-        setFlash('admin_area_message', $msg);
-        redirectTo('admin-areas', ['area' => $areaId]);
+        setFlash(
+            'admin_area_message',
+            "Đã tạo khu với {$floorCount} tầng và {$createdRooms} phòng nháp. " .
+                "Hệ thống đã chuyển sang Quản lý Phòng — hoàn thiện từng phòng để đăng lên website."
+        );
+        redirectTo('admin-rooms', ['area_id' => $areaId]);
     }
 
     /**
-     * Thêm nhanh 1 tầng vào khu (không nhập tên): tự lấy max(floor_number)+1,
-     * tên tầng do FloorModel tự sinh ("Tầng N").
+     * [DEV-QWEN-A][NHOM-2][2026-08-07]
+     * Xử lý upload ảnh khu từ file. Trả về URL hoặc null nếu không có file.
      */
-    public function addFloorQuick() {
+    private function handleAreaImageUpload($areaId = 0)
+    {
+        $file = $_FILES['area_image'] ?? null;
+        if (empty($file) || (int)($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return null;
+        }
+        if ((int)($file['size'] ?? 0) > 5 * 1024 * 1024) {
+            setFlash('admin_area_error', 'Ảnh khu vượt quá 5MB.');
+            return null;
+        }
+
+        $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
+        $mime = $finfo ? (string)finfo_file($finfo, $file['tmp_name']) : (string)($file['type'] ?? '');
+        if ($finfo) {
+            finfo_close($finfo);
+        }
+
+        $allowedMimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+        if (!isset($allowedMimes[$mime])) {
+            setFlash('admin_area_error', 'Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF.');
+            return null;
+        }
+
+        $subFolder = $areaId > 0 ? 'image_khu_' . (int)$areaId : 'image_khu_new';
+        $uploadDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . $subFolder;
+        if (!is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0775, true);
+        }
+
+        $fileName = 'khu-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.' . $allowedMimes[$mime];
+        $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+
+        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+            setFlash('admin_area_error', 'Không lưu được tệp ảnh. Kiểm tra thư mục .uploads.');
+            return null;
+        }
+
+        return BASE_URL . '.uploads/' . $subFolder . '/' . $fileName;
+    }
+
+    /** Thêm nhanh 1 tầng (kèm tùy chọn tạo sẵn phòng), vẫn tôn trọng room_limit */
+    public function addFloorQuick()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-areas');
         }
         verify_csrf();
-
         $areaId = (int)($_POST['area_id'] ?? 0);
         $area = $areaId > 0 ? AreaModel::getById($areaId) : null;
         if (!$area) {
             setFlash('admin_area_error', 'Khu không tồn tại.');
             redirectTo('admin-areas');
         }
-
         $next = 1;
         foreach (FloorModel::getByAreaId($areaId) as $floor) {
             $next = max($next, (int)($floor['floor_number'] ?? 0) + 1);
         }
-
-        FloorModel::save(['area_id' => $areaId, 'name' => '', 'floor_number' => $next], null);
-        setFlash('admin_area_message', 'Đã thêm Tầng ' . $next . ' vào khu ' . ($area['name'] ?? '') . '.');
+        $roomLimit = max(0, min(50, (int)($_POST['room_count'] ?? 0)));
+        $areaCode = $this->deriveAreaCode($area['name'] ?? '', '');
+        $floorId = (int)FloorModel::save([
+            'area_id' => $areaId,
+            'name' => '',
+            'floor_number' => $next,
+            'room_limit' => $roomLimit,
+        ], null);
+        $created = $this->createRoomSlots($floorId, $areaCode, $next, $roomLimit);
+        setFlash('admin_area_message', "Đã thêm Tầng {$next}" . ($created > 0 ? " với {$created} phòng nháp." : '.'));
         redirectTo('admin-areas', ['area' => $areaId]);
     }
 
     /**
      * Xóa khu theo schema mới. DB sẽ tự cascade tầng và phòng liên quan.
      */
-    public function deleteArea($id) {
+    public function deleteArea($id)
+    {
         $areaId = (int)$id;
         if ($areaId > 0) {
             $area = AreaModel::getById($areaId);
@@ -1094,9 +1221,10 @@ class AdminController {
     /**
      * Tạo mới hoặc cập nhật tầng.
      */
-    public function saveFloor() {
+    public function saveFloor()
+    {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        verify_csrf();
+            verify_csrf();
             $data = [
                 'area_id' => (int)($_POST['area_id'] ?? 0),
                 'name' => trim((string)($_POST['name'] ?? '')),
@@ -1117,7 +1245,8 @@ class AdminController {
     /**
      * Xóa tầng. Theo schema hiện tại thao tác này sẽ kéo theo xóa phòng thuộc tầng.
      */
-    public function deleteFloor($id) {
+    public function deleteFloor($id)
+    {
         $floor = FloorModel::getById($id);
         if ($floor) {
             $areaId = (int)($floor['area_id'] ?? 0);
@@ -1143,11 +1272,12 @@ class AdminController {
     /**
      * Tạo mới hoặc cập nhật tiện ích hiển thị ngoài landing page.
      */
-    public function saveAmenity() {
+    public function saveAmenity()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-amenities');
         }
-    verify_csrf();
+        verify_csrf();
 
         $id = (int)($_POST['id'] ?? 0);
         $data = $this->normalizeAmenityInput($_POST);
@@ -1178,7 +1308,8 @@ class AdminController {
     /**
      * Xóa một tiện ích khỏi danh sách quản trị.
      */
-    public function deleteAmenity($id) {
+    public function deleteAmenity($id)
+    {
         $amenity = AmenityModel::getById($id);
         if (!$amenity) {
             setFlash('admin_amenity_error', 'Tiện ích không tồn tại hoặc đã bị xóa trước đó.');
@@ -1193,11 +1324,12 @@ class AdminController {
     /**
      * Lưu cấu hình giao diện và kiểm duyệt đánh giá theo cơ chế UPSERT `settings`.
      */
-    public function saveSettings() {
+    public function saveSettings()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-settings');
         }
-    verify_csrf();
+        verify_csrf();
 
         $fieldMap = $this->getAdminSettingFieldMap();
         $submittedValues = $_POST['settings'] ?? [];
@@ -1241,7 +1373,8 @@ class AdminController {
     /**
      * Trang cấu hình hệ thống: xem trước thu nhỏ website (home + intro) trước khi áp dụng.
      */
-    public function settingsEditor() {
+    public function settingsEditor()
+    {
         $settingSections = $this->populateAdminSettingSections();
         $dashboardMessage = pullFlash('admin_dashboard_message');
         $dashboardError = pullFlash('admin_dashboard_error');
@@ -1253,7 +1386,8 @@ class AdminController {
      * Upload ảnh theo slot: home | area_new | area_{id}.
      * File được đặt vào thư mục con tương ứng trong .uploads và đổi tên theo ngữ cảnh.
      */
-    public function uploadImage() {
+    public function uploadImage()
+    {
         header('Content-Type: application/json; charset=utf-8');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405);
@@ -1328,7 +1462,8 @@ class AdminController {
     /**
      * Đối chiếu URL ảnh upload về đường dẫn file cục bộ (chặn path traversal).
      */
-    private function resolveUploadLocalPath($url) {
+    private function resolveUploadLocalPath($url)
+    {
         $prefix = BASE_URL . '.uploads/';
         if (!is_string($url) || strpos($url, $prefix) !== 0) {
             return null;
@@ -1344,7 +1479,8 @@ class AdminController {
     /**
      * Sau khi áp dụng ảnh mới: chỉ giữ ảnh đang dùng, xóa các ảnh khác cùng thư mục slot.
      */
-    private function cleanupAppliedSlotImage($imageUrl, $folderName) {
+    private function cleanupAppliedSlotImage($imageUrl, $folderName)
+    {
         $local = $this->resolveUploadLocalPath($imageUrl);
         if ($local === null || basename(dirname($local)) !== $folderName) {
             return;
@@ -1366,7 +1502,8 @@ class AdminController {
      * Khu mới tạo: chuyển ảnh từ image_khu_new sang image_khu_{id}, cập nhật DB,
      * rồi dọn ảnh nháp còn sót trong image_khu_new.
      */
-    private function finalizeNewAreaImage($areaId, $imageUrl) {
+    private function finalizeNewAreaImage($areaId, $imageUrl)
+    {
         $local = $this->resolveUploadLocalPath($imageUrl);
         if ($local === null || basename(dirname($local)) !== 'image_khu_new') {
             return $imageUrl;
@@ -1395,124 +1532,124 @@ class AdminController {
         }
         return $newUrl;
     }
-    
-    /**
-     * Lưu phòng hoặc cập nhật nhanh trạng thái phòng từ danh sách.
-     */
-    public function saveRoom() {
+
+    /** LƯU PHÒNG: chặn vượt room_limit khi tạo mới; đủ dữ liệu => tự đăng web (available) */
+    public function saveRoom()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-rooms');
         }
-    verify_csrf();
-
+        verify_csrf();
         $redirectParams = $this->getRoomAdminFilters($_POST);
         $id = (int)($_POST['id'] ?? 0);
-        $status = $this->normalizeRoomStatus($_POST['status'] ?? 'available', 'available');
+        $status = $this->normalizeRoomStatus($_POST['status'] ?? 'draft', 'draft');
 
+        // --- Đổi trạng thái nhanh từ danh sách ---
         if (!empty($_POST['quick_status_update'])) {
             $room = RoomModel::getById($id);
             if (!$room) {
                 setFlash('admin_room_error', 'Phòng không tồn tại.');
                 redirectTo('admin-rooms', $redirectParams);
             }
-
+            if ($status === 'available' && !$this->roomIsComplete($room)) {
+                setFlash('admin_room_error', 'Phòng chưa đủ thông tin (tên, giá > 0, diện tích > 0, mô tả) nên không thể đăng công khai.');
+                redirectTo('admin-rooms', $redirectParams);
+            }
             RoomModel::updateStatus($id, $status);
             setFlash('admin_room_message', 'Đã cập nhật trạng thái phòng.');
             redirectTo('admin-rooms', $redirectParams);
         }
 
         $data = [
-            'floor_id' => (int)($_POST['floor_id'] ?? 0),
-            'name' => trim((string)($_POST['name'] ?? '')),
-            'price' => (float)($_POST['price'] ?? 0),
-            'area' => (float)($_POST['area'] ?? 0),
-            'max_occupancy' => (int)($_POST['max_occupancy'] ?? 0),
-            'description' => trim((string)($_POST['description'] ?? '')),
-            'thumbnail' => trim((string)($_POST['thumbnail'] ?? '')),
-            'status' => $status,
+            'floor_id'      => (int)($_POST['floor_id'] ?? 0),
+            'name'          => trim((string)($_POST['name'] ?? '')),
+            'position'      => (int)($_POST['position'] ?? 0),
+            'price'         => (float)($_POST['price'] ?? 0),
+            'area'          => (float)($_POST['area'] ?? 0),
+            'max_occupancy' => (int)($_POST['max_occupancy'] ?? 2),
+            'description'   => trim((string)($_POST['description'] ?? '')),
+            'amenities'     => trim((string)($_POST['amenities'] ?? '')),
+            'thumbnail'     => trim((string)($_POST['thumbnail'] ?? '')),
         ];
-
-        $formState = array_merge($data, [
-            'id' => $id,
-            'area_id' => (int)($_POST['area_id'] ?? 0),
-        ]);
+        $formState = array_merge($data, ['id' => $id, 'area_id' => (int)($_POST['area_id'] ?? 0)]);
 
         $floor = RoomModel::floorExists($data['floor_id']) ? FloorModel::getById($data['floor_id']) : null;
         if (!$floor) {
             setFlash('admin_room_error', 'Tầng không hợp lệ hoặc không tồn tại.');
             setFlash('admin_room_old', $formState);
-            redirectTo('admin-rooms', array_filter([
-                'area_id' => $formState['area_id'],
-                'edit' => $id > 0 ? $id : null,
-            ], static fn($value) => $value !== null && $value !== ''));
+            redirectTo('admin-rooms', $redirectParams);
         }
-
         if ($formState['area_id'] > 0 && (int)($floor['area_id'] ?? 0) !== $formState['area_id']) {
             setFlash('admin_room_error', 'Tầng đã chọn không thuộc khu đã chọn.');
             setFlash('admin_room_old', $formState);
-            redirectTo('admin-rooms', array_filter([
-                'area_id' => $formState['area_id'],
-                'edit' => $id > 0 ? $id : null,
-            ], static fn($value) => $value !== null && $value !== ''));
+            redirectTo('admin-rooms', $redirectParams);
         }
 
-        if ($data['name'] === '') {
-            setFlash('admin_room_error', 'Tên phòng là bắt buộc.');
-            setFlash('admin_room_old', $formState);
-            redirectTo('admin-rooms', array_filter([
-                'area_id' => (int)($floor['area_id'] ?? 0),
-                'edit' => $id > 0 ? $id : null,
-            ], static fn($value) => $value !== null && $value !== ''));
-        }
+        // --- CHẶN VƯỢT GIỚI HẠN SỐ PHÒNG CỦA TẦNG khi tạo mới ---
+        if ($id === 0) {
+            $limit = (int)($floor['room_limit'] ?? 0);
+            $currentCount = count(RoomModel::getAll(['floor_id' => (int)$floor['id']]));
+            if ($limit > 0 && $currentCount >= $limit) {
+                setFlash('admin_room_error', "Tầng này đã đạt giới hạn {$limit} phòng — không thể tạo vượt quá.");
+                setFlash('admin_room_old', $formState);
+                redirectTo('admin-rooms', $redirectParams);
+            }
+            if ($data['position'] <= 0) {
+                $data['position'] = $currentCount + 1;
+            }
 
-        if ($data['price'] <= 0) {
-            setFlash('admin_room_error', 'Giá phòng phải lớn hơn 0.');
-            setFlash('admin_room_old', $formState);
-            redirectTo('admin-rooms', array_filter([
-                'area_id' => (int)($floor['area_id'] ?? 0),
-                'edit' => $id > 0 ? $id : null,
-            ], static fn($value) => $value !== null && $value !== ''));
+            // TỰ SINH TÊN PHÒNG nếu người dùng không nhập
+            if ($data['name'] === '') {
+                $area = AreaModel::getById((int)$floor['area_id']);
+                $code = $this->deriveAreaCode($area['name'] ?? '', '');
+                $data['name'] = $code . (int)$floor['floor_number'] . str_pad((string)$data['position'], 2, '0', STR_PAD_LEFT);
+            }
         }
 
         if ($data['max_occupancy'] <= 0) {
             setFlash('admin_room_error', 'Sức chứa tối đa phải lớn hơn 0.');
             setFlash('admin_room_old', $formState);
-            redirectTo('admin-rooms', array_filter([
-                'area_id' => (int)($floor['area_id'] ?? 0),
-                'edit' => $id > 0 ? $id : null,
-            ], static fn($value) => $value !== null && $value !== ''));
-        }
-
-        if ($id > 0 && !RoomModel::getById($id)) {
-            setFlash('admin_room_error', 'Phòng cần cập nhật không tồn tại.');
             redirectTo('admin-rooms', $redirectParams);
         }
 
+        // --- QUY TẮC ĐĂNG WEB: đủ dữ liệu => available, thiếu => draft ---
+        $complete = $this->roomIsComplete($data);
+        $data['status'] = $complete ? ($status === 'maintenance' ? 'maintenance' : 'available') : 'draft';
+
         RoomModel::save($data, $id > 0 ? $id : null);
-        setFlash('admin_room_message', $id > 0 ? 'Đã cập nhật phòng thành công.' : 'Đã thêm phòng mới thành công.');
+        setFlash('admin_room_message', $complete
+            ? 'Phòng đã đủ thông tin và ĐƯỢC đăng lên website.'
+            : 'Đã lưu phòng NHÁP — chưa hiển thị web. Điền đủ: giá > 0, diện tích > 0, mô tả để đăng web.');
         redirectTo('admin-rooms', [
-            'area_id' => (int)($floor['area_id'] ?? 0),
+            'area_id'  => (int)($floor['area_id'] ?? 0),
             'floor_id' => (int)$data['floor_id'],
         ]);
     }
-    
+
     /**
      * Xóa phòng nhưng chặn cứng khi vẫn còn người đang được gán ở phòng đó.
      */
-    public function deleteRoom($id) {
+    /**
+     * [DEV-QWEN-A][NHOM-2][2026-08-08]
+     * FIX: chặn xóa phòng khi status = 'rented' (ngoài chặn cũ khi còn người ở).
+     * Backend là chốt chặn cuối — dù view có bị bypass cũng không xóa được.
+     */
+    public function deleteRoom($id)
+    {
         $redirectParams = $this->getRoomAdminFilters($_GET);
         $room = RoomModel::getById($id);
-
         if (!$room) {
             setFlash('admin_room_error', 'Phòng không tồn tại hoặc đã bị xóa trước đó.');
             redirectTo('admin-rooms', $redirectParams);
         }
-
         if (RoomModel::hasActiveOccupants($id)) {
-            setFlash('admin_room_error', 'Phòng đang có người ở!');
+            setFlash('admin_room_error', 'Phòng đang có người ở! Không thể xóa.');
             redirectTo('admin-rooms', $redirectParams);
         }
-
+        if ((string)($room['status'] ?? '') === 'rented') {
+            setFlash('admin_room_error', 'Phòng "' . ($room['name'] ?? '') . '" đang ở trạng thái đã thuê — hệ thống chặn xóa. Hãy kết thúc hợp đồng hoặc chuyển trạng thái trước.');
+            redirectTo('admin-rooms', $redirectParams);
+        }
         RoomModel::delete($id);
         setFlash('admin_room_message', 'Đã xóa phòng thành công.');
         redirectTo('admin-rooms', $redirectParams);
@@ -1521,7 +1658,8 @@ class AdminController {
     /**
      * Khai báo schema field cho dashboard admin để view render động, không hard-code rải rác.
      */
-    private function buildAdminSettingSections() {
+    private function buildAdminSettingSections()
+    {
         return [
             [
                 'id' => 'brand',
@@ -1804,7 +1942,8 @@ class AdminController {
     /**
      * Gắn giá trị hiện tại vào schema field để view admin chỉ render và không tự suy diễn dữ liệu.
      */
-    private function populateAdminSettingSections() {
+    private function populateAdminSettingSections()
+    {
         $settings = SettingModel::loadAll();
         $sections = $this->buildAdminSettingSections();
 
@@ -1822,7 +1961,8 @@ class AdminController {
     /**
      * Trả map field theo `setting_key` để validate/lưu settings từ dashboard admin.
      */
-    private function getAdminSettingFieldMap() {
+    private function getAdminSettingFieldMap()
+    {
         $fieldMap = [];
 
         foreach ($this->buildAdminSettingSections() as $section) {
@@ -1837,7 +1977,8 @@ class AdminController {
     /**
      * Tìm nhanh giá trị của một field trong schema dashboard đã được đổ dữ liệu.
      */
-    private function getSettingFieldValue(array $sections, $key) {
+    private function getSettingFieldValue(array $sections, $key)
+    {
         foreach ($sections as $section) {
             foreach ($section['fields'] as $field) {
                 if (($field['key'] ?? '') === $key) {
@@ -1852,7 +1993,8 @@ class AdminController {
     /**
      * Validate dữ liệu settings theo loại field để chặn lỗi cấu hình ngay từ admin.
      */
-    private function validateSettingField(array $field, &$value) {
+    private function validateSettingField(array $field, &$value)
+    {
         $label = $field['label'] ?? ($field['key'] ?? 'Trường cấu hình');
         $type = $field['type'] ?? 'text';
 
@@ -1918,7 +2060,8 @@ class AdminController {
     /**
      * Bộ icon Material dùng cố định cho tiện ích để admin chọn nhanh và tránh nhập icon sai.
      */
-    private function getAmenityIconOptions() {
+    private function getAmenityIconOptions()
+    {
         return [
             ['key' => 'wifi', 'label' => 'Wifi'],
             ['key' => 'security', 'label' => 'An ninh'],
@@ -1940,14 +2083,16 @@ class AdminController {
     /**
      * Tạo whitelist icon key để chặn submit icon lạ từ ngoài form.
      */
-    private function getAllowedAmenityIconKeys() {
+    private function getAllowedAmenityIconKeys()
+    {
         return array_column($this->getAmenityIconOptions(), 'key');
     }
 
     /**
      * Chuẩn hóa dữ liệu tiện ích từ form admin trước khi đưa vào model.
      */
-    private function normalizeAmenityInput(array $source) {
+    private function normalizeAmenityInput(array $source)
+    {
         return [
             'icon' => trim((string)($source['icon'] ?? 'apartment')),
             'title' => trim((string)($source['title'] ?? '')),
@@ -1960,7 +2105,8 @@ class AdminController {
     /**
      * Trả metadata của từng cách tính để view admin render badge và phần giải thích thống nhất.
      */
-    private function getServiceBillingModeOptions() {
+    private function getServiceBillingModeOptions()
+    {
         return [
             [
                 'value' => 'fixed',
@@ -1992,7 +2138,8 @@ class AdminController {
     /**
      * Trả metadata đối tượng áp dụng để view không phải tự định nghĩa text hiển thị.
      */
-    private function getServiceAppliesToOptions() {
+    private function getServiceAppliesToOptions()
+    {
         return [
             [
                 'value' => 'room',
@@ -2010,21 +2157,24 @@ class AdminController {
     /**
      * Trả whitelist cách tính để validate request từ form admin.
      */
-    private function getAllowedServiceBillingModes() {
+    private function getAllowedServiceBillingModes()
+    {
         return array_column($this->getServiceBillingModeOptions(), 'value');
     }
 
     /**
      * Trả whitelist đối tượng áp dụng để chặn submit giá trị lạ.
      */
-    private function getAllowedServiceAppliesTo() {
+    private function getAllowedServiceAppliesTo()
+    {
         return array_column($this->getServiceAppliesToOptions(), 'value');
     }
 
     /**
      * Chuẩn hóa input dịch vụ từ form admin trước khi chuyển xuống model.
      */
-    private function normalizeServiceInput(array $source) {
+    private function normalizeServiceInput(array $source)
+    {
         return [
             'name' => trim((string)($source['name'] ?? '')),
             'price' => (float)($source['price'] ?? 0),
@@ -2041,7 +2191,8 @@ class AdminController {
     /**
      * Chuẩn hóa bộ filter cho trang admin-rooms để cả GET lẫn POST dùng chung một nguồn.
      */
-    private function getRoomAdminFilters(array $source) {
+    private function getRoomAdminFilters(array $source)
+    {
         $status = $this->normalizeRoomStatus($source['return_status'] ?? ($source['status'] ?? ''), '');
 
         return [
@@ -2054,15 +2205,17 @@ class AdminController {
     /**
      * Chỉ cho phép các trạng thái hợp lệ của phòng để tránh update sai enum.
      */
-    private function normalizeRoomStatus($status, $default = '') {
-        $allowedStatuses = ['available', 'rented', 'maintenance'];
+    private function normalizeRoomStatus($status, $default = '')
+    {
+        $allowedStatuses = ['draft', 'available', 'rented', 'maintenance'];
         return in_array($status, $allowedStatuses, true) ? $status : $default;
     }
 
     /**
      * Kiểm tra một chuỗi ngày có đúng chuẩn `Y-m-d` để tránh ghi sai vào DB.
      */
-    private function isValidDateInput($value) {
+    private function isValidDateInput($value)
+    {
         $resolvedValue = trim((string)$value);
         if ($resolvedValue === '') {
             return false;
@@ -2075,7 +2228,8 @@ class AdminController {
     /**
      * Chuẩn hóa payload tạo hợp đồng từ form admin để controller/model dùng cùng một shape.
      */
-    private function normalizeTenantAssignmentInput(array $source) {
+    private function normalizeTenantAssignmentInput(array $source)
+    {
         $electricityIndex = trim((string)($source['initial_electricity_index'] ?? ''));
         $waterIndex = trim((string)($source['initial_water_index'] ?? ''));
 
@@ -2094,11 +2248,12 @@ class AdminController {
     /**
      * Gán tenant vào phòng và tạo hợp đồng active trong cùng một thao tác.
      */
-    public function addTenant() {
+    public function addTenant()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-tenants');
         }
-    verify_csrf();
+        verify_csrf();
 
         $payload = $this->normalizeTenantAssignmentInput($_POST);
         $oldInput = [
@@ -2161,7 +2316,8 @@ class AdminController {
     /**
      * Trang quản lý yêu cầu thuê phòng (hàng đợi pending + lịch sử).
      */
-    public function rentRequests() {
+    public function rentRequests()
+    {
         $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
         $allowedStatuses = ['pending', 'approved', 'rejected', 'cancelled'];
         if (!in_array($statusFilter, $allowedStatuses, true)) {
@@ -2177,8 +2333,11 @@ class AdminController {
     /**
      * Duyệt yêu cầu thuê: kiểm tra trùng hợp đồng + sức chứa, tạo contract, đồng bộ phòng, báo cho user.
      */
-    public function approveRentRequest() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-rent-requests'); }
+    public function approveRentRequest()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-rent-requests');
+        }
         verify_csrf();
         $requestId = (int)($_POST['request_id'] ?? 0);
         $request = RentalRequestModel::getById($requestId);
@@ -2242,8 +2401,11 @@ class AdminController {
     /**
      * Từ chối yêu cầu thuê: ghi lý do, báo cho user (user được gửi yêu cầu phòng khác).
      */
-    public function rejectRentRequest() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-rent-requests'); }
+    public function rejectRentRequest()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-rent-requests');
+        }
         verify_csrf();
         $requestId = (int)($_POST['request_id'] ?? 0);
         $adminNote = trim((string)($_POST['admin_note'] ?? ''));
@@ -2274,10 +2436,13 @@ class AdminController {
     /**
      * Admin xem danh sách yêu cầu ở ghép (kèm tên người gửi / người nhận / phòng).
      */
-    public function roommateRequests() {
+    public function roommateRequests()
+    {
         $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
         $allowed = ['pending', 'approved', 'rejected', 'admin_rejected'];
-        if (!in_array($statusFilter, $allowed, true)) { $statusFilter = 'pending'; }
+        if (!in_array($statusFilter, $allowed, true)) {
+            $statusFilter = 'pending';
+        }
         $requests = RoommateRequestModel::getAll(['status' => $statusFilter]);
         foreach ($requests as &$row) {
             $req = UserModel::getById((int)$row['requester_id']);
@@ -2297,8 +2462,11 @@ class AdminController {
     /**
      * Admin veto yêu cầu ở ghép: nếu đã duyệt (B đã vào phòng) thì gỡ B ra.
      */
-    public function vetoRoommate() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-roommate-requests'); }
+    public function vetoRoommate()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-roommate-requests');
+        }
         verify_csrf();
         $requestId = (int)($_POST['request_id'] ?? 0);
         $request = RoommateRequestModel::getById($requestId);
@@ -2349,11 +2517,14 @@ class AdminController {
     /**
      * Trang quản lý bảo trì: danh sách đề xuất + form tạo mới + chạy lazy date-trigger.
      */
-    public function maintenance() {
+    public function maintenance()
+    {
         MaintenanceRequestModel::activateDue();
         $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
         $allowed = ['pending', 'active', 'rejected', 'completed'];
-        if (!in_array($statusFilter, $allowed, true)) { $statusFilter = 'pending'; }
+        if (!in_array($statusFilter, $allowed, true)) {
+            $statusFilter = 'pending';
+        }
         $requests = MaintenanceRequestModel::getAll(['status' => $statusFilter]);
         $roomsMap = [];
         foreach (RoomModel::getAll() as $roomRow) {
@@ -2375,8 +2546,11 @@ class AdminController {
     /**
      * Admin đề xuất bảo trì phòng đang thuê + thông báo cho toàn bộ cư dân trong phòng.
      */
-    public function proposeMaintenance() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-maintenance'); }
+    public function proposeMaintenance()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-maintenance');
+        }
         verify_csrf();
         $roomId = (int)($_POST['room_id'] ?? 0);
         $reason = trim((string)($_POST['reason'] ?? ''));
@@ -2436,8 +2610,11 @@ class AdminController {
     /**
      * Admin hoàn tất bảo trì: đánh dấu completed và trả phòng về trạng thái phù hợp.
      */
-    public function completeMaintenance() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-maintenance'); }
+    public function completeMaintenance()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-maintenance');
+        }
         verify_csrf();
         $requestId = (int)($_POST['request_id'] ?? 0);
         $request = MaintenanceRequestModel::getById($requestId);
