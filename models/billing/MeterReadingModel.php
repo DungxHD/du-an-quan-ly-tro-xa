@@ -28,32 +28,29 @@ class MeterReadingModel {
     }
 
     /**
-     * Trả dữ liệu bảng nhập chỉ số cho admin theo kỳ được chọn.
+     * [TEAM-FIX][NHOM3] Trả dữ liệu bảng nhập chỉ số cho admin theo kỳ được chọn.
+     * Bổ sung cờ allow_manual_old_index để mở ô nhập chỉ số cũ khi không có mốc tự động.
      */
     public static function getAdminMatrix($month, $year) {
         $period = self::normalizePeriod($month, $year);
         $rows = [];
         $serviceCatalog = [];
-
         foreach (RoomModel::getAll() as $room) {
             $roomId = (int)($room['id'] ?? 0);
             $contract = self::getApplicableContractForRoom($roomId, $period['month'], $period['year']);
             if (!$contract) {
                 continue;
             }
-
             $services = self::getMeterServicesForRoom($roomId, $period['month'], $period['year']);
             if (empty($services)) {
                 continue;
             }
-
             $cells = [];
             foreach ($services as $service) {
                 $serviceId = (int)($service['id'] ?? 0);
                 if ($serviceId <= 0) {
                     continue;
                 }
-
                 $serviceCatalog[$serviceId] = [
                     'id' => $serviceId,
                     'name' => $service['name'] ?? 'Dịch vụ',
@@ -61,14 +58,12 @@ class MeterReadingModel {
                     'icon' => $service['icon'] ?? 'settings',
                     'price' => (float)($service['price'] ?? 0),
                 ];
-
                 $baseline = self::resolvePeriodBaseline($roomId, $service, $period['month'], $period['year']);
                 $reading = self::getReadingByPeriod($roomId, $serviceId, $period['month'], $period['year']);
                 $oldIndex = $reading ? (float)($reading['old_index'] ?? 0) : $baseline['old_index'];
                 $newIndex = $reading ? (float)($reading['new_index'] ?? 0) : null;
                 $consumption = $newIndex !== null ? max(0, $newIndex - (float)$oldIndex) : null;
                 $amount = $consumption !== null ? $consumption * (float)($service['price'] ?? 0) : null;
-
                 $cells[$serviceId] = [
                     'service_id' => $serviceId,
                     'service_name' => $service['name'] ?? 'Dịch vụ',
@@ -83,15 +78,14 @@ class MeterReadingModel {
                     'baseline_note' => $baseline['note'],
                     'baseline_error' => $baseline['error'],
                     'baseline_source' => $baseline['source'],
+                    'allow_manual_old_index' => (bool)($baseline['allow_manual_old_index'] ?? false),
                     'can_save' => $baseline['error'] === null,
                     'has_reading' => $reading !== null,
                 ];
             }
-
             if (empty($cells)) {
                 continue;
             }
-
             $rows[] = [
                 'room_id' => $roomId,
                 'room_name' => $room['name'] ?? 'Phòng',
@@ -104,28 +98,22 @@ class MeterReadingModel {
                 'cells' => $cells,
             ];
         }
-
         usort($rows, static function ($left, $right) {
             $areaCompare = strcmp((string)($left['area_name'] ?? ''), (string)($right['area_name'] ?? ''));
             if ($areaCompare !== 0) {
                 return $areaCompare;
             }
-
             $floorCompare = (int)($left['floor_number'] ?? 0) <=> (int)($right['floor_number'] ?? 0);
             if ($floorCompare !== 0) {
                 return $floorCompare;
             }
-
             return strcmp((string)($left['room_name'] ?? ''), (string)($right['room_name'] ?? ''));
         });
-
         uasort($serviceCatalog, static fn($left, $right) => strcmp((string)($left['name'] ?? ''), (string)($right['name'] ?? '')));
-
         $lineCount = 0;
         foreach ($rows as $row) {
             $lineCount += count($row['cells'] ?? []);
         }
-
         return [
             'period' => $period,
             'rows' => $rows,
@@ -135,16 +123,15 @@ class MeterReadingModel {
             'completed_count' => self::countPeriodReadings($period['month'], $period['year']),
         ];
     }
-
     /**
-     * Lưu nhiều chỉ số cùng lúc hoặc chỉ riêng một dòng phòng.
+     * [TEAM-FIX][NHOM3] Lưu nhiều chỉ số cùng lúc hoặc chỉ riêng một dòng phòng.
+     * Hỗ trợ old_index nhập tay khi baseline không tự resolve được.
      */
     public static function saveReadings($month, $year, array $submittedReadings, array $options = []) {
         $period = self::normalizePeriod($month, $year);
         $targetRoomId = (int)($options['room_id'] ?? 0);
         $matrix = self::getAdminMatrix($period['month'], $period['year']);
         $rowsByRoomId = [];
-
         foreach ($matrix['rows'] as $row) {
             $roomId = (int)($row['room_id'] ?? 0);
             if ($targetRoomId > 0 && $roomId !== $targetRoomId) {
@@ -152,7 +139,6 @@ class MeterReadingModel {
             }
             $rowsByRoomId[$roomId] = $row;
         }
-
         if ($targetRoomId > 0 && !isset($rowsByRoomId[$targetRoomId])) {
             return [
                 'saved_count' => 0,
@@ -164,43 +150,43 @@ class MeterReadingModel {
                 'form_error' => 'Phòng được chọn không có dữ liệu công tơ để lưu.',
             ];
         }
-
         $savedCount = 0;
         $createdCount = 0;
         $updatedCount = 0;
         $errors = [];
         $hasAnyInput = false;
-
         foreach ($rowsByRoomId as $roomId => $row) {
             $roomInput = $submittedReadings[$roomId] ?? [];
             if (!is_array($roomInput)) {
                 continue;
             }
-
             foreach (($row['cells'] ?? []) as $serviceId => $cell) {
-                $rawValue = trim((string)($roomInput[$serviceId]['new_index'] ?? ''));
-                if ($rawValue === '') {
+                $cellInput = $roomInput[$serviceId] ?? [];
+                $rawNewValue = trim((string)($cellInput['new_index'] ?? ''));
+                if ($rawNewValue === '') {
                     continue;
                 }
-
                 $hasAnyInput = true;
-                if (!is_numeric($rawValue)) {
+                if (!is_numeric($rawNewValue)) {
                     $errors[$roomId][$serviceId] = 'Chỉ số mới phải là số hợp lệ.';
                     continue;
                 }
-
                 if (!(bool)($cell['can_save'] ?? false)) {
                     $errors[$roomId][$serviceId] = $cell['baseline_error'] ?? 'Dòng này chưa có mốc chỉ số cũ hợp lệ.';
                     continue;
                 }
-
                 $oldIndex = (float)($cell['old_index'] ?? 0);
-                $newIndex = (float)$rawValue;
+                if (!empty($cell['allow_manual_old_index']) && empty($cell['has_reading'])) {
+                    $rawOldValue = trim((string)($cellInput['old_index'] ?? ''));
+                    if ($rawOldValue !== '' && is_numeric($rawOldValue)) {
+                        $oldIndex = (float)$rawOldValue;
+                    }
+                }
+                $newIndex = (float)$rawNewValue;
                 if ($newIndex < $oldIndex) {
-                    $errors[$roomId][$serviceId] = 'Chỉ số mới phải lớn hơn hoặc bằng chỉ số cũ.';
+                    $errors[$roomId][$serviceId] = 'Chỉ số mới (' . $newIndex . ') phải lớn hơn hoặc bằng chỉ số cũ (' . $oldIndex . ').';
                     continue;
                 }
-
                 $result = self::upsertReading(
                     $roomId,
                     (int)$serviceId,
@@ -209,7 +195,6 @@ class MeterReadingModel {
                     $oldIndex,
                     $newIndex
                 );
-
                 $savedCount++;
                 if ($result === 'created') {
                     $createdCount++;
@@ -218,7 +203,6 @@ class MeterReadingModel {
                 }
             }
         }
-
         return [
             'saved_count' => $savedCount,
             'created_count' => $createdCount,
@@ -227,7 +211,6 @@ class MeterReadingModel {
             'form_error' => $hasAnyInput ? null : 'Vui lòng nhập ít nhất một chỉ số mới trước khi lưu.',
         ];
     }
-
     /**
      * Trả dữ liệu chỉ số của một phòng cho tenant trong kỳ được chọn.
      */
@@ -438,8 +421,8 @@ class MeterReadingModel {
     }
 
     /**
-     * Tính chỉ số cũ cho một phòng/dịch vụ/kỳ theo rule:
-     * tháng trước -> mốc đầu hợp đồng nếu là tháng đầu -> báo thiếu mốc.
+     * [TEAM-FIX][NHOM3] Tính chỉ số cũ cho một phòng/dịch vụ/kỳ.
+     * Thêm nhánh manual_fallback: có hợp đồng nhưng thiếu mốc -> cho nhập tay old_index thay vì khóa ô.
      */
     public static function resolvePeriodBaseline($roomId, array $service, $month, $year) {
         $resolvedRoomId = (int)$roomId;
@@ -447,7 +430,6 @@ class MeterReadingModel {
         $resolvedYear = (int)$year;
         $serviceId = (int)($service['id'] ?? 0);
         $existing = self::getReadingByPeriod($resolvedRoomId, $serviceId, $resolvedMonth, $resolvedYear);
-
         if ($existing) {
             return [
                 'old_index' => (float)($existing['old_index'] ?? 0),
@@ -456,7 +438,6 @@ class MeterReadingModel {
                 'error' => null,
             ];
         }
-
         $previousReading = self::getPreviousPeriodReading($resolvedRoomId, $serviceId, $resolvedMonth, $resolvedYear);
         if ($previousReading) {
             return [
@@ -466,7 +447,6 @@ class MeterReadingModel {
                 'error' => null,
             ];
         }
-
         $contract = self::getApplicableContractForRoom($resolvedRoomId, $resolvedMonth, $resolvedYear);
         if (!$contract) {
             return [
@@ -476,37 +456,34 @@ class MeterReadingModel {
                 'error' => 'Không tìm thấy hợp đồng phù hợp với kỳ này để xác định mốc ban đầu.',
             ];
         }
-
         $contractStartMonth = (int)date('n', strtotime((string)($contract['move_in_date'] ?? $contract['contract_date'] ?? 'now')));
         $contractStartYear = (int)date('Y', strtotime((string)($contract['move_in_date'] ?? $contract['contract_date'] ?? 'now')));
         $initialIndex = self::resolveContractInitialIndex($contract, $service);
-
-        if ($contractStartMonth === $resolvedMonth && $contractStartYear === $resolvedYear && $initialIndex !== null) {
-            return [
-                'old_index' => (float)$initialIndex,
-                'source' => 'contract_initial',
-                'note' => 'Mốc ban đầu: ' . self::formatNumber($initialIndex) . ' (từ hợp đồng).',
-                'error' => null,
-            ];
-        }
-
-        if ($contractStartMonth === $resolvedMonth && $contractStartYear === $resolvedYear && $initialIndex === null) {
+        if ($contractStartMonth === $resolvedMonth && $contractStartYear === $resolvedYear) {
+            if ($initialIndex !== null) {
+                return [
+                    'old_index' => (float)$initialIndex,
+                    'source' => 'contract_initial',
+                    'note' => 'Mốc ban đầu: ' . self::formatNumber($initialIndex) . ' (từ hợp đồng).',
+                    'error' => null,
+                ];
+            }
             return [
                 'old_index' => null,
                 'source' => 'missing_initial',
                 'note' => null,
-                'error' => 'Tháng đầu chưa có chỉ số đầu kỳ trong hợp đồng nên chưa thể ghi nhận.',
+                'error' => 'Tháng đầu chưa có chỉ số đầu kỳ trong hợp đồng. Hãy nhập tay chỉ số cũ ở ô màu vàng.',
+                'allow_manual_old_index' => true,
             ];
         }
-
         return [
             'old_index' => null,
-            'source' => 'missing_previous',
-            'note' => null,
-            'error' => 'Chưa có chỉ số tháng trước để làm mốc cũ cho kỳ này.',
+            'source' => 'manual_fallback',
+            'note' => 'Không có mốc tự động (tháng trước thiếu chỉ số). Nhập tay chỉ số cũ ở ô màu vàng.',
+            'error' => null,
+            'allow_manual_old_index' => true,
         ];
     }
-
     /**
      * Tìm hợp đồng áp dụng cho phòng trong đúng kỳ đang thao tác.
      * Nếu trùng nhiều hợp đồng, ưu tiên hợp đồng có ngày vào ở gần kỳ nhất.

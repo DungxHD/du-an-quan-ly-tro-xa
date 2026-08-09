@@ -157,7 +157,298 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     </div>
                 <?php endforeach; ?>
             </div>
-        <?php endif; ?>
+        </div>
+
+        <!-- ================= CỘT PHẢI: DANH SÁCH PHÒNG + PHÒNG NHÁP ================= -->
+        <div class="scroll-panel space-y-6 xl:col-span-2 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-2">
+
+                        <form method="POST" action="<?= BASE_URL ?>?page=admin-save-room" data-validate class="space-y-4" data-room-admin-form>
+<?= csrf_field() ?>
+                            <?php if ($isEditing): ?>
+                            <input type="hidden" name="id" value="<?= (int)($formRoom['id'] ?? 0) ?>">
+                            <?php endif; ?>
+                            <input type="hidden" name="return_area_id" value="<?= $currentFilters['area_id'] ?>">
+                            <input type="hidden" name="return_floor_id" value="<?= $currentFilters['floor_id'] ?>">
+                            <input type="hidden" name="return_status" value="<?= e($currentFilters['status']) ?>">
+
+                            <div>
+                                <label for="room-area-id" class="mb-1 block text-sm font-semibold text-gray-700">Khu *</label>
+                                <select id="room-area-id" name="area_id" required class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" data-area-select data-target-floor="#room-floor-id">
+                                    <?php foreach ($areas as $area): ?>
+                                    <option value="<?= (int)($area['id'] ?? 0) ?>" <?= $formAreaId === (int)($area['id'] ?? 0) ? 'selected' : '' ?>>
+                                        <?= e($area['name'] ?? 'Khu') ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="room-floor-id" class="mb-1 block text-sm font-semibold text-gray-700">Tầng *</label>
+                                <select id="room-floor-id" name="floor_id" required class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" data-floor-select data-placeholder="Chọn tầng" data-selected-value="<?= (int)($formRoom['floor_id'] ?? 0) ?>">
+                                    <option value="">Chọn tầng</option>
+                                    <?php foreach ($formFloors as $floor): ?>
+                                    <option value="<?= (int)($floor['id'] ?? 0) ?>" <?= (int)($formRoom['floor_id'] ?? 0) === (int)($floor['id'] ?? 0) ? 'selected' : '' ?>>
+                                        <?= e($floor['name'] ?? 'Tầng') ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500">Khi đổi khu, dropdown tầng sẽ tự nạp lại theo khu đã chọn.</p>
+                            </div>
+
+                            <div>
+                                <label for="room-name" class="mb-1 block text-sm font-semibold text-gray-700">Tên phòng *</label>
+                                <input id="room-name" type="text" name="name" required value="<?= e($formRoom['name'] ?? '') ?>" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" placeholder="Ví dụ: Phòng A101">
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label for="room-price" class="mb-1 block text-sm font-semibold text-gray-700">Giá thuê (VNĐ) *</label>
+                                    <input id="room-price" type="number" name="price" min="1" step="1000" required value="<?= e($formRoom['price'] ?? 3000000) ?>" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                                    <p class="mt-1 text-xs text-gray-500">Validation bắt buộc lớn hơn 0 ở cả client và PHP.</p>
+                                </div>
+                                <div>
+                                    <label for="room-area" class="mb-1 block text-sm font-semibold text-gray-700">Diện tích (m2)</label>
+                                    <input id="room-area" type="number" name="area" min="0" step="0.1" value="<?= e($formRoom['area'] ?? 20) ?>" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label for="room-max-occupancy" class="mb-1 block text-sm font-semibold text-gray-700">Sức chứa tối đa *</label>
+                                    <input id="room-max-occupancy" type="number" name="max_occupancy" min="1" step="1" required value="<?= e($formRoom['max_occupancy'] ?? 2) ?>" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                                </div>
+                                <div>
+                                    <label for="room-status" class="mb-1 block text-sm font-semibold text-gray-700">Trạng thái *</label>
+                                    <select id="room-status" name="status" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                                        <?php foreach ($statusMap as $statusKey => $statusMeta): ?>
+                                        <option value="<?= $statusKey ?>" <?= ($formRoom['status'] ?? 'available') === $statusKey ? 'selected' : '' ?>>
+                                            <?= e($statusMeta['label']) ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="thumbnail" id="room-thumbnail-hidden" value="<?= e($formThumbnail) ?>">
+
+                            <div>
+                                <label class="mb-1 block text-sm font-semibold text-gray-700">Tiện nghi phòng</label>
+                                <div class="grid grid-cols-2 gap-2 md:grid-cols-3">
+                                    <?php foreach ($roomAmenityOptions as $amenityOption): ?>
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 hover:border-primary cursor-pointer">
+                                        <input type="checkbox" name="amenities[]" value="<?= e($amenityOption) ?>" <?= in_array($amenityOption, $knownAmenities, true) ? 'checked' : '' ?> class="w-4 h-4 text-primary">
+                                        <?= e($amenityOption) ?>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <input type="text" name="custom_amenities" value="<?= e(implode(', ', $customAmenitiesList)) ?>" placeholder="Tiện nghi khác, phân tách bằng dấu phẩy" class="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block text-sm font-semibold text-gray-700">Ảnh phòng (chỉ tải file lên)</label>
+                                <input type="hidden" name="main_image" id="room-main-image-input" value="">
+                                <div id="room-aux-images-holder"></div>
+                                <div class="flex flex-wrap gap-2">
+                                    <label class="inline-flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary hover:text-primary transition">
+                                        <span class="material-symbols-outlined text-base">image</span> Ảnh chính
+                                        <input type="file" id="room-main-image-file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+                                    </label>
+                                    <label class="inline-flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 cursor-pointer hover:border-primary hover:text-primary transition">
+                                        <span class="material-symbols-outlined text-base">photo_library</span> Ảnh phụ
+                                        <input type="file" id="room-aux-images-file" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden">
+                                    </label>
+                                </div>
+                                <div class="mt-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-3">
+                                    <p class="mb-2 text-xs font-semibold text-gray-500">Ảnh chính (avatar phòng)</p>
+                                    <img src="<?= e($previewThumbnail) ?>" alt="Ảnh chính" class="h-48 w-full rounded-2xl object-cover" data-room-main-preview>
+                                </div>
+                                <div class="mt-2">
+                                    <p class="mb-2 text-xs font-semibold text-gray-500">Ảnh phụ (hiển thị nhỏ)</p>
+                                    <div id="room-aux-preview" class="flex flex-wrap gap-2"></div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-3">
+                                <p class="mb-2 text-sm font-semibold text-gray-700">Preview ảnh phòng</p>
+                                <img src="<?= e($previewThumbnail) ?>" alt="Preview thumbnail" class="h-48 w-full rounded-2xl object-cover" data-room-thumbnail-preview>
+                            </div>
+
+                            <div>
+                                <label for="room-description" class="mb-1 block text-sm font-semibold text-gray-700">Mô tả</label>
+                                <textarea id="room-description" name="description" rows="4" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" placeholder="Điểm nổi bật của phòng, tiện ích, lưu ý cho người thuê..."><?= e($formRoom['description'] ?? '') ?></textarea>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button type="submit" class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-white transition hover:bg-opacity-90">
+                                    <span class="material-symbols-outlined text-base"><?= $isEditing ? 'save' : 'add_home' ?></span>
+                                    <?= $isEditing ? 'Cập nhật phòng' : 'Thêm phòng' ?>
+                                </button>
+                                <?php if ($isEditing): ?>
+                                <a href="<?= $filterResetUrl ?>" class="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50">
+                                    Hủy
+                                </a>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <?php if (empty($rooms)): ?>
+                    <div class="px-6 py-12 text-center">
+                        <span class="material-symbols-outlined text-5xl text-gray-300">meeting_room</span>
+                        <p class="mt-4 text-lg font-semibold text-gray-700">Không có phòng nào khớp bộ lọc hiện tại</p>
+                        <p class="mt-2 text-sm text-gray-500">Hãy đổi khu, tầng hoặc trạng thái để xem thêm dữ liệu.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phòng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Khu / Tầng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Giá</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Trạng thái</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <?php foreach ($rooms as $room): ?>
+                                    <?php
+                                    $roomStatus = $statusMap[$room['status'] ?? 'available'] ?? $statusMap['available'];
+                                    $deleteParams = http_build_query(array_filter([
+                                        'page' => 'admin-delete-room',
+                                        'id' => (int)($room['id'] ?? 0),
+                                        'area_id' => $currentFilters['area_id'],
+                                        'floor_id' => $currentFilters['floor_id'],
+                                        'status' => $currentFilters['status'],
+                                    ], static fn($value) => $value !== '' && $value !== null));
+                                    $editParams = http_build_query(array_filter([
+                                        'page' => 'admin-rooms',
+                                        'edit' => (int)($room['id'] ?? 0),
+                                        'area_id' => $currentFilters['area_id'],
+                                        'floor_id' => $currentFilters['floor_id'],
+                                        'status' => $currentFilters['status'],
+                                    ], static fn($value) => $value !== '' && $value !== null));
+                                    /* [DEV-QWEN-A][NHOM-2][2026-08-08] Phòng rented hoặc còn người ở => khóa nút Xóa */
+                                    $deleteMessage = 'Bạn có chắc chắn muốn xóa phòng này?';
+                                    $deleteBlocked = false;
+                                    if ((int)($room['occupant_count'] ?? 0) > 0) {
+                                        $deleteMessage = 'Phòng đang có người ở — hệ thống chặn xóa.';
+                                        $deleteBlocked = true;
+                                    } elseif (($room['status'] ?? '') === 'rented') {
+                                        $deleteMessage = 'Phòng đang ở trạng thái đã thuê — hệ thống chặn xóa.';
+                                        $deleteBlocked = true;
+                                    }
+                                    ?>
+                                    <tr class="align-top transition hover:bg-gray-50">
+                                        <td class="px-4 py-4">
+                                            <div class="flex min-w-[240px] items-start gap-3">
+                                                <img src="<?= e($room['thumbnail'] ?? '') ?>" alt="<?= e($room['name'] ?? 'Phòng') ?>" class="h-16 w-16 rounded-2xl object-cover">
+                                                <div>
+                                                    <p class="font-semibold text-gray-900"><?= e($room['name'] ?? 'Phòng') ?></p>
+                                                    <p class="mt-1 text-sm text-gray-500"><?= number_format((float)($room['area'] ?? 0), 1) ?> m2 · Tối đa <?= (int)($room['max_occupancy'] ?? 0) ?> người</p>
+                                                    <p class="mt-1 text-xs text-gray-500 line-clamp-2"><?= e($room['description'] ?? 'Chưa có mô tả.') ?></p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-4">
+                                            <p class="font-semibold text-gray-800"><?= e($room['area_name'] ?? 'Chưa có khu') ?></p>
+                                            <p class="mt-1 text-sm text-gray-500"><?= e($room['floor_name'] ?? 'Chưa có tầng') ?></p>
+                                            <p class="mt-2 inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                                                Đang ở: <?= (int)($room['occupant_count'] ?? 0) ?> người
+                                            </p>
+                                        </td>
+                                        <td class="px-4 py-4">
+                                            <p class="font-semibold text-primary"><?= number_format((float)($room['price'] ?? 0), 0, ',', '.') ?>đ</p>
+                                            <p class="mt-1 text-xs text-gray-500">ID phòng: #<?= (int)($room['id'] ?? 0) ?></p>
+                                        </td>
+                                        <td class="px-4 py-4">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold <?= $roomStatus['badge'] ?>">
+                                                <?= e($roomStatus['label']) ?>
+                                            </span>
+                                            <form method="POST" action="<?= BASE_URL ?>?page=admin-save-room" class="mt-3">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="id" value="<?= (int)($room['id'] ?? 0) ?>">
+                                                <input type="hidden" name="quick_status_update" value="1">
+                                                <input type="hidden" name="area_id" value="<?= $currentFilters['area_id'] ?>">
+                                                <input type="hidden" name="floor_id" value="<?= $currentFilters['floor_id'] ?>">
+                                                <input type="hidden" name="return_area_id" value="<?= $currentFilters['area_id'] ?>">
+                                                <input type="hidden" name="return_floor_id" value="<?= $currentFilters['floor_id'] ?>">
+                                                <input type="hidden" name="return_status" value="<?= e($currentFilters['status']) ?>">
+                                                <select name="status" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" onchange="this.form.submit()">
+                                                    <?php foreach ($statusMap as $statusKey => $statusMeta): ?>
+                                                        <option value="<?= $statusKey ?>" <?= ($room['status'] ?? '') === $statusKey ? 'selected' : '' ?>>
+                                                            <?= e($statusMeta['label']) ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </form>
+                                        </td>
+                                        <td class="px-4 py-4">
+                                            <div class="flex items-center gap-2">
+                                                <a href="<?= BASE_URL ?>?<?= $editParams ?>" class="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100">
+                                                    <span class="material-symbols-outlined text-base">edit</span> Sửa
+                                                </a>
+                                                <?php if ($deleteBlocked): ?>
+                                                    <span class="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed" title="<?= e($deleteMessage) ?>">
+                                                        <span class="material-symbols-outlined text-base">lock</span>
+                                                        Xóa
+                                                    </span>
+                                                <?php else: ?>
+                                                    <a href="<?= BASE_URL ?>?<?= $deleteParams ?>" data-confirm="<?= e($deleteMessage) ?>" class="inline-flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100">
+                                                        <span class="material-symbols-outlined text-base">delete</span>
+                                                        Xóa
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if ((int)($room['occupant_count'] ?? 0) > 0): ?>
+                                                <p class="mt-2 text-xs font-semibold text-rose-600">Không thể xóa khi vẫn còn người đang được gán vào phòng.</p>
+                                            <?php elseif (($room['status'] ?? '') === 'rented'): ?>
+                                                <p class="mt-2 text-xs font-semibold text-amber-600">Phòng đang thuê không thể xóa. Kết thúc hợp đồng / chuyển trạng thái trước.</p>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Khối phòng nháp (nằm DƯỚI danh sách, cuộn chung panel phải) -->
+            <div class="rounded-3xl border border-gray-100 bg-white shadow-sm">
+                <div class="flex flex-col gap-3 border-b border-gray-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold">Phòng nháp chưa đăng web (<?= count($draftRooms) ?>)</h3>
+                        <p class="mt-1 text-sm text-gray-500">Bấm vào một phòng nháp để nạp lên form bên trái và hoàn thiện thông tin. Đủ dữ liệu (giá &gt; 0, diện tích &gt; 0, mô tả) phòng sẽ tự chuyển "Còn trống".</p>
+                    </div>
+                    <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                        <span class="material-symbols-outlined text-sm">edit_note</span>
+                        Trạng thái: draft
+                    </span>
+                </div>
+                <div class="grid grid-cols-1 gap-4 p-6 pb-3 md:grid-cols-2">
+                    <div>
+                        <label for="draft-area-id" class="mb-1 block text-sm font-semibold text-gray-700">Lọc phòng nháp theo khu</label>
+                        <select id="draft-area-id" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                            <option value="0">Tất cả khu</option>
+                            <?php foreach ($areas as $area): ?>
+                                <option value="<?= (int)($area['id'] ?? 0) ?>"><?= e($area['name'] ?? 'Khu') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="draft-floor-id" class="mb-1 block text-sm font-semibold text-gray-700">Lọc phòng nháp theo tầng</label>
+                        <select id="draft-floor-id" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20">
+                            <option value="0">Tất cả tầng</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="draft-room-grid" class="grid grid-cols-2 gap-3 p-6 pt-3 md:grid-cols-3 xl:grid-cols-4"></div>
+                <div id="draft-empty" class="hidden px-6 pb-8 text-center text-sm text-gray-500">
+                    Không có phòng nháp nào khớp khu/tầng đang chọn.
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

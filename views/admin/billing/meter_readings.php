@@ -204,10 +204,24 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <?php else: ?>
                             <td class="px-4 py-4 align-top border-l border-gray-100">
                                 <div class="space-y-2 min-w-[170px]">
-                                    <input
-                                        type="text"
-                                        readonly
-                                        value="<?= e($formatIndex($cell['old_index'] ?? 0)) ?>"
+                                                                        <?php if (!empty($cell['allow_manual_old_index']) && empty($cell['has_reading'])): ?>
+<input
+type="number"
+step="0.01"
+min="0"
+name="readings[<?= $roomId ?>][<?= $serviceId ?>][old_index]"
+value="<?= e(array_key_exists('old_index', $oldInputCell) ? trim((string)$oldInputCell['old_index']) : ($cell['old_index'] ?? '')) ?>"
+placeholder="Nhập chỉ số cũ"
+class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 <?= $cellError !== '' ? 'border-red-300 bg-red-50 focus:ring-red-200' : 'border-amber-300 bg-amber-50 focus:ring-amber-200' ?>"
+>
+<?php else: ?>
+<input
+type="text"
+readonly
+value="<?= e($formatIndex($cell['old_index'] ?? 0)) ?>"
+class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-700 font-semibold"
+>
+<?php endif; ?>"
                                         class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-700 font-semibold"
                                     >
                                     <?php if (!empty($cell['baseline_note'])): ?>
