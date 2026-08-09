@@ -909,19 +909,70 @@ class RoomModel
 
     /**
      * Gallery tận dụng ảnh thật đang có trong hệ thống, tránh lặp thumb vô nghĩa.
+/**
+     * [DEV-QWEN-A][NHOM-2][2026-08-08]
+     * Gallery ưu tiên đọc từ bảng `room_images`:
+     * ảnh chính (is_primary=1) đứng đầu, rồi đến ảnh phụ theo sort_order.
+     * Chỉ fallback về thumbnail/area_image khi phòng chưa có ảnh trong room_images.
      */
     private static function buildGalleryImages(array $room)
     {
-        $images = array_values(array_filter(array_unique([
-            trim((string)($room['thumbnail'] ?? '')),
-            trim((string)($room['area_image'] ?? '')),
-        ])));
+        $roomId = (int)($room['id'] ?? 0);
+        $images = [];
+
+        if ($roomId > 0) {
+            $rows = [];
+            if (Database::hasConnection()) {
+                try {
+                    $rows = Database::fetchAll(
+                        'SELECT image_url, is_primary, sort_order, id
+                     FROM room_images
+                     WHERE room_id = ?
+                     ORDER BY is_primary DESC, sort_order ASC, id ASC',
+                        [$roomId]
+                    );
+                } catch (Throwable $exception) {
+                    $rows = []; // bảng room_images chưa tồn tại => giữ hành vi cũ, không fatal
+                }
+            } else {
+                $rows = array_values(array_filter(
+                    Database::getTable('room_images'),
+                    static fn($row) => (int)($row['room_id'] ?? 0) === $roomId
+                ));
+                usort($rows, static function ($left, $right) {
+                    $primaryCompare = (int)($right['is_primary'] ?? 0) <=> (int)($left['is_primary'] ?? 0);
+                    if ($primaryCompare !== 0) {
+                        return $primaryCompare;
+                    }
+                    $sortCompare = (int)($left['sort_order'] ?? 0) <=> (int)($right['sort_order'] ?? 0);
+                    if ($sortCompare !== 0) {
+                        return $sortCompare;
+                    }
+                    return (int)($left['id'] ?? 0) <=> (int)($right['id'] ?? 0);
+                });
+            }
+
+            foreach ($rows as $row) {
+                $url = trim((string)($row['image_url'] ?? ''));
+                if ($url !== '') {
+                    $images[] = $url;
+                }
+            }
+        }
+
+        // Fallback: phòng chưa upload ảnh nào vào room_images
+        if (empty($images)) {
+            $images = array_values(array_filter(array_unique([
+                trim((string)($room['thumbnail'] ?? '')),
+                trim((string)($room['area_image'] ?? '')),
+            ])));
+        }
 
         if (empty($images)) {
             $images[] = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900';
         }
 
-        return $images;
+        return array_values(array_unique($images));
     }
 
     /**

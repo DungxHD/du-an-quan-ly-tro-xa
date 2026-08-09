@@ -190,6 +190,7 @@ class AdminController
         $roomMessage = pullFlash('admin_room_message');
         $roomError = pullFlash('admin_room_error');
         $pageTitle = 'Quản lý Phòng - NhaTroA';
+        $drawerOpenFlag = pullFlash('admin_room_drawer_open');
         require_once BASE_PATH . 'views/admin/rooms/rooms.php';
     }
 
@@ -1533,7 +1534,43 @@ class AdminController
         return $newUrl;
     }
 
-    /** LƯU PHÒNG: chặn vượt room_limit khi tạo mới; đủ dữ liệu => tự đăng web (available) */
+    /** PHÒNG MỚI: chuyển ảnh từng upload vào image_phong_new sang image_phong_{id}. */
+    private function finalizeNewRoomImage($roomId, $imageUrl)
+    {
+        $local = $this->resolveUploadLocalPath($imageUrl);
+        if ($local === null || basename(dirname($local)) !== 'image_phong_new') {
+            return $imageUrl;
+        }
+        $destDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . 'image_phong_' . (int)$roomId;
+        if (!is_dir($destDir)) {
+            @mkdir($destDir, 0775, true);
+        }
+        $fileName = basename($local);
+        $dest = $destDir . DIRECTORY_SEPARATOR . $fileName;
+        if (!@rename($local, $dest)) {
+            return $imageUrl;
+        }
+        return BASE_URL . '.uploads/image_phong_' . (int)$roomId . '/' . $fileName;
+    }
+
+    /** Dọn ảnh nháp bỏ dở trong image_phong_new sau khi đã finalize cho phòng mới. */
+    private function cleanupDraftRoomImages()
+    {
+        $dir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . 'image_phong_new';
+        if (!is_dir($dir)) {
+            return;
+        }
+        foreach (scandir($dir) as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $entry;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
     public function saveRoom()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -1543,22 +1580,35 @@ class AdminController
         $redirectParams = $this->getRoomAdminFilters($_POST);
         $id = (int)($_POST['id'] ?? 0);
         $status = $this->normalizeRoomStatus($_POST['status'] ?? 'draft', 'draft');
+        if (!in_array($status, ['draft', 'available', 'maintenance'], true)) {
+            $status = 'draft';
+        }
 
-        // --- Đổi trạng thái nhanh từ danh sách ---
         if (!empty($_POST['quick_status_update'])) {
             $room = RoomModel::getById($id);
             if (!$room) {
                 setFlash('admin_room_error', 'Phòng không tồn tại.');
                 redirectTo('admin-rooms', $redirectParams);
             }
+            if (RoomModel::countOccupants($id) > 0) {
+                setFlash('admin_room_error', 'Phòng đang có người thuê — trạng thái do hệ thống quản lý.');
+                redirectTo('admin-rooms', $redirectParams);
+            }
             if ($status === 'available' && !$this->roomIsComplete($room)) {
-                setFlash('admin_room_error', 'Phòng chưa đủ thông tin (tên, giá > 0, diện tích > 0, mô tả) nên không thể đăng công khai.');
+                setFlash('admin_room_error', 'Phòng chưa đủ thông tin (giá > 0, diện tích > 0, mô tả) nên không thể chuyển sang Còn trống.');
                 redirectTo('admin-rooms', $redirectParams);
             }
             RoomModel::updateStatus($id, $status);
             setFlash('admin_room_message', 'Đã cập nhật trạng thái phòng.');
             redirectTo('admin-rooms', $redirectParams);
         }
+
+        // Ảnh: 1 chính + tối đa 3 phụ (URL nằm trong hidden input sau khi upload)
+        $primaryImage  = trim((string)($_POST['primary_image'] ?? $_POST['thumbnail'] ?? ''));
+        $galleryImages = array_slice(array_values(array_filter(
+            array_map(static fn($v) => trim((string)$v), (array)($_POST['gallery_images'] ?? [])),
+            static fn($v) => $v !== ''
+        )), 0, 3);
 
         $data = [
             'floor_id'      => (int)($_POST['floor_id'] ?? 0),
@@ -1569,7 +1619,7 @@ class AdminController
             'max_occupancy' => (int)($_POST['max_occupancy'] ?? 2),
             'description'   => trim((string)($_POST['description'] ?? '')),
             'amenities'     => trim((string)($_POST['amenities'] ?? '')),
-            'thumbnail'     => trim((string)($_POST['thumbnail'] ?? '')),
+            'thumbnail'     => $primaryImage,
         ];
         $formState = array_merge($data, ['id' => $id, 'area_id' => (int)($_POST['area_id'] ?? 0)]);
 
@@ -1585,24 +1635,24 @@ class AdminController
             redirectTo('admin-rooms', $redirectParams);
         }
 
-        // --- CHẶN VƯỢT GIỚI HẠN SỐ PHÒNG CỦA TẦNG khi tạo mới ---
         if ($id === 0) {
             $limit = (int)($floor['room_limit'] ?? 0);
             $currentCount = count(RoomModel::getAll(['floor_id' => (int)$floor['id']]));
-            if ($limit > 0 && $currentCount >= $limit) {
-                setFlash('admin_room_error', "Tầng này đã đạt giới hạn {$limit} phòng — không thể tạo vượt quá.");
-                setFlash('admin_room_old', $formState);
-                redirectTo('admin-rooms', $redirectParams);
+            if (!empty($_POST['extend_limit'])) {
+                Database::update('floors', ['room_limit' => $limit + 1], 'id = :id', ['id' => (int)$floor['id']]);
             }
             if ($data['position'] <= 0) {
                 $data['position'] = $currentCount + 1;
             }
-
-            // TỰ SINH TÊN PHÒNG nếu người dùng không nhập
             if ($data['name'] === '') {
                 $area = AreaModel::getById((int)$floor['area_id']);
                 $code = $this->deriveAreaCode($area['name'] ?? '', '');
                 $data['name'] = $code . (int)$floor['floor_number'] . str_pad((string)$data['position'], 2, '0', STR_PAD_LEFT);
+            }
+            if (!$this->roomIsComplete($data)) {
+                setFlash('admin_room_error', 'Không thể thêm phòng khi thiếu: ' . implode(', ', $this->roomMissingFields($data)) . '.');
+                setFlash('admin_room_old', $formState);
+                redirectTo('admin-rooms', $redirectParams);
             }
         }
 
@@ -1612,18 +1662,51 @@ class AdminController
             redirectTo('admin-rooms', $redirectParams);
         }
 
-        // --- QUY TẮC ĐĂNG WEB: đủ dữ liệu => available, thiếu => draft ---
-        $complete = $this->roomIsComplete($data);
-        $data['status'] = $complete ? ($status === 'maintenance' ? 'maintenance' : 'available') : 'draft';
+        $occupants = $id > 0 ? RoomModel::countOccupants($id) : 0;
+        if ($occupants > 0) {
+            $data['status'] = 'rented';
+        } else {
+            $data['status'] = $this->roomIsComplete($data) ? $status : 'draft';
+        }
 
-        RoomModel::save($data, $id > 0 ? $id : null);
-        setFlash('admin_room_message', $complete
-            ? 'Phòng đã đủ thông tin và ĐƯỢC đăng lên website.'
-            : 'Đã lưu phòng NHÁP — chưa hiển thị web. Điền đủ: giá > 0, diện tích > 0, mô tả để đăng web.');
-        redirectTo('admin-rooms', [
-            'area_id'  => (int)($floor['area_id'] ?? 0),
-            'floor_id' => (int)$data['floor_id'],
-        ]);
+        $savedId = (int)RoomModel::save($data, $id > 0 ? $id : null);
+
+        // Dời ảnh từ image_phong_new sang image_phong_{id} rồi đồng bộ room_images + thumbnail
+        $primaryImage = $this->relocateRoomImageUrl($primaryImage, $savedId);
+        foreach ($galleryImages as $i => $u) {
+            $galleryImages[$i] = $this->relocateRoomImageUrl($u, $savedId);
+        }
+        RoomImageModel::sync($savedId, $primaryImage, $galleryImages);
+        Database::update('rooms', ['thumbnail' => $primaryImage], 'id = :id', ['id' => $savedId]);
+
+        setFlash('admin_room_message', $occupants > 0
+            ? 'Đã lưu phòng. Phòng đang có người thuê nên giữ trạng thái Đang thuê.'
+            : ($data['status'] === 'draft'
+                ? 'Đã lưu phòng NHÁP — chưa hiển thị web.'
+                : 'Đã lưu phòng và đăng lên website.'));
+        redirectTo('admin-rooms', ['area_id' => (int)($floor['area_id'] ?? 0), 'floor_id' => (int)$data['floor_id']]);
+    }
+
+    /** Dời ảnh upload tạm ở image_phong_new về thư mục riêng của phòng. */
+    private function relocateRoomImageUrl($url, $roomId)
+    {
+        $prefix = BASE_URL . '.uploads/image_phong_new/';
+        if (!is_string($url) || strpos($url, $prefix) !== 0) {
+            return $url;
+        }
+        $fileName = basename((string)(parse_url($url, PHP_URL_PATH) ?: $url));
+        $src = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . 'image_phong_new' . DIRECTORY_SEPARATOR . $fileName;
+        if (!is_file($src)) {
+            return $url;
+        }
+        $destDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . 'image_phong_' . (int)$roomId;
+        if (!is_dir($destDir)) {
+            @mkdir($destDir, 0775, true);
+        }
+        if (!@rename($src, $destDir . DIRECTORY_SEPARATOR . $fileName)) {
+            return $url;
+        }
+        return BASE_URL . '.uploads/image_phong_' . (int)$roomId . '/' . $fileName;
     }
 
     /**
@@ -1650,6 +1733,7 @@ class AdminController
             setFlash('admin_room_error', 'Phòng "' . ($room['name'] ?? '') . '" đang ở trạng thái đã thuê — hệ thống chặn xóa. Hãy kết thúc hợp đồng hoặc chuyển trạng thái trước.');
             redirectTo('admin-rooms', $redirectParams);
         }
+        RoomImageModel::deleteByRoom($id);
         RoomModel::delete($id);
         setFlash('admin_room_message', 'Đã xóa phòng thành công.');
         redirectTo('admin-rooms', $redirectParams);

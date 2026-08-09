@@ -233,17 +233,16 @@ ALTER TABLE `users` ADD CONSTRAINT `fk_user_room` FOREIGN KEY (`room_id`) REFERE
 -- 7. ROOM_IMAGES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `room_images` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `room_id` int unsigned NOT NULL,
-  `image_url` varchar(255) NOT NULL,
-  `is_primary` tinyint NOT NULL DEFAULT 0,
-  `sort_order` int NOT NULL DEFAULT 0,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `room_id` INT UNSIGNED NOT NULL,
+  `image_url` VARCHAR(255) NOT NULL,
+  `is_primary` TINYINT NOT NULL DEFAULT 0,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_ri_room` (`room_id`),
   CONSTRAINT `fk_ri_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- ============================================================
 -- 8. ROOM_PRICE_CHANGES
 -- ============================================================

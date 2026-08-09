@@ -31,9 +31,10 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                 <div class="aspect-video rounded-2xl overflow-hidden mb-4 shadow-xl">
                     <img src="<?= e($primaryImage) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover">
                 </div>
-                <?php if (!empty($galleryImages)): ?>
+                <?php $subImages = array_slice($galleryImages, 1); ?>
+                <?php if (!empty($subImages)): ?>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        <?php foreach ($galleryImages as $imageUrl): ?>
+                        <?php foreach ($subImages as $imageUrl): ?>
                             <div class="aspect-video rounded-xl overflow-hidden border border-gray-100 bg-white">
                                 <img src="<?= e($imageUrl) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover">
                             </div>
