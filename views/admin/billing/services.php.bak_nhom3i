@@ -117,39 +117,71 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-<div>
-<label class="block text-sm font-semibold mb-2">Giá</label>
-<input type="number" min="0" step="0.01" name="price" value="<?= e($formService['price'] ?? 0) ?>" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-</div>
-<div>
-<label class="block text-sm font-semibold mb-2">Tháng áp dụng (giá / cách tính mới)</label>
-<div class="grid grid-cols-2 gap-2">
-<select name="effective_month" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-<option value="0">Tháng sau (mặc định)</option>
-<?php for ($m = 1; $m <= 12; $m++): ?><option value="<?= $m ?>">Tháng <?= $m ?></option><?php endfor; ?>
-</select>
-<input type="number" name="effective_year" min="<?= (int)date('Y') ?>" max="<?= (int)date('Y') + 5 ?>" value="<?= (int)date('Y') ?>" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-</div>
-<p class="text-xs text-gray-500 mt-1">Giá/cách tính mới không áp dụng cho tháng hiện tại.</p>
-</div>
-</div><!-- BLOCK-B -->
-<div class="grid grid-cols-1 gap-4">
-<div>
-<label class="block text-sm font-semibold mb-2">Cách tính giá</label>
-<?php $formKind = $formService['kind'] ?? 'other'; ?>
-<?php $allowedModeValues = (isset($kindBillingModes) && is_array($kindBillingModes) && array_key_exists($formKind, $kindBillingModes)) ? $kindBillingModes[$formKind] : array_column($serviceBillingModes ?? [], 'value'); ?>
-<select name="billing_mode" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-<?php foreach (($serviceBillingModes ?? []) as $mode): ?>
-<?php if (in_array($mode['value'], $allowedModeValues, true)): ?>
-<option value="<?= e($mode['value']) ?>" <?= ($formService['billing_mode'] ?? 'fixed') === $mode['value'] ? 'selected' : '' ?>><?= e($mode['label']) ?></option>
-<?php endif; ?>
-<?php endforeach; ?>
-</select>
-<?php if (ServiceModel::isLockedKind($formKind)): ?>
-<p class="text-xs text-amber-700 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Cách tính đã khóa theo loại dịch vụ bắt buộc.</p>
-<?php endif; ?>
-</div>
-</div><div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Giá</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                name="price"
+                                value="<?= e($formService['price'] ?? 0) ?>"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                            >
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Đơn vị</label>
+                            <input
+                                type="text"
+                                name="unit"
+                                value="<?= e($formService['unit'] ?? 'tháng') ?>"
+                                placeholder="tháng / người / xe / kwh"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Cách tính giá</label>
+                            <select
+                                name="billing_mode"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                            >
+                                <?php foreach ($serviceBillingModes as $mode): ?>
+                                <option value="<?= e($mode['value']) ?>" <?= ($formService['billing_mode'] ?? 'fixed') === $mode['value'] ? 'selected' : '' ?>>
+                                    <?= e($mode['label']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Đối tượng áp dụng</label>
+                            <select
+                                name="applies_to"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                            >
+                                <?php foreach ($serviceAppliesToOptions as $option): ?>
+                                <option value="<?= e($option['value']) ?>" <?= ($formService['applies_to'] ?? 'room') === $option['value'] ? 'selected' : '' ?>>
+                                    <?= e($option['label']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                        <p class="text-sm font-semibold text-slate-900 mb-3">Giải thích nhanh cách tính giá</p>
+                        <div class="space-y-2">
+                            <?php foreach ($serviceBillingModes as $mode): ?>
+                            <div class="flex items-start gap-3">
+                                <span class="mt-0.5 px-2.5 py-1 rounded-full text-xs font-semibold <?= e($mode['badge_class']) ?>"><?= e($mode['label']) ?></span>
+                                <p class="text-sm text-slate-600"><?= e($mode['tooltip']) ?></p>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-semibold mb-2">Icon Material</label>
                         <input
                             type="text"
@@ -170,23 +202,36 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         ><?= e($formService['description'] ?? '') ?></textarea>
                     </div>
 
-                    <?php if (ServiceModel::isLockedKind($formService['kind'] ?? 'other')): ?>
-<div class="px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm flex items-center gap-2">
-<span class="material-symbols-outlined text-base">lock</span>
-Dịch vụ bắt buộc (điện / nước / rác): luôn bật và luôn bắt buộc — không thể tắt hay xóa.
-</div>
-<input type="hidden" name="is_required" value="1">
-<input type="hidden" name="is_active" value="1">
-<?php else: ?>
-<label class="inline-flex w-full items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50">
-<div>
-<p class="text-sm font-semibold text-gray-800">Đang kinh doanh</p>
-<p class="text-xs text-gray-500">Tắt đi để ẩn khỏi danh sách đăng ký.</p>
-</div>
-<input type="checkbox" name="is_active" value="1" <?= !empty($formService['is_active']) ? 'checked' : '' ?> class="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary">
-</label>
-<?php endif; ?>
-<button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label class="inline-flex w-full items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-800">Dịch vụ bắt buộc</p>
+                                <p class="text-xs text-gray-500">Điện, nước, rác... sẽ không cho xóa.</p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                name="is_required"
+                                value="1"
+                                <?= !empty($formService['is_required']) ? 'checked' : '' ?>
+                                class="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                            >
+                        </label>
+                        <label class="inline-flex w-full items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-800">Đang kinh doanh</p>
+                                <p class="text-xs text-gray-500">Tắt đi để ẩn khỏi danh sách đăng ký.</p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                name="is_active"
+                                value="1"
+                                <?= !empty($formService['is_active']) ? 'checked' : '' ?>
+                                class="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                            >
+                        </label>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
                         <?= $isEditing ? 'Cập nhật dịch vụ' : 'Thêm dịch vụ' ?>
                     </button>
 
@@ -228,7 +273,6 @@ Dịch vụ bắt buộc (điện / nước / rác): luôn bật và luôn bắt
                             <?php
                             $mode = $billingModeMeta[$item['billing_mode'] ?? 'fixed'] ?? $billingModeMeta['fixed'];
                             $applies = $appliesToMeta[$item['applies_to'] ?? 'room'] ?? $appliesToMeta['room'];
-$pendDel = !empty($pendingDeleteByService[(int)($item['id'] ?? 0)]);
                             ?>
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-6 py-4">
@@ -275,7 +319,7 @@ $pendDel = !empty($pendingDeleteByService[(int)($item['id'] ?? 0)]);
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="flex flex-wrap items-center gap-3">
-                                        <?php if (!empty($pendDel)): ?><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">Sẽ xóa tháng sau</span> <form method="POST" action="<?= BASE_URL ?>?page=admin-undo-delete-service&id=<?= (int)($item['id'] ?? 0) ?>" style="display:inline"><?= csrf_field() ?><button type="submit" class="text-green-700 hover:text-green-800 font-semibold text-sm">Hoàn tác</button></form><?php endif; ?><a href="<?= BASE_URL ?>?page=admin-services&edit=<?= (int)($item['id'] ?? 0) ?><?= !empty($selectedRoomId) ? '&room_id=' . (int)$selectedRoomId : '' ?>" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">
+                                        <a href="<?= BASE_URL ?>?page=admin-services&edit=<?= (int)($item['id'] ?? 0) ?><?= !empty($selectedRoomId) ? '&room_id=' . (int)$selectedRoomId : '' ?>" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">
                                             Sửa
                                         </a>
                                         <?php if ((int)($item['is_required'] ?? 0) === 1): ?>

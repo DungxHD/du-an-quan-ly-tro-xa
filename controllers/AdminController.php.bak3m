@@ -533,15 +533,7 @@ class AdminController
         $kindBillingModes = ServiceModel::getKindBillingModesMap();
         $pendingChanges = PriceChangeModel::getPendingByServiceMap();
         $pageTitle = 'Quản lý Dịch vụ - NhaTroA';
-        ServiceModel::applyDueDeletes();
-$priceHistories = [];
-$pendingDeleteByService = [];
-foreach ($services as $svc) {
-$svcId = (int)($svc['id'] ?? 0);
-$priceHistories[$svcId] = PriceChangeModel::getPendingHistoryByService($svcId);
-$pendingDeleteByService[$svcId] = ServiceModel::isPendingDelete($svc);
-}
-require_once BASE_PATH . 'views/admin/billing/services.php';
+        require_once BASE_PATH . 'views/admin/billing/services.php';
     }
     public function priceChanges()
     {
@@ -911,18 +903,15 @@ require_once BASE_PATH . 'views/admin/billing/services.php';
             $core = $data;
             $core['price'] = (float)$existing['price'];
             $core['billing_mode'] = (string)$existing['billing_mode'];
-$core['applies_to'] = (string)($existing['applies_to'] ?? 'room');
-$core['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'), (string)$existing['billing_mode']);
             $core['kind'] = (string)($existing['kind'] ?? 'other');
             ServiceModel::save($core, $id);
             $priceChanged = abs($submittedPrice - (float)$existing['price']) > 0.001;
             $modeChanged = $submittedMode !== (string)$existing['billing_mode'];
             if ($priceChanged || $modeChanged) {
                 try {
-                    $em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
-$curOrder = ((int)date('Y')*100)+(int)date('n');
-if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
-else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
+                    $nextMonth = (int)date('n') + 1;
+                    $nextYear = (int)date('Y');
+                    if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
                     PriceChangeModel::scheduleServiceChange($id, $submittedPrice, $submittedMode, $nextMonth, $nextYear, (int)($_SESSION['user_id'] ?? 0));
                     setFlash('admin_service_message', 'Đã cập nhật dịch vụ. Giá/cách tính mới áp dụng từ tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '.');
                 } catch (Throwable $exception) {
@@ -938,49 +927,9 @@ else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMon
         setFlash('admin_service_message', 'Đã thêm dịch vụ mới thành công.');
         redirectTo('admin-services', array_filter(['edit' => $savedId, 'room_id' => $returnRoomId > 0 ? $returnRoomId : null], static fn($v) => $v !== null && $v !== ''));
     }
-    public function undoDeleteService($id) {
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-services'); }
-verify_csrf();
-$service = ServiceModel::getById((int)$id);
-if ($service && ServiceModel::isPendingDelete($service)) {
-ServiceModel::undoDelete((int)$id);
-setFlash('admin_service_message', 'Đã hoàn tác xóa. Dịch vụ "' . ($service['name'] ?? '') . '" tiếp tục hoạt động.');
-} else {
-setFlash('admin_service_error', 'Dịch vụ không tồn tại hoặc không ở trạng thái chờ xóa.');
-}
-redirectTo('admin-services');
-}
-public function cancelPriceChange($id) {
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-services'); }
-verify_csrf();
-try {
-PriceChangeModel::cancelPendingChange((int)$id);
-setFlash('admin_service_message', 'Đã hủy lịch thay đổi giá/cách tính.');
-} catch (Throwable $exception) {
-setFlash('admin_service_error', $exception->getMessage());
-}
-redirectTo('admin-services');
-}public function deleteService($id)
-{
-$service = ServiceModel::getById((int)$id);
-if ($service) {
-$locked = (int)($service['is_required'] ?? 0) === 1 || ServiceModel::isLockedKind($service['kind'] ?? 'other');
-if ($locked) {
-setFlash('admin_service_error', 'Dịch vụ bắt buộc (điện/nước/rác) không thể xóa.');
-redirectTo('admin-services');
-}
-$using = ServiceModel::countRoomsUsing((int)$id);
-if ($using > 0) {
-$em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
-$curOrder = ((int)date('Y')*100)+(int)date('n');
-if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
-else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
-ServiceModel::scheduleDelete((int)$id, $nextMonth, $nextYear);
-setFlash('admin_service_message', 'Dịch vụ đang có ' . $using . ' phòng sử dụng. Sẽ bị xóa khi sang tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '. Bạn có thể Hoàn tác trước thời điểm đó.');
-redirectTo('admin-services');
-}
-}
-$redirectParams = [];
+    public function deleteService($id)
+    {
+        $redirectParams = [];
         if ((int)($_GET['room_id'] ?? 0) > 0) {
             $redirectParams['room_id'] = (int)$_GET['room_id'];
         }

@@ -2,21 +2,6 @@
 class ServiceModel {
     private const BILLING_MODES = ['fixed', 'meter', 'per_person', 'per_unit'];
     private const APPLIES_TO = ['room', 'person'];
-    private const KINDS = ['other', 'electricity', 'water', 'trash'];
-    public static function getKindOptions() {
-        return ['other' => 'Dịch vụ khác', 'electricity' => 'Tiền điện (bắt buộc)', 'water' => 'Tiền nước (bắt buộc)', 'trash' => 'Tiền rác (bắt buộc)'];
-    }
-    public static function getKindBillingModesMap() {
-        return [
-            'electricity' => ['meter'],
-            'water' => ['meter', 'per_person'],
-            'trash' => ['per_person'],
-            'other' => self::BILLING_MODES,
-        ];
-    }
-    public static function isLockedKind($kind) {
-        return in_array((string)$kind, ['electricity', 'water', 'trash'], true);
-    }
 
     /**
      * Trả danh sách lựa chọn cách tính giá để controller/view không hard-code nhiều nơi.
@@ -59,9 +44,6 @@ class ServiceModel {
                 ? $service['applies_to']
                 : 'room',
             'is_active' => array_key_exists('is_active', $service) ? (!empty($service['is_active']) ? 1 : 0) : 1,
-'delete_month' => $service['delete_month'] ?? null,
-'delete_year' => $service['delete_year'] ?? null,
-            'kind' => in_array(($service['kind'] ?? 'other'), self::KINDS, true) ? ($service['kind'] ?? 'other') : 'other',
         ];
     }
 
@@ -155,11 +137,6 @@ class ServiceModel {
      */
     public static function save(array $data, $id = null) {
         $payload = self::normalizeServiceRow($data);
-        if (self::isLockedKind($payload['kind'])) {
-            $payload['is_required'] = 1;
-            $payload['is_active'] = 1;
-            $payload['applies_to'] = 'room';
-        }
         unset($payload['id']);
 
         $resolvedId = (int)$id;
@@ -179,8 +156,8 @@ class ServiceModel {
         if (!$service) {
             throw new RuntimeException('Dịch vụ không tồn tại hoặc đã bị xóa trước đó.');
         }
-        if ((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other')) {
-            throw new RuntimeException('Dịch vụ bắt buộc (điện/nước/rác) không thể xóa.');
+        if ((int)($service['is_required'] ?? 0) === 1) {
+            throw new RuntimeException('Dịch vụ bắt buộc không thể xóa.');
         }
 
         Database::delete('room_services', 'service_id = :service_id', ['service_id' => (int)$id]);
@@ -198,49 +175,7 @@ class ServiceModel {
     /**
      * Trả danh sách gán dịch vụ theo phòng để admin và dashboard dùng chung.
      */
-    public static function deriveUnit($kind, $billingMode) {
-if ($kind === 'electricity') { return 'kWh'; }
-if ($kind === 'trash') { return 'người/tháng'; }
-if ($billingMode === 'meter') { return $kind === 'water' ? 'm3' : 'tháng'; }
-if ($billingMode === 'per_person') { return 'người/tháng'; }
-return 'tháng';
-}
-public static function countRoomsUsing($serviceId) {
-$serviceId = (int)$serviceId;
-if (Database::hasConnection()) {
-$pdo = Database::pdo();
-$stmt = $pdo->prepare('SELECT COUNT(*) AS total FROM room_services WHERE service_id = ?');
-$stmt->execute([$serviceId]);
-$row = $stmt->fetch(PDO::FETCH_ASSOC);
-return (int)($row['total'] ?? 0);
-}
-$count = 0;
-foreach (Database::getTable('room_services') as $assignment) {
-if ((int)($assignment['service_id'] ?? 0) === $serviceId) { $count++; }
-}
-return $count;
-}
-public static function isPendingDelete(array $service) {
-return ($service['delete_month'] ?? null) !== null && (int)($service['delete_month'] ?? 0) > 0;
-}
-public static function scheduleDelete($id, $month, $year) {
-Database::update('services', ['delete_month' => (int)$month, 'delete_year' => (int)$year], 'id = :id', ['id' => (int)$id]);
-}
-public static function undoDelete($id) {
-Database::update('services', ['delete_month' => null, 'delete_year' => null], 'id = :id', ['id' => (int)$id]);
-}
-public static function applyDueDeletes() {
-$currentOrder = ((int)date('Y') * 100) + (int)date('n');
-$deleted = 0;
-foreach (self::getAll() as $service) {
-if (!self::isPendingDelete($service)) { continue; }
-$order = ((int)($service['delete_year'] ?? 0) * 100) + (int)($service['delete_month'] ?? 0);
-if ($order <= $currentOrder) {
-try { self::delete((int)($service['id'] ?? 0)); $deleted++; } catch (Throwable $e) {}
-}
-}
-return $deleted;
-}public static function getAssignmentsByRoom($roomId) {
+    public static function getAssignmentsByRoom($roomId) {
         $roomId = (int)$roomId;
         if ($roomId <= 0) {
             return [];

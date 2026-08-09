@@ -162,22 +162,7 @@ class PriceChangeModel {
         }
         return $count;
     }
-    public static function cancelPendingChange($changeId) {
-$row = Database::hasConnection()
-? Database::fetchOne('SELECT * FROM price_changes WHERE id = ?', [(int)$changeId])
-: (function() use ($changeId) { foreach (Database::getTable('price_changes') as $r) { if ((int)($r['id'] ?? 0) === (int)$changeId) { return $r; } } return null; })();
-if (!$row) { throw new RuntimeException('Không tìm thấy lịch thay đổi cần hủy.'); }
-if ((int)($row['applied'] ?? 0) === 1) { throw new RuntimeException('Lịch này đã áp dụng rồi, không thể hủy.'); }
-Database::delete('price_changes', 'id = :id', ['id' => (int)$changeId]);
-return true;
-}
-public static function getPendingHistoryByService($serviceId) {
-$result = [];
-foreach (self::getHistoryByServiceId((int)$serviceId) as $row) {
-if ((int)($row['applied'] ?? 0) === 0) { $result[] = $row; }
-}
-return $result;
-}public static function getPendingByServiceMap() {
+    public static function getPendingByServiceMap() {
         $currentOrder = ((int)date('Y') * 100) + (int)date('n');
         $map = [];
         foreach (self::getAll() as $row) {

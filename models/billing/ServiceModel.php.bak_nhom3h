@@ -59,9 +59,7 @@ class ServiceModel {
                 ? $service['applies_to']
                 : 'room',
             'is_active' => array_key_exists('is_active', $service) ? (!empty($service['is_active']) ? 1 : 0) : 1,
-'delete_month' => $service['delete_month'] ?? null,
-'delete_year' => $service['delete_year'] ?? null,
-            'kind' => in_array(($service['kind'] ?? 'other'), self::KINDS, true) ? ($service['kind'] ?? 'other') : 'other',
+            'kind' => in_array(($service['kind'] ?? 'other'), self::KINDS, true) ? $service['kind'] : 'other',
         ];
     }
 
@@ -198,49 +196,7 @@ class ServiceModel {
     /**
      * Trả danh sách gán dịch vụ theo phòng để admin và dashboard dùng chung.
      */
-    public static function deriveUnit($kind, $billingMode) {
-if ($kind === 'electricity') { return 'kWh'; }
-if ($kind === 'trash') { return 'người/tháng'; }
-if ($billingMode === 'meter') { return $kind === 'water' ? 'm3' : 'tháng'; }
-if ($billingMode === 'per_person') { return 'người/tháng'; }
-return 'tháng';
-}
-public static function countRoomsUsing($serviceId) {
-$serviceId = (int)$serviceId;
-if (Database::hasConnection()) {
-$pdo = Database::pdo();
-$stmt = $pdo->prepare('SELECT COUNT(*) AS total FROM room_services WHERE service_id = ?');
-$stmt->execute([$serviceId]);
-$row = $stmt->fetch(PDO::FETCH_ASSOC);
-return (int)($row['total'] ?? 0);
-}
-$count = 0;
-foreach (Database::getTable('room_services') as $assignment) {
-if ((int)($assignment['service_id'] ?? 0) === $serviceId) { $count++; }
-}
-return $count;
-}
-public static function isPendingDelete(array $service) {
-return ($service['delete_month'] ?? null) !== null && (int)($service['delete_month'] ?? 0) > 0;
-}
-public static function scheduleDelete($id, $month, $year) {
-Database::update('services', ['delete_month' => (int)$month, 'delete_year' => (int)$year], 'id = :id', ['id' => (int)$id]);
-}
-public static function undoDelete($id) {
-Database::update('services', ['delete_month' => null, 'delete_year' => null], 'id = :id', ['id' => (int)$id]);
-}
-public static function applyDueDeletes() {
-$currentOrder = ((int)date('Y') * 100) + (int)date('n');
-$deleted = 0;
-foreach (self::getAll() as $service) {
-if (!self::isPendingDelete($service)) { continue; }
-$order = ((int)($service['delete_year'] ?? 0) * 100) + (int)($service['delete_month'] ?? 0);
-if ($order <= $currentOrder) {
-try { self::delete((int)($service['id'] ?? 0)); $deleted++; } catch (Throwable $e) {}
-}
-}
-return $deleted;
-}public static function getAssignmentsByRoom($roomId) {
+    public static function getAssignmentsByRoom($roomId) {
         $roomId = (int)$roomId;
         if ($roomId <= 0) {
             return [];

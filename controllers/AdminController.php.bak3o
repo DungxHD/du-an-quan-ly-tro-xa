@@ -911,18 +911,15 @@ require_once BASE_PATH . 'views/admin/billing/services.php';
             $core = $data;
             $core['price'] = (float)$existing['price'];
             $core['billing_mode'] = (string)$existing['billing_mode'];
-$core['applies_to'] = (string)($existing['applies_to'] ?? 'room');
-$core['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'), (string)$existing['billing_mode']);
             $core['kind'] = (string)($existing['kind'] ?? 'other');
             ServiceModel::save($core, $id);
             $priceChanged = abs($submittedPrice - (float)$existing['price']) > 0.001;
             $modeChanged = $submittedMode !== (string)$existing['billing_mode'];
             if ($priceChanged || $modeChanged) {
                 try {
-                    $em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
-$curOrder = ((int)date('Y')*100)+(int)date('n');
-if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
-else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
+                    $nextMonth = (int)date('n') + 1;
+                    $nextYear = (int)date('Y');
+                    if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
                     PriceChangeModel::scheduleServiceChange($id, $submittedPrice, $submittedMode, $nextMonth, $nextYear, (int)($_SESSION['user_id'] ?? 0));
                     setFlash('admin_service_message', 'Đã cập nhật dịch vụ. Giá/cách tính mới áp dụng từ tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '.');
                 } catch (Throwable $exception) {
@@ -971,10 +968,9 @@ redirectTo('admin-services');
 }
 $using = ServiceModel::countRoomsUsing((int)$id);
 if ($using > 0) {
-$em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
-$curOrder = ((int)date('Y')*100)+(int)date('n');
-if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
-else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
+$nextMonth = (int)date('n') + 1;
+$nextYear = (int)date('Y');
+if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
 ServiceModel::scheduleDelete((int)$id, $nextMonth, $nextYear);
 setFlash('admin_service_message', 'Dịch vụ đang có ' . $using . ' phòng sử dụng. Sẽ bị xóa khi sang tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '. Bạn có thể Hoàn tác trước thời điểm đó.');
 redirectTo('admin-services');
