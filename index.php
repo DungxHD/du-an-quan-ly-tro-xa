@@ -8,17 +8,17 @@ define('BASE_URL', $baseUrl !== '' ? '/' . $baseUrl . '/' : '/');
 
 // Autoload tối giản cho model/controller để không phải nối dài `require_once` mỗi khi thêm module mới.
 spl_autoload_register(static function ($className) {
-$directories = [
-    BASE_PATH . 'models/',
-    BASE_PATH . 'models/core/',
-    BASE_PATH . 'models/room/',
-    BASE_PATH . 'models/user/',
-    BASE_PATH . 'models/billing/',
-    BASE_PATH . 'models/communication/',
-    BASE_PATH . 'models/moderation/',
-    BASE_PATH . 'models/content/',
-    BASE_PATH . 'controllers/',
-];
+    $directories = [
+        BASE_PATH . 'models/',
+        BASE_PATH . 'models/core/',
+        BASE_PATH . 'models/room/',
+        BASE_PATH . 'models/user/',
+        BASE_PATH . 'models/billing/',
+        BASE_PATH . 'models/communication/',
+        BASE_PATH . 'models/moderation/',
+        BASE_PATH . 'models/content/',
+        BASE_PATH . 'controllers/',
+    ];
 
     foreach ($directories as $directory) {
         $filePath = $directory . $className . '.php';

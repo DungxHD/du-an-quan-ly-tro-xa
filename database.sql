@@ -177,7 +177,7 @@ INSERT INTO `users` (`id`,`full_name`,`email`,`phone`,`password`,`avatar`,`role`
 (4,'Phạm Đăng Ký Mới','tenant3@gmail.com','0933333333','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','default.png',0,NULL,NULL,NULL,NULL,NULL,NULL,'2026-08-04 00:34:48');
 
 -- ============================================================
--- 5. FLOORS (ĐÃ GỘP room_limit)
+-- 5. FLOORS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `floors` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã tầng',
@@ -197,7 +197,8 @@ INSERT INTO `floors` (`id`,`area_id`,`name`,`floor_number`,`room_limit`,`created
 (3,2,'Tầng trệt',0,0,'2026-08-04 00:34:48');
 
 -- ============================================================
--- 6. ROOMS (ĐÃ GỘP position + amenities + draft)
+-- 6. ROOMS
+--    ✅ FIX: Thêm notice_given + expected_vacant_date
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `rooms` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã phòng',
@@ -211,6 +212,8 @@ CREATE TABLE IF NOT EXISTS `rooms` (
   `amenities` text COMMENT 'Tiện nghi phòng (JSON array)',
   `thumbnail` varchar(255) DEFAULT NULL,
   `status` enum('draft','available','rented','maintenance') NOT NULL DEFAULT 'draft',
+  `notice_given` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = tenant đã báo chuyển đi',
+  `expected_vacant_date` date DEFAULT NULL COMMENT 'Ngày dự kiến trống (khi notice_given=1)',
   `views` int DEFAULT 0,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -219,12 +222,12 @@ CREATE TABLE IF NOT EXISTS `rooms` (
   CONSTRAINT `fk_room_floor` FOREIGN KEY (`floor_id`) REFERENCES `floors` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `rooms` (`id`,`floor_id`,`name`,`position`,`price`,`area`,`max_occupancy`,`description`,`amenities`,`thumbnail`,`status`,`views`,`created_at`) VALUES
-(1,1,'Phòng A1',1,3500000.00,25.00,2,'Phòng có ban công, đầy đủ nội thất.',NULL,'uploads/rooms/a1.jpg','rented',150,'2026-08-04 00:34:48'),
-(2,1,'Phòng A2',2,3200000.00,22.00,2,'Phòng thoáng mát, cửa sổ lớn.',NULL,'uploads/rooms/a2.jpg','available',120,'2026-08-04 00:34:48'),
-(3,2,'Phòng A3',1,4000000.00,28.00,3,'Phòng rộng tầng 2, view công viên.',NULL,'uploads/rooms/a3.jpg','available',95,'2026-08-04 00:34:48'),
-(4,3,'Phòng B1',1,2000000.00,15.00,1,'Phòng giá mềm, tiện nghi cơ bản.',NULL,'uploads/rooms/b1.jpg','rented',88,'2026-08-04 00:34:48'),
-(5,3,'Phòng B2',2,2200000.00,16.00,2,'Phòng có gác lửng.',NULL,'uploads/rooms/b2.jpg','available',60,'2026-08-04 00:34:48');
+INSERT INTO `rooms` (`id`,`floor_id`,`name`,`position`,`price`,`area`,`max_occupancy`,`description`,`amenities`,`thumbnail`,`status`,`notice_given`,`expected_vacant_date`,`views`,`created_at`) VALUES
+(1,1,'Phòng A1',1,3500000.00,25.00,2,'Phòng có ban công, đầy đủ nội thất.',NULL,'uploads/rooms/a1.jpg','rented',0,NULL,150,'2026-08-04 00:34:48'),
+(2,1,'Phòng A2',2,3200000.00,22.00,2,'Phòng thoáng mát, cửa sổ lớn.',NULL,'uploads/rooms/a2.jpg','available',0,NULL,120,'2026-08-04 00:34:48'),
+(3,2,'Phòng A3',1,4000000.00,28.00,3,'Phòng rộng tầng 2, view công viên.',NULL,'uploads/rooms/a3.jpg','available',0,NULL,95,'2026-08-04 00:34:48'),
+(4,3,'Phòng B1',1,2000000.00,15.00,1,'Phòng giá mềm, tiện nghi cơ bản.',NULL,'uploads/rooms/b1.jpg','rented',0,NULL,88,'2026-08-04 00:34:48'),
+(5,3,'Phòng B2',2,2200000.00,16.00,2,'Phòng có gác lửng.',NULL,'uploads/rooms/b2.jpg','available',0,NULL,60,'2026-08-04 00:34:48');
 
 -- FK users.room_id → rooms (phải đặt SAU khi rooms tồn tại)
 ALTER TABLE `users` ADD CONSTRAINT `fk_user_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL;
@@ -243,8 +246,11 @@ CREATE TABLE IF NOT EXISTS `room_images` (
   KEY `idx_ri_room` (`room_id`),
   CONSTRAINT `fk_ri_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ============================================================
 -- 8. ROOM_PRICE_CHANGES
+--    ⚠️ Chưa có model/controller nào sử dụng bảng này.
+--    Giữ lại cho tương lai nếu cần lịch sử đổi giá phòng.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `room_price_changes` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -430,7 +436,8 @@ INSERT INTO `payments` (`id`,`room_id`,`contract_id`,`user_id`,`month`,`year`,`a
 (2,4,NULL,NULL,7,2026,2300000.00,'unpaid',NULL,'2026-08-04 00:34:48');
 
 -- ============================================================
--- 16. PAYMENT_ITEMS (ĐÃ THÊM dòng cho payment_id=2)
+-- 16. PAYMENT_ITEMS
+--     ✅ FIX: Thêm dòng dịch vụ bắt buộc cho payment_id=2
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `payment_items` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -447,9 +454,10 @@ CREATE TABLE IF NOT EXISTS `payment_items` (
   KEY `fk_pi_service` (`service_id`),
   CONSTRAINT `fk_pi_payment` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_pi_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `payment_items` (`id`,`payment_id`,`service_id`,`item_name`,`unit_price`,`quantity`,`amount`,`billing_mode`,`created_at`) VALUES
+-- Payment 1: Phòng A1 (2 người ở)
 (1,1,NULL,'Tiền phòng',3500000.00,1.00,3500000.00,'fixed','2026-08-04 00:34:48'),
 (2,1,1,'Tiền điện',3500.00,100.00,350000.00,'meter','2026-08-04 00:34:48'),
 (3,1,2,'Tiền nước',50000.00,2.00,100000.00,'per_person','2026-08-04 00:34:48'),
@@ -457,7 +465,11 @@ INSERT INTO `payment_items` (`id`,`payment_id`,`service_id`,`item_name`,`unit_pr
 (5,1,4,'Wifi',50000.00,2.00,100000.00,'per_person','2026-08-04 00:34:48'),
 (6,1,7,'Máy giặt',50000.00,2.00,100000.00,'per_person','2026-08-04 00:34:48'),
 (7,1,6,'Sạc xe điện',100000.00,1.00,100000.00,'per_unit','2026-08-04 00:34:48'),
-(8,2,NULL,'Tiền phòng',2000000.00,1.00,2000000.00,'fixed','2026-08-04 00:34:48');
+-- Payment 2: Phòng B1 (1 người ở) — thêm dịch vụ bắt buộc
+(8,2,NULL,'Tiền phòng',2000000.00,1.00,2000000.00,'fixed','2026-08-04 00:34:48'),
+(9,2,1,'Tiền điện',3500.00,80.00,280000.00,'meter','2026-08-04 00:34:48'),
+(10,2,2,'Tiền nước',50000.00,1.00,50000.00,'per_person','2026-08-04 00:34:48'),
+(11,2,3,'Tiền rác',20000.00,1.00,20000.00,'per_person','2026-08-04 00:34:48');
 
 -- ============================================================
 -- 17. NOTIFICATIONS
@@ -593,7 +605,7 @@ INSERT INTO `settings` (`setting_key`,`setting_value`,`setting_group`,`updated_a
 ('toxicity_threshold','0.7','moderation','2026-08-04 00:34:48');
 
 -- ============================================================
--- 23. RENTAL_REQUESTS (ĐÃ THÊM FK)
+-- 23. RENTAL_REQUESTS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `rental_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -615,12 +627,13 @@ CREATE TABLE IF NOT EXISTS `rental_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
--- 24. ROOMMATE_REQUESTS (ĐÃ THÊM FK + admin_rejected)
+-- 24. ROOMMATE_REQUESTS
+--     ✅ FIX: target_user_id → host_user_id (khớp code PHP)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `roommate_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `requester_id` int unsigned NOT NULL COMMENT 'Người B — gửi yêu cầu',
-  `target_user_id` int unsigned NOT NULL COMMENT 'Người A — đang ở phòng',
+  `host_user_id` int unsigned NOT NULL COMMENT 'Người A — đang ở phòng',
   `room_id` int unsigned NOT NULL,
   `gender` enum('male','female','other') NOT NULL,
   `relationship` varchar(100) DEFAULT NULL,
@@ -629,15 +642,15 @@ CREATE TABLE IF NOT EXISTS `roommate_requests` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_rm_requester` (`requester_id`),
-  KEY `idx_rm_target` (`target_user_id`),
+  KEY `idx_rm_host` (`host_user_id`),
   KEY `idx_rm_room` (`room_id`),
   CONSTRAINT `fk_rm_requester` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_rm_target` FOREIGN KEY (`target_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rm_host` FOREIGN KEY (`host_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rm_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
--- 25. MAINTENANCE_REQUESTS (ĐÃ THÊM FK)
+-- 25. MAINTENANCE_REQUESTS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `maintenance_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
