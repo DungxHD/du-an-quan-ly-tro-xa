@@ -277,7 +277,7 @@ CREATE TABLE IF NOT EXISTS `meter_readings` (
 INSERT INTO `meter_readings` (`id`, `room_id`, `service_id`, `month`, `year`, `old_index`, `new_index`, `created_at`) VALUES
 	(1, 1, 1, 7, 2026, 1000.00, 1100.00, '2026-08-04 00:34:48'),
 	(2, 1, 2, 7, 2026, 50.00, 60.00, '2026-08-04 00:34:48'),
-	(3, 1, 1, 8, 2026, 1100.00, 1700.00, '2026-08-08 08:35:20');
+	(3, 1, 1, 8, 2026, 1100.00, 1200.00, '2026-08-08 08:35:20');
 
 -- Dumping structure for table manage.notifications
 CREATE TABLE IF NOT EXISTS `notifications` (
@@ -306,7 +306,12 @@ INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `type`, `is_re
 	(9, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-09 10:32:51'),
 	(10, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 06:44:51'),
 	(11, NULL, 'Thay đổi giá dịch vụ', 'Sạc xe điện: 100.000đ → 10.000đ/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 06:46:30'),
-	(12, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 10.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 08:17:18');
+	(12, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 10.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 08:17:18'),
+	(13, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 10.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:18:38'),
+	(14, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:23:29'),
+	(15, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:54:21'),
+	(16, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 51.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:54:49'),
+	(17, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 51.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 13:35:28');
 
 -- Dumping structure for table manage.notification_reads
 CREATE TABLE IF NOT EXISTS `notification_reads` (
@@ -407,9 +412,6 @@ CREATE TABLE IF NOT EXISTS `price_changes` (
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.price_changes: ~2 rows (approximately)
-INSERT INTO `price_changes` (`id`, `service_id`, `old_price`, `new_price`, `old_billing_mode`, `new_billing_mode`, `effective_month`, `effective_year`, `applied`, `created_by`, `created_at`) VALUES
-	(9, 7, 50000.00, 50000.00, 'per_person', 'meter', 9, 2026, 0, 1, '2026-08-09 10:32:51'),
-	(12, 2, 30000.00, 10000.00, 'per_person', 'meter', 9, 2026, 0, 1, '2026-08-10 08:17:18');
 
 -- Dumping structure for table manage.rental_requests
 CREATE TABLE IF NOT EXISTS `rental_requests` (
@@ -450,7 +452,7 @@ CREATE TABLE IF NOT EXISTS `roommate_requests` (
   KEY `idx_rm_room` (`room_id`),
   CONSTRAINT `fk_rm_requester` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rm_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_rm_host` FOREIGN KEY (`host_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_rm_target` FOREIGN KEY (`target_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.roommate_requests: ~0 rows (approximately)
@@ -468,8 +470,6 @@ CREATE TABLE IF NOT EXISTS `rooms` (
   `amenities` text COLLATE utf8mb4_unicode_ci COMMENT 'Tiện nghi phòng (JSON array)',
   `thumbnail` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` enum('draft','available','rented','maintenance') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
-  `notice_given` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1 = tenant da bao chuyen di',
-  `expected_vacant_date` date DEFAULT NULL COMMENT 'Ngay du kien trong (khi notice_given=1)',
   `views` int DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -558,12 +558,12 @@ CREATE TABLE IF NOT EXISTS `services` (
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.services: ~5 rows (approximately)
-INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `is_required`, `billing_mode`, `kind`, `applies_to`, `is_active`, `delete_year`, `delete_month`) VALUES
-	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tính theo chỉ số công tơ', 1, 'meter', 'electricity', 'room', 1, NULL, NULL),
-	(2, 'Tiền nước', 30000.00, 'người/tháng', 'water_drop', 'Mặc định theo người', 1, 'per_person', 'water', 'room', 1, NULL, NULL),
-	(3, 'Tiền rác', 20000.00, 'người', 'delete', 'Phí thu gom rác theo đầu người', 1, 'per_person', 'trash', 'room', 1, NULL, NULL),
-	(4, 'Wifi', 51000.00, 'người/tháng', 'wifi', 'Internet tốc độ cao', 0, 'per_person', 'other', 'room', 1, NULL, NULL),
-	(7, 'Máy giặt', 50000.00, 'người', 'local_laundry_service', 'Máy giặt chung', 0, 'per_person', 'other', 'room', 1, 2026, 9);
+INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `is_required`, `billing_mode`, `kind`, `applies_to`, `is_active`, `delete_year`, `delete_month`, `deactivate_month`, `deactivate_year`) VALUES
+	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tính theo chỉ số công tơ', 1, 'meter', 'electricity', 'room', 1, NULL, NULL, NULL, NULL),
+	(2, 'Tiền nước', 30000.00, 'người/tháng', 'water_drop', 'Mặc định theo người', 1, 'per_person', 'water', 'room', 1, NULL, NULL, NULL, NULL),
+	(3, 'Tiền rác', 20000.00, 'người', 'delete', 'Phí thu gom rác theo đầu người', 1, 'per_person', 'trash', 'room', 1, NULL, NULL, NULL, NULL),
+	(4, 'Wifi', 51000.00, 'người/tháng', 'wifi', 'Internet tốc độ cao', 0, 'per_person', 'other', 'room', 1, NULL, NULL, NULL, NULL),
+	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Máy giặt chung', 0, 'per_person', 'other', 'room', 1, 2026, 9, NULL, NULL);
 
 -- Dumping structure for table manage.settings
 CREATE TABLE IF NOT EXISTS `settings` (
@@ -647,27 +647,6 @@ CREATE TABLE IF NOT EXISTS `user_services` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.user_services: ~0 rows (approximately)
-
--- Dumping structure for table manage.maintenance_requests
-CREATE TABLE IF NOT EXISTS `maintenance_requests` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `room_id` int unsigned NOT NULL,
-  `admin_id` int unsigned NOT NULL,
-  `reason` text NOT NULL,
-  `duration_days` int unsigned NOT NULL DEFAULT 1,
-  `start_date` date NOT NULL,
-  `status` enum('pending','active','rejected','completed') NOT NULL DEFAULT 'pending',
-  `rejected_by_user_id` int unsigned DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_mr_room` (`room_id`),
-  KEY `idx_mr_status` (`status`),
-  KEY `idx_mr_start` (`start_date`),
-  CONSTRAINT `fk_mr_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_mr_admin` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_mr_rejected_by` FOREIGN KEY (`rejected_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
