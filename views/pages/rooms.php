@@ -6,7 +6,6 @@ $featureOptions = $featureOptions ?? [];
 $filters = $filters ?? [];
 $selectedAmenities = $filters['amenities'] ?? [];
 $filterMessages = $filters['messages'] ?? [];
-// Giữ sẵn URL reset để mọi hành động xóa lọc đều quay về đúng trang danh sách phòng.
 $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 ?>
 
@@ -32,9 +31,9 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
-        
+
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <!-- Sidebar chỉ chứa các bộ lọc thực sự cần cho người đang tìm trọ. -->
+            <!-- Sidebar bộ lọc -->
             <aside class="lg:col-span-1">
                 <form method="GET" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20" data-room-filter-form data-price-min-gap="500000">
                     <input type="hidden" name="page" value="rooms">
@@ -43,7 +42,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                         <span class="material-symbols-outlined text-primary">filter_list</span>
                         Bộ lọc tìm phòng
                     </h3>
-                    
+
                     <div class="mb-6">
                         <label class="block text-sm font-semibold mb-2">Khu</label>
                         <select name="area_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
@@ -55,7 +54,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    
+
                     <div class="mb-6">
                         <div class="flex items-center justify-between gap-3 mb-2">
                             <label class="block text-sm font-semibold">Khoảng giá</label>
@@ -63,18 +62,17 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <input type="text" name="min_price" list="price-suggestion-start"
-                                   value="<?= e($filters['min_price_display'] ?? '') ?>"
-                                   class="px-3 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
-                                   placeholder="Từ giá" data-price-input="start" autocomplete="off">
+                                value="<?= e($filters['min_price_display'] ?? '') ?>"
+                                class="px-3 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Từ giá" data-price-input="start" autocomplete="off">
                             <input type="text" name="max_price" list="price-suggestion-end"
-                                   value="<?= e($filters['max_price_display'] ?? '') ?>"
-                                   class="px-3 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
-                                   placeholder="Đến giá" data-price-input="end" autocomplete="off">
+                                value="<?= e($filters['max_price_display'] ?? '') ?>"
+                                class="px-3 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Đến giá" data-price-input="end" autocomplete="off">
                         </div>
                         <p class="mt-2 text-xs text-gray-500" data-price-helper>
                             Nhập ngắn như `2`, `2.5`, `1500`, `2 triệu`. Hệ thống luôn giữ khoảng cách tối thiểu 500.000đ.
                         </p>
-
                         <datalist id="price-suggestion-start">
                             <option value="1 triệu"></option>
                             <option value="1.5 triệu"></option>
@@ -102,15 +100,15 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                             <?php foreach ($featureOptions as $feature): ?>
                                 <label class="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:border-primary/40 hover:bg-primary/5 transition cursor-pointer">
                                     <input type="checkbox" name="amenities[]" value="<?= e($feature['key'] ?? '') ?>"
-                                           class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
-                                           <?= in_array($feature['key'] ?? '', $selectedAmenities, true) ? 'checked' : '' ?>>
+                                        class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
+                                        <?= in_array($feature['key'] ?? '', $selectedAmenities, true) ? 'checked' : '' ?>>
                                     <span class="material-symbols-outlined text-primary text-base"><?= e($feature['icon'] ?? 'check') ?></span>
                                     <span class="text-sm font-medium text-gray-700"><?= e($feature['label'] ?? 'Chưa có dữ liệu') ?></span>
                                 </label>
                             <?php endforeach; ?>
                         </div>
                     </div>
-                    
+
                     <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition mb-2">
                         Tìm phòng
                     </button>
@@ -119,8 +117,8 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                     </a>
                 </form>
             </aside>
-            
-            <!-- Danh sách phòng chỉ hiện các lựa chọn còn khả dụng cho khách thuê. -->
+
+            <!-- Danh sách phòng -->
             <div class="lg:col-span-3">
                 <?php if (empty($rooms)): ?>
                     <div class="bg-white p-12 rounded-2xl text-center">
@@ -142,11 +140,11 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children">
                         <?php foreach ($rooms as $room): ?>
-                            <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>" 
-                               class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
+                            <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>"
+                                class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
                                 <div class="relative aspect-video overflow-hidden">
-                                    <img src="<?= e($room['thumbnail'] ?? '') ?>" alt="<?= e($room['name'] ?? 'Phòng trọ') ?>" 
-                                         class="w-full h-full object-cover hover:scale-110 transition-transform duration-500">
+                                    <img src="<?= e($room['thumbnail'] ?? '') ?>" alt="<?= e($room['name'] ?? 'Phòng trọ') ?>"
+                                        class="w-full h-full object-cover hover:scale-110 transition-transform duration-500">
                                     <span class="absolute top-4 right-4 px-3 py-1 <?= e($room['availabilityClass'] ?? 'bg-gray-500') ?> text-white text-xs rounded-full font-semibold">
                                         <?= e($room['availabilityLabel'] ?? 'Chưa có dữ liệu') ?>
                                     </span>

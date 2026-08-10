@@ -450,7 +450,7 @@ CREATE TABLE IF NOT EXISTS `roommate_requests` (
   KEY `idx_rm_room` (`room_id`),
   CONSTRAINT `fk_rm_requester` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rm_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_rm_target` FOREIGN KEY (`target_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_rm_host` FOREIGN KEY (`host_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.roommate_requests: ~0 rows (approximately)
@@ -468,6 +468,8 @@ CREATE TABLE IF NOT EXISTS `rooms` (
   `amenities` text COLLATE utf8mb4_unicode_ci COMMENT 'Tiện nghi phòng (JSON array)',
   `thumbnail` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` enum('draft','available','rented','maintenance') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `notice_given` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1 = tenant da bao chuyen di',
+  `expected_vacant_date` date DEFAULT NULL COMMENT 'Ngay du kien trong (khi notice_given=1)',
   `views` int DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -645,6 +647,27 @@ CREATE TABLE IF NOT EXISTS `user_services` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.user_services: ~0 rows (approximately)
+
+-- Dumping structure for table manage.maintenance_requests
+CREATE TABLE IF NOT EXISTS `maintenance_requests` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `room_id` int unsigned NOT NULL,
+  `admin_id` int unsigned NOT NULL,
+  `reason` text NOT NULL,
+  `duration_days` int unsigned NOT NULL DEFAULT 1,
+  `start_date` date NOT NULL,
+  `status` enum('pending','active','rejected','completed') NOT NULL DEFAULT 'pending',
+  `rejected_by_user_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_mr_room` (`room_id`),
+  KEY `idx_mr_status` (`status`),
+  KEY `idx_mr_start` (`start_date`),
+  CONSTRAINT `fk_mr_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mr_admin` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mr_rejected_by` FOREIGN KEY (`rejected_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

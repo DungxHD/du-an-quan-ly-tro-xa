@@ -7,6 +7,7 @@
  *   - Bỏ input mã khu (area_code)
  *   - Ảnh khu: đổi từ text sang file upload
  *   - Floor builder: 1 select chọn tầng + 1 input số phòng, giá trị giữ khi chuyển tầng
+ *   - [NEW] Nút "Xem tất cả phòng" góc phải header -> admin-rooms&area_id=0
  */
 $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
@@ -25,6 +26,12 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <h2 class="text-3xl font-bold">Quản lý Khu</h2>
             <p class="text-gray-500 mt-2">Thêm khu mới kèm số tầng, tạo phòng nháp tự động, rồi hoàn thiện từng phòng ở trang Quản lý Phòng.</p>
         </div>
+
+        <!-- ===== [NEW] NÚT XEM TẤT CẢ PHÒNG (góc phải) ===== -->
+        <a href="<?= BASE_URL ?>?page=admin-rooms&area_id=0"
+            class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition hover:bg-opacity-90 shadow-sm shrink-0">
+            <span class="material-symbols-outlined text-base">grid_view</span> Xem tất cả phòng
+        </a>
     </div>
 
     <?php if (!empty($areaMessage)): ?>
@@ -44,14 +51,12 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php endif; ?>
 
             <div id="area-form-card" class="<?= $editArea ? '' : 'hidden' ?> bg-white p-6 rounded-2xl shadow-sm border border-gray-100 xl:sticky xl:top-20 space-y-5">
-                <!-- enctype multipart để upload file ảnh -->
                 <form method="POST" action="<?= BASE_URL ?>?page=admin-save-area" id="area-main-form" enctype="multipart/form-data" class="space-y-4">
                     <?= csrf_field() ?>
                     <?php if ($editArea): ?>
                         <input type="hidden" name="id" value="<?= (int)($editArea['id'] ?? 0) ?>">
                     <?php endif; ?>
 
-                    <!-- Tên khu: KHÔNG bắt buộc -->
                     <div>
                         <label class="block text-sm font-semibold mb-2">Tên khu (để trống sẽ tự đặt)</label>
                         <input type="text" name="name" value="<?= e($editArea['name'] ?? '') ?>"
@@ -59,7 +64,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             placeholder="VD: Khu A - Sinh viên">
                     </div>
 
-                    <!-- Địa chỉ -->
                     <div>
                         <label class="block text-sm font-semibold mb-2">Địa chỉ</label>
                         <input type="text" name="address" value="<?= e($editArea['address'] ?? '') ?>"
@@ -67,7 +71,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             placeholder="VD: 123 Đường ABC, Quận 9">
                     </div>
 
-                    <!-- Mô tả -->
                     <div>
                         <label class="block text-sm font-semibold mb-2">Mô tả</label>
                         <textarea name="description" rows="3"
@@ -75,7 +78,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             placeholder="Mô tả ngắn về khu nhà..."><?= e($editArea['description'] ?? '') ?></textarea>
                     </div>
 
-                    <!-- Ảnh khu: FILE UPLOAD thay vì text -->
                     <div>
                         <label class="block text-sm font-semibold mb-2">Ảnh khu (chọn file từ máy)</label>
                         <input type="file" name="area_image" accept="image/jpeg,image/png,image/webp,image/gif"
@@ -84,7 +86,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     </div>
 
                     <?php if (!$editArea): ?>
-                        <!-- Số tầng -->
                         <div>
                             <label class="block text-sm font-semibold mb-2">Số tầng của khu *</label>
                             <input type="number" id="area-floor-count" name="floor_count" min="1" max="50" step="1" value="1"
@@ -92,7 +93,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <p class="mt-1 text-xs text-gray-500">Nhập tổng số tầng. Hệ thống sẽ tạo select để bạn chọn từng tầng và nhập số phòng.</p>
                         </div>
 
-                        <!-- Floor builder: 1 select + 1 input, giá trị giữ khi chuyển tầng -->
                         <div id="floor-builder" class="space-y-3">
                             <div>
                                 <label class="block text-sm font-semibold mb-2">Chọn tầng để nhập số phòng</label>
@@ -106,7 +106,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                     class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
                                 <p class="mt-1 text-xs text-gray-500">Hệ thống tạo sẵn phòng nháp (VD: 01, 02, 03...). Không thể thêm vượt quá.</p>
                             </div>
-                            <!-- Container ẩn chứa tất cả hidden input floor_rooms[N] -->
                             <div id="floor-hidden-inputs"></div>
                         </div>
                     <?php endif; ?>
@@ -174,13 +173,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 </div>
 
 <script>
-    /**
-     * [DEV-QWEN-A][NHOM-2][2026-08-07]
-     * Floor builder: 1 select chọn tầng + 1 input số phòng.
-     * Giá trị được lưu vào JS object và giữ nguyên khi chuyển tầng.
-     */
     (function() {
-        // Toggle form
         var toggleBtn = document.getElementById('area-form-toggle');
         var formCard = document.getElementById('area-form-card');
         if (toggleBtn && formCard) {
@@ -192,7 +185,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             });
         }
 
-        // Floor builder logic
         var floorCountInput = document.getElementById('area-floor-count');
         var floorSelector = document.getElementById('floor-selector');
         var floorRoomInput = document.getElementById('floor-room-input');
@@ -204,17 +196,14 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             return;
         }
 
-        // Object lưu số phòng của từng tầng: { 1: 10, 2: 12, ... }
         var floorRoomData = {};
         var currentFloor = '';
 
-        // Render select options dựa trên tổng số tầng
         function renderFloorOptions() {
             var count = parseInt(floorCountInput.value, 10) || 1;
             if (count < 1) count = 1;
             if (count > 50) count = 50;
 
-            // Giữ lại giá trị đã nhập
             floorSelector.innerHTML = '<option value="">-- Chọn tầng --</option>';
             for (var n = 1; n <= count; n++) {
                 var opt = document.createElement('option');
@@ -226,7 +215,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 floorSelector.appendChild(opt);
             }
 
-            // Xóa dữ liệu các tầng vượt quá số tầng mới
             var keys = Object.keys(floorRoomData);
             for (var i = 0; i < keys.length; i++) {
                 if (parseInt(keys[i], 10) > count) {
@@ -237,7 +225,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             renderHiddenInputs();
         }
 
-        // Render hidden inputs để submit form
         function renderHiddenInputs() {
             floorHiddenInputs.innerHTML = '';
             var keys = Object.keys(floorRoomData);
@@ -250,30 +237,22 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             }
         }
 
-        // Khi chọn tầng
         floorSelector.addEventListener('change', function() {
-            // Lưu giá trị hiện tại trước khi chuyển
             if (currentFloor !== '') {
                 floorRoomData[currentFloor] = parseInt(floorRoomInput.value, 10) || 0;
             }
-
             currentFloor = floorSelector.value;
-
             if (currentFloor === '') {
                 floorRoomWrap.classList.add('hidden');
                 renderHiddenInputs();
                 return;
             }
-
             floorRoomWrap.classList.remove('hidden');
             floorLabelDisplay.textContent = 'Tầng ' + currentFloor;
-
-            // Hiển thị giá trị đã lưu (hoặc 0 nếu chưa nhập)
             var savedValue = floorRoomData[currentFloor];
             floorRoomInput.value = (savedValue !== undefined) ? savedValue : 0;
         });
 
-        // Khi nhập số phòng, cập nhật vào object
         floorRoomInput.addEventListener('input', function() {
             if (currentFloor !== '') {
                 floorRoomData[currentFloor] = parseInt(floorRoomInput.value, 10) || 0;
@@ -281,12 +260,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             }
         });
 
-        // Khi thay đổi tổng số tầng
         floorCountInput.addEventListener('input', function() {
             renderFloorOptions();
         });
 
-        // Khởi tạo
         renderFloorOptions();
     })();
 </script>
