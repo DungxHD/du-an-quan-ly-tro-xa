@@ -118,14 +118,8 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'maintenance', 'label' => 'Bảo trì', 'icon' => 'build', 'url' => BASE_URL . '?page=admin-maintenance'],
             ['id' => 'settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune', 'url' => BASE_URL . '?page=admin-settings'],
             ['id' => 'areas', 'label' => 'Khu nhà', 'icon' => 'location_city', 'url' => BASE_URL . '?page=admin-areas'],
-            [
-                'id' => 'group-services', 'label' => 'Dịch vụ & Giá', 'icon' => 'home_repair_service',
-                'children' => [
-                    ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
-                    ['id' => 'price-changes', 'label' => 'Đổi giá', 'icon' => 'price_change', 'url' => BASE_URL . '?page=admin-price-changes'],
-                    ['id' => 'meter-readings', 'label' => 'Chỉ số điện nước', 'icon' => 'speed', 'url' => BASE_URL . '?page=admin-meter-readings'],
-                ],
-            ],
+            ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
+            ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
             [
                 'id' => 'group-tenants', 'label' => 'Khách thuê', 'icon' => 'group',
                 'children' => [
@@ -136,7 +130,7 @@ function getPanelNavigation($role, $active = '')
             [
                 'id' => 'group-finance', 'label' => 'Tài chính', 'icon' => 'payments',
                 'children' => [
-                    ['id' => 'invoices', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-invoices'],
+                    ['id' => 'invoices', 'label' => 'Lịch sử hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-invoices'],
                     ['id' => 'stats', 'label' => 'Thống kê', 'icon' => 'analytics', 'url' => BASE_URL . '?page=admin-stats'],
                 ],
             ],
@@ -319,6 +313,10 @@ switch ($page) {
     case 'admin-undo-delete-service':
         requireAdmin();
         (new AdminController())->undoDeleteService($id);
+        break;
+    case 'admin-undo-deactivate-service':
+        requireAdmin();
+        (new AdminController())->undoDeactivateService($id);
         break;
     case 'admin-cancel-price-change':
         requireAdmin();

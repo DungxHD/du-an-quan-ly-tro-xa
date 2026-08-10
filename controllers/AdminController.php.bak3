@@ -389,9 +389,7 @@ class AdminController
             setFlash('admin_invoice_error', $exception->getMessage());
         }
 
-        $redirectPage = trim((string)($_POST["redirect_page"] ?? ""));
-        $allowedRedirect = ["admin-invoices", "admin-meter-readings"];
-        redirectTo(in_array($redirectPage, $allowedRedirect, true) ? $redirectPage : "admin-invoices", $redirectParams);
+        redirectTo('admin-invoices', $redirectParams);
     }
 
     /**
@@ -1091,10 +1089,6 @@ $redirectParams = [];
         $meterError = pullFlash('admin_meter_error');
         $meterRowErrors = pullFlash('admin_meter_row_errors', []);
         $meterOldInput = pullFlash('admin_meter_old', []);
-        $invoiceMsg = pullFlash("admin_invoice_message");
-        $invoiceErr = pullFlash("admin_invoice_error");
-        if ($invoiceMsg) { $meterMessage = trim(($meterMessage ? $meterMessage . " " : "") . $invoiceMsg); }
-        if ($invoiceErr) { $meterError = trim(($meterError ? $meterError . " " : "") . $invoiceErr); }
         $pageTitle = 'Ghi chỉ số điện nước - NhaTroA';
         require_once BASE_PATH . 'views/admin/billing/meter_readings.php';
     }

@@ -61,7 +61,7 @@ $error = $error ?? '';
                     </div>
                     <form method="POST" action="<?= BASE_URL ?>?page=tenant-send-roommate-request" class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-2/3">
                         <?= csrf_field() ?>
-                        <input type="hidden" name="host_user_id" value="<?= (int)$host['id'] ?>">
+                        <input type="hidden" name="target_user_id" value="<?= (int)$host['id'] ?>">
                         <select name="gender" class="px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-primary">
                             <option value="male">Nam</option>
                             <option value="female">Nữ</option>

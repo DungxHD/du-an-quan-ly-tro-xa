@@ -3,7 +3,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
 $panelActive = 'meter-readings';
 $panelTitle = $siteName . ' Admin';
-$panelSubtitle = 'Nhập chỉ số điện nước theo tháng cho từng phòng';
+$panelSubtitle = "Nhập chỉ số công tơ và tạo hóa đơn hàng loạt cho từng phòng";
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
 $meterPeriod = $meterData['period'] ?? MeterReadingModel::normalizePeriod(null, null);
 $meterRows = $meterData['rows'] ?? [];
@@ -28,8 +28,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
-            <h2 class="text-3xl font-bold">Ghi chỉ số điện nước</h2>
-            <p class="text-gray-500 mt-2">Bảng nhập liệu hỗ trợ tab qua lại như spreadsheet, tự khóa chỉ số cũ và báo đỏ đúng dòng lỗi thay vì đoán bừa mốc công tơ.</p>
+<h2 class="text-3xl font-bold">Hóa đơn</h2>
+    <p class="text-gray-500 mt-2">Nhập chỉ số công tơ cho dịch vụ tính theo chỉ số. Khi tất cả dòng chỉ số trong kỳ đã điền, nút Tạo hóa đơn hàng loạt sẽ kích hoạt.</p>
         </div>
         <form method="GET" action="<?= BASE_URL ?>" class="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-end gap-3 shadow-sm">
             <input type="hidden" name="page" value="admin-meter-readings">
@@ -80,6 +80,27 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </div>
 
+    <?php $canBulkCreate = ((int)($meterData["line_count"] ?? 0) > 0) && ((int)($meterData["completed_count"] ?? 0) === (int)($meterData["line_count"] ?? 0)); ?>
+    <div class="flex justify-end">
+        <form method="POST" action="<?= BASE_URL ?>?page=admin-generate-invoice" class="inline">
+            <?= csrf_field() ?>
+            <input type="hidden" name="month" value="<?= $monthValue ?>">
+            <input type="hidden" name="year" value="<?= $yearValue ?>">
+            <input type="hidden" name="generate_scope" value="all">
+            <input type="hidden" name="redirect_page" value="admin-meter-readings">
+            <?php if ($canBulkCreate): ?>
+                <button type="submit" class="px-5 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition inline-flex items-center gap-2">
+                    <span class="material-symbols-outlined text-base">receipt_long</span>
+                    Tạo hóa đơn hàng loạt
+                </button>
+            <?php else: ?>
+                <button type="button" disabled class="px-5 py-3 bg-gray-200 text-gray-400 rounded-xl font-semibold cursor-not-allowed inline-flex items-center gap-2" title="Cần điền đủ chỉ số cho tất cả dòng trong kỳ">
+                    <span class="material-symbols-outlined text-base">receipt_long</span>
+                    Tạo hóa đơn hàng loạt
+                </button>
+            <?php endif; ?>
+        </form>
+    </div>
     <?php if (!empty($meterMessage)): ?>
     <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-2xl flex items-center gap-2">
         <span class="material-symbols-outlined">check_circle</span>
@@ -180,19 +201,23 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 ? trim((string)$oldInputCell['new_index'])
                                 : (($cell && $cell['new_index'] !== null) ? $formatIndex($cell['new_index']) : '');
                             $cellError = $roomErrors[$serviceId] ?? '';
-                            $previewConsumption = null;
-                            $previewAmount = null;
-
-                            if ($cell && $displayValue !== '' && is_numeric($displayValue) && $cell['old_index'] !== null) {
-                                $resolvedNewIndex = (float)$displayValue;
-                                if ($resolvedNewIndex >= (float)$cell['old_index']) {
-                                    $previewConsumption = $resolvedNewIndex - (float)$cell['old_index'];
-                                    $previewAmount = $previewConsumption * (float)($cell['price'] ?? 0);
-                                }
-                            } elseif ($cell && $cell['consumption'] !== null) {
-                                $previewConsumption = (float)$cell['consumption'];
-                                $previewAmount = (float)$cell['amount'];
-                            }
+$previewConsumption = null;
+$previewAmount = null;
+$rawNewIndex = null;
+if (array_key_exists("new_index", $oldInputCell) && trim((string)$oldInputCell["new_index"]) !== "") {
+    $rawNewIndex = (float)$oldInputCell["new_index"];
+} elseif ($cell && $cell["new_index"] !== null) {
+    $rawNewIndex = (float)$cell["new_index"];
+}
+if ($cell && $rawNewIndex !== null && $cell["old_index"] !== null) {
+    if ($rawNewIndex >= (float)$cell["old_index"]) {
+        $previewConsumption = $rawNewIndex - (float)$cell["old_index"];
+        $previewAmount = $previewConsumption * (float)($cell["price"] ?? 0);
+    }
+} elseif ($cell && $cell["consumption"] !== null) {
+    $previewConsumption = (float)$cell["consumption"];
+    $previewAmount = (float)$cell["amount"];
+}
                             ?>
 
                             <?php if (!$cell): ?>
@@ -221,9 +246,7 @@ readonly
 value="<?= e($formatIndex($cell['old_index'] ?? 0)) ?>"
 class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-700 font-semibold"
 >
-<?php endif; ?>"
-                                        class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-700 font-semibold"
-                                    >
+<?php endif; ?>
                                     <?php if (!empty($cell['baseline_note'])): ?>
                                     <p class="text-xs <?= !empty($cell['baseline_error']) ? 'text-red-600' : 'text-gray-500' ?>">
                                         <?= e($cell['baseline_note']) ?>

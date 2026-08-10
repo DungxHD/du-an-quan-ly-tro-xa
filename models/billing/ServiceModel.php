@@ -61,6 +61,10 @@ class ServiceModel {
             'is_active' => array_key_exists('is_active', $service) ? (!empty($service['is_active']) ? 1 : 0) : 1,
 'delete_month' => $service['delete_month'] ?? null,
 'delete_year' => $service['delete_year'] ?? null,
+'deactivate_month' => $service['deactivate_month'] ?? null,
+'deactivate_year' => $service['deactivate_year'] ?? null,
+'deactivate_month' => $service['deactivate_month'] ?? null,
+'deactivate_year' => $service['deactivate_year'] ?? null,
             'kind' => in_array(($service['kind'] ?? 'other'), self::KINDS, true) ? ($service['kind'] ?? 'other') : 'other',
         ];
     }
@@ -208,7 +212,7 @@ return 'tháng';
 public static function countRoomsUsing($serviceId) {
 $serviceId = (int)$serviceId;
 if (Database::hasConnection()) {
-$pdo = Database::pdo();
+$pdo = Database::getInstance();
 $stmt = $pdo->prepare('SELECT COUNT(*) AS total FROM room_services WHERE service_id = ?');
 $stmt->execute([$serviceId]);
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -240,7 +244,75 @@ try { self::delete((int)($service['id'] ?? 0)); $deleted++; } catch (Throwable $
 }
 }
 return $deleted;
-}public static function getAssignmentsByRoom($roomId) {
+}public static function isPendingDeactivate(array $service) {
+return ($service['deactivate_month'] ?? null) !== null && (int)($service['deactivate_month'] ?? 0) > 0;
+}
+public static function scheduleDeactivate($id, $month, $year) {
+Database::update('services', ['deactivate_month' => (int)$month, 'deactivate_year' => (int)$year], 'id = :id', ['id' => (int)$id]);
+}
+public static function undoDeactivate($id) {
+Database::update('services', ['deactivate_month' => null, 'deactivate_year' => null], 'id = :id', ['id' => (int)$id]);
+}
+public static function applyDueDeactivates() {
+$currentOrder = ((int)date('Y') * 100) + (int)date('n');
+$count = 0;
+foreach (self::getAll() as $service) {
+if (!self::isPendingDeactivate($service)) { continue; }
+$order = ((int)($service['deactivate_year'] ?? 0) * 100) + (int)($service['deactivate_month'] ?? 0);
+if ($order <= $currentOrder) {
+Database::update('services', ['is_active' => 0, 'deactivate_month' => null, 'deactivate_year' => null], 'id = :id', ['id' => (int)($service['id'] ?? 0)]);
+$count++;
+}
+}
+return $count;
+}
+public static function clearAllPendingChanges($serviceId) {
+$pendingChanges = PriceChangeModel::getPendingHistoryByService((int)$serviceId);
+foreach ($pendingChanges as $change) {
+try { PriceChangeModel::cancelPendingChange((int)$change['id']); } catch (Throwable $e) {}
+}
+self::undoDeactivate((int)$serviceId);
+}
+public static function getRoomsUsingService($serviceId) {
+$serviceId = (int)$serviceId;
+$service = self::getById($serviceId);
+if (!$service) { return []; }
+$isRequired = (int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other');
+if (Database::hasConnection()) {
+if ($isRequired) {
+return Database::fetchAll("SELECT r.id as room_id, r.name as room_name, r.status as room_status, f.name as floor_name, a.name as area_name, 1 as quantity, NULL as registered_at FROM rooms r JOIN floors f ON f.id = r.floor_id JOIN areas a ON a.id = f.area_id WHERE r.status = 'rented' ORDER BY a.name, f.floor_number, r.name");
+}
+return Database::fetchAll("SELECT rs.room_id, rs.quantity, rs.registered_at, r.name as room_name, r.status as room_status, f.name as floor_name, a.name as area_name FROM room_services rs JOIN rooms r ON r.id = rs.room_id JOIN floors f ON f.id = r.floor_id JOIN areas a ON a.id = f.area_id WHERE rs.service_id = ? ORDER BY a.name, f.floor_number, r.name", [$serviceId]);
+}
+$rooms = Database::getTable('rooms');
+$floors = Database::getTable('floors');
+$areas = Database::getTable('areas');
+$floorMap = [];
+foreach ($floors as $f) { $floorMap[(int)$f['id']] = $f; }
+$areaMap = [];
+foreach ($areas as $a) { $areaMap[(int)$a['id']] = $a; }
+$result = [];
+if ($isRequired) {
+foreach ($rooms as $room) {
+if (($room['status'] ?? '') !== 'rented') { continue; }
+$floor = $floorMap[(int)($room['floor_id'] ?? 0)] ?? [];
+$area = $areaMap[(int)($floor['area_id'] ?? 0)] ?? [];
+$result[] = ['room_id' => (int)$room['id'], 'room_name' => $room['name'] ?? '', 'room_status' => $room['status'] ?? '', 'floor_name' => $floor['name'] ?? '', 'area_name' => $area['name'] ?? '', 'quantity' => 1, 'registered_at' => null];
+}
+} else {
+foreach (Database::getTable('room_services') as $rs) {
+if ((int)($rs['service_id'] ?? 0) !== $serviceId) { continue; }
+$room = null;
+foreach ($rooms as $r) { if ((int)$r['id'] === (int)$rs['room_id']) { $room = $r; break; } }
+if (!$room) { continue; }
+$floor = $floorMap[(int)($room['floor_id'] ?? 0)] ?? [];
+$area = $areaMap[(int)($floor['area_id'] ?? 0)] ?? [];
+$result[] = ['room_id' => (int)$rs['room_id'], 'room_name' => $room['name'] ?? '', 'room_status' => $room['status'] ?? '', 'floor_name' => $floor['name'] ?? '', 'area_name' => $area['name'] ?? '', 'quantity' => (int)($rs['quantity'] ?? 1), 'registered_at' => $rs['registered_at'] ?? null];
+}
+}
+return $result;
+}
+public static function getAssignmentsByRoom($roomId) {
         $roomId = (int)$roomId;
         if ($roomId <= 0) {
             return [];
