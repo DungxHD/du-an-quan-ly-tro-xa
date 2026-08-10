@@ -316,6 +316,14 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->deleteService($id);
         break;
+    case 'admin-undo-delete-service':
+        requireAdmin();
+        (new AdminController())->undoDeleteService($id);
+        break;
+    case 'admin-cancel-price-change':
+        requireAdmin();
+        (new AdminController())->cancelPriceChange($id);
+        break;
     case 'admin-save-room':
         requireAdmin();
         (new AdminController())->saveRoom();

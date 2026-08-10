@@ -637,47 +637,16 @@ class MeterReadingModel {
  * Khi đó, hàm này chỉ cần đọc trực tiếp cột đó.
  */
 private static function resolveInitialIndexField(array $service) {
-    $blob = mb_strtolower(trim(implode(' ', array_filter([
-        (string)($service['name'] ?? ''),
-        (string)($service['description'] ?? ''),
-        (string)($service['icon'] ?? ''),
-        (string)($service['unit'] ?? ''),
-    ]))), 'UTF-8');
-
-    // Điện: mở rộng keyword
-    if (self::containsAny($blob, [
-        'điện', 'dien', 'electric', 'power', 'bolt', 'kwh',
-        'kw', 'watt', 'ampe', 'ampere', 'volt',
-        'điện lực', 'dien luc', 'evn',
-    ])) {
-        return 'initial_electricity_index';
+        switch ((string)($service['kind'] ?? 'other')) {
+            case 'electricity':
+                return 'initial_electricity_index';
+            case 'water':
+                return 'initial_water_index';
+            default:
+                return null;
+        }
     }
 
-    // Nước: mở rộng keyword
-    if (self::containsAny($blob, [
-        'nước', 'nuoc', 'water', 'water_drop', 'm3', 'khối',
-        'm³', 'lit', 'liter', 'litre',
-        'nước máy', 'nuoc may', 'nước sạch', 'nuoc sach',
-        'thủy cục', 'thuy cuc',
-    ])) {
-        return 'initial_water_index';
-    }
-
-    // Fallback: nếu unit là 'kwh' → điện, nếu là 'm3' hoặc 'm³' → nước
-    $unit = mb_strtolower(trim((string)($service['unit'] ?? '')), 'UTF-8');
-    if (in_array($unit, ['kwh', 'kw'], true)) {
-        return 'initial_electricity_index';
-    }
-    if (in_array($unit, ['m3', 'm³', 'khối', 'khoi'], true)) {
-        return 'initial_water_index';
-    }
-
-    return null;
-}
-
-    /**
-     * Tính tháng liền trước để truy vấn mốc chốt.
-     */
     private static function getPreviousPeriod($month, $year) {
         $current = DateTime::createFromFormat('Y-n-j', (int)$year . '-' . (int)$month . '-1');
         $current = $current ?: new DateTime(date('Y-m-01'));

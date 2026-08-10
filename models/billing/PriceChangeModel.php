@@ -19,6 +19,9 @@ class PriceChangeModel {
             'created_at' => $row['created_at'] ?? null,
             'service_name' => trim((string)($row['service_name'] ?? '')),
             'service_icon' => trim((string)($row['service_icon'] ?? 'settings')),
+            'old_billing_mode' => $row['old_billing_mode'] ?? null,
+            'new_billing_mode' => $row['new_billing_mode'] ?? null,
+            'applied' => (int)($row['applied'] ?? 0) === 1 ? 1 : 0,
         ];
     }
 
@@ -105,118 +108,118 @@ class PriceChangeModel {
      * Lưu lịch sử đổi giá và cập nhật giá hiện tại của dịch vụ.
      * Đồng thời tự phát sinh thông báo cho cư dân theo yêu cầu nghiệp vụ.
      */
-    public static function saveChange($serviceId, $newPrice, $effectiveMonth, $effectiveYear, $createdBy = null) {
+    public static function scheduleServiceChange($serviceId, $newPrice, $newBillingMode, $effectiveMonth, $effectiveYear, $createdBy = null) {
         $service = ServiceModel::getById((int)$serviceId);
-        if (!$service) {
-            throw new RuntimeException('Dịch vụ cần đổi giá không tồn tại.');
+        if (!$service) { throw new RuntimeException('Dịch vụ cần đổi giá không tồn tại.'); }
+        $currentPrice = (float)($service['price'] ?? 0);
+        $currentMode = (string)($service['billing_mode'] ?? 'fixed');
+        $hasPriceChange = $newPrice !== null && abs((float)$newPrice - $currentPrice) > 0.001;
+        $hasModeChange = $newBillingMode !== null && $newBillingMode !== $currentMode;
+        if (!$hasPriceChange && !$hasModeChange) { throw new RuntimeException('Giá và cách tính mới đang trùng hiện tại, không có thay đổi.'); }
+        if ($hasPriceChange && (float)$newPrice <= 0) { throw new RuntimeException('Giá mới phải lớn hơn 0.'); }
+        if ($hasModeChange) {
+            $allowed = ServiceModel::getKindBillingModesMap()[$service['kind'] ?? 'other'] ?? ServiceModel::BILLING_MODES;
+            if (!in_array($newBillingMode, $allowed, true)) { throw new RuntimeException('Cách tính này không được phép cho loại dịch vụ này.'); }
         }
-
-        $resolvedNewPrice = (float)$newPrice;
-        if ($resolvedNewPrice <= 0) {
-            throw new RuntimeException('Giá mới phải lớn hơn 0.');
-        }
-
         $period = MeterReadingModel::normalizePeriod($effectiveMonth, $effectiveYear);
         $targetOrder = ($period['year'] * 100) + $period['month'];
         $currentOrder = ((int)date('Y') * 100) + (int)date('n');
-        if ($targetOrder <= $currentOrder) {
-            throw new RuntimeException('Tháng hiệu lực phải lớn hơn tháng hiện tại.');
-        }
-        if (self::existsForPeriod((int)$serviceId, $period['month'], $period['year'])) {
-            throw new RuntimeException('Dịch vụ này đã có lịch đổi giá cho đúng tháng hiệu lực đã chọn.');
-        }
-
-        $oldPrice = (float)($service['price'] ?? 0);
-        if ($oldPrice === $resolvedNewPrice) {
-            throw new RuntimeException('Giá mới đang trùng với giá hiện tại của dịch vụ.');
-        }
-
-        $connection = Database::hasConnection() ? Database::getInstance() : null;
-        $useTransaction = $connection instanceof PDO;
-
-        if ($useTransaction) {
-            $connection->beginTransaction();
-        }
-
-        try {
-            $priceChangeId = (int)Database::insert('price_changes', [
-                'service_id' => (int)($service['id'] ?? 0),
-                'old_price' => $oldPrice,
-                'new_price' => $resolvedNewPrice,
-                'effective_month' => $period['month'],
-                'effective_year' => $period['year'],
-                'created_by' => $createdBy !== null ? (int)$createdBy : null,
-            ]);
-
-            Database::update(
-                'services',
-                ['price' => $resolvedNewPrice],
-                'id = :id',
-                ['id' => (int)($service['id'] ?? 0)]
-            );
-
-            NotificationModel::create([
-                'user_id' => null,
-                'title' => 'Thay đổi giá dịch vụ',
-                'content' => self::buildNotificationContent($service, $oldPrice, $resolvedNewPrice, $period['month'], $period['year']),
-                'type' => 'price_change',
-            ]);
-
-            if ($useTransaction) {
-                $connection->commit();
-            }
-
-            return $priceChangeId;
-        } catch (Throwable $exception) {
-            if ($useTransaction && $connection->inTransaction()) {
-                $connection->rollBack();
-            }
-
-            throw $exception;
-        }
+        if ($targetOrder <= $currentOrder) { throw new RuntimeException('Tháng hiệu lực phải lớn hơn tháng hiện tại.'); }
+        if (self::existsForPeriod((int)$serviceId, $period['month'], $period['year'])) { throw new RuntimeException('Dịch vụ này đã có lịch thay đổi cho đúng tháng hiệu lực đã chọn.'); }
+        $priceChangeId = (int)Database::insert('price_changes', [
+            'service_id' => (int)$service['id'],
+            'old_price' => $currentPrice,
+            'new_price' => $hasPriceChange ? (float)$newPrice : $currentPrice,
+            'old_billing_mode' => $currentMode,
+            'new_billing_mode' => $hasModeChange ? $newBillingMode : null,
+            'effective_month' => $period['month'],
+            'effective_year' => $period['year'],
+            'applied' => 0,
+            'created_by' => $createdBy !== null ? (int)$createdBy : null,
+        ]);
+        NotificationModel::create([
+            'user_id' => null,
+            'title' => 'Thay đổi giá dịch vụ',
+            'content' => self::buildNotificationContent($service, $currentPrice, $hasPriceChange ? (float)$newPrice : $currentPrice, $period['month'], $period['year']),
+            'type' => 'price_change',
+        ]);
+        return $priceChangeId;
     }
-
-    /**
-     * Suy ra giá đúng của dịch vụ tại một kỳ bất kỳ.
-     * Rule: ưu tiên change mới nhất đã có hiệu lực; nếu kỳ đang hỏi nằm trước lần đổi đầu tiên thì dùng `old_price` của lần đổi đầu.
-     */
-    public static function getEffectivePriceForPeriod($serviceId, $month, $year, $fallbackPrice = 0.0) {
-        $history = self::getHistoryByServiceId((int)$serviceId);
-        if (empty($history)) {
-            return (float)$fallbackPrice;
-        }
-
-        $targetOrder = ((int)$year * 100) + (int)$month;
-        $latestPastOrCurrent = null;
-        $earliestFuture = null;
-
-        foreach ($history as $row) {
+    public static function applyDueChanges() {
+        $currentOrder = ((int)date('Y') * 100) + (int)date('n');
+        $rows = Database::hasConnection()
+            ? Database::fetchAll('SELECT * FROM price_changes WHERE applied = 0 ORDER BY effective_year ASC, effective_month ASC, id ASC')
+            : array_values(array_filter(Database::getTable('price_changes'), static fn($r) => (int)($r['applied'] ?? 0) === 0));
+        $count = 0;
+        foreach ($rows as $row) {
             $rowOrder = ((int)($row['effective_year'] ?? 0) * 100) + (int)($row['effective_month'] ?? 0);
-
-            if ($rowOrder <= $targetOrder) {
-                $latestPastOrCurrent = $row;
-                continue;
-            }
-
-            if ($earliestFuture === null) {
-                $earliestFuture = $row;
-            }
+            if ($rowOrder > $currentOrder) { continue; }
+            $payload = ['price' => (float)($row['new_price'] ?? 0)];
+            if (!empty($row['new_billing_mode'])) { $payload['billing_mode'] = $row['new_billing_mode']; }
+            Database::update('services', $payload, 'id = :id', ['id' => (int)($row['service_id'] ?? 0)]);
+            Database::update('price_changes', ['applied' => 1], 'id = :id', ['id' => (int)($row['id'] ?? 0)]);
+            $count++;
         }
-
-        if ($latestPastOrCurrent !== null) {
-            return (float)($latestPastOrCurrent['new_price'] ?? $fallbackPrice);
-        }
-
-        if ($earliestFuture !== null) {
-            return (float)($earliestFuture['old_price'] ?? $fallbackPrice);
-        }
-
-        return (float)$fallbackPrice;
+        return $count;
     }
-
-    /**
-     * Tạo câu thông báo broadcast khi admin đổi giá thành công.
-     */
+    public static function cancelPendingChange($changeId) {
+$row = Database::hasConnection()
+? Database::fetchOne('SELECT * FROM price_changes WHERE id = ?', [(int)$changeId])
+: (function() use ($changeId) { foreach (Database::getTable('price_changes') as $r) { if ((int)($r['id'] ?? 0) === (int)$changeId) { return $r; } } return null; })();
+if (!$row) { throw new RuntimeException('Không tìm thấy lịch thay đổi cần hủy.'); }
+if ((int)($row['applied'] ?? 0) === 1) { throw new RuntimeException('Lịch này đã áp dụng rồi, không thể hủy.'); }
+Database::delete('price_changes', 'id = :id', ['id' => (int)$changeId]);
+return true;
+}
+public static function getPendingHistoryByService($serviceId) {
+$result = [];
+foreach (self::getHistoryByServiceId((int)$serviceId) as $row) {
+if ((int)($row['applied'] ?? 0) === 0) { $result[] = $row; }
+}
+return $result;
+}public static function getPendingByServiceMap() {
+        $currentOrder = ((int)date('Y') * 100) + (int)date('n');
+        $map = [];
+        foreach (self::getAll() as $row) {
+            if ((int)($row['applied'] ?? 0) === 1) { continue; }
+            $rowOrder = ((int)($row['effective_year'] ?? 0) * 100) + (int)($row['effective_month'] ?? 0);
+            if ($rowOrder <= $currentOrder) { continue; }
+            $map[(int)$row['service_id']] = $row;
+        }
+        return $map;
+    }
+    public static function getEffectiveConfigForPeriod(array $service, $month, $year) {
+        $basePrice = (float)($service['price'] ?? 0);
+        $baseMode = (string)($service['billing_mode'] ?? 'fixed');
+        $history = self::getHistoryByServiceId((int)($service['id'] ?? 0));
+        $targetOrder = ((int)$year * 100) + (int)$month;
+        $currentOrder = ((int)date('Y') * 100) + (int)date('n');
+        if (empty($history)) { return ['price' => $basePrice, 'billing_mode' => $baseMode]; }
+        if ($targetOrder <= $currentOrder) {
+            $price = $basePrice;
+            for ($i = count($history) - 1; $i >= 0; $i--) {
+                $row = $history[$i];
+                if ((int)($row['applied'] ?? 0) !== 1) { continue; }
+                $rowOrder = ((int)($row['effective_year'] ?? 0) * 100) + (int)($row['effective_month'] ?? 0);
+                if ($rowOrder > $targetOrder) { $price = (float)($row['old_price'] ?? $price); }
+            }
+            return ['price' => $price, 'billing_mode' => $baseMode];
+        }
+        $price = $basePrice; $mode = $baseMode;
+        foreach ($history as $row) {
+            if ((int)($row['applied'] ?? 0) === 1) { continue; }
+            $rowOrder = ((int)($row['effective_year'] ?? 0) * 100) + (int)($row['effective_month'] ?? 0);
+            if ($rowOrder <= $targetOrder) {
+                $price = (float)($row['new_price'] ?? $price);
+                if (!empty($row['new_billing_mode'])) { $mode = (string)$row['new_billing_mode']; }
+            }
+        }
+        return ['price' => $price, 'billing_mode' => $mode];
+    }
+    public static function getEffectivePriceForPeriod($serviceId, $month, $year, $fallbackPrice = 0.0) {
+        $service = ServiceModel::getById((int)$serviceId) ?? ['price' => $fallbackPrice, 'billing_mode' => 'fixed'];
+        return self::getEffectiveConfigForPeriod($service, $month, $year)['price'];
+    }
     public static function buildNotificationContent(array $service, $oldPrice, $newPrice, $effectiveMonth, $effectiveYear) {
         return trim((string)($service['name'] ?? 'Dịch vụ'))
             . ': '

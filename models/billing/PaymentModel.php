@@ -627,13 +627,9 @@ private static function resolveRoomRentPrice(array $room, $billingContract, arra
         $serviceId = (int)($service['id'] ?? 0);
         $serviceName = $service['name'] ?? 'Dịch vụ';
         $quantity = max(1, (float)($service['quantity'] ?? 1));
-        $unitPrice = PriceChangeModel::getEffectivePriceForPeriod(
-            $serviceId,
-            (int)$month,
-            (int)$year,
-            (float)($service['price'] ?? 0)
-        );
-        $billingMode = $service['billing_mode'] ?? 'fixed';
+        $unitPrice = $effectiveConfig = PriceChangeModel::getEffectiveConfigForPeriod($service, (int)$month, (int)$year);
+        $unitPrice = $effectiveConfig['price'];
+        $billingMode = $effectiveConfig['billing_mode'];
         $warnings = [];
         $errors = [];
 
