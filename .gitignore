@@ -1,1 +1,7 @@
-(empty)
+﻿# Temp scripts
+_*.php
+_*.ps1
+# Backups
+*.bak*
+# Local dump
+project_info.txt
