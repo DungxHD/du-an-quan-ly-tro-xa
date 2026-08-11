@@ -115,8 +115,14 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
             ['id' => 'rent-requests', 'label' => 'Yêu cầu thuê', 'icon' => 'inbox', 'url' => BASE_URL . '?page=admin-rent-requests'],
             ['id' => 'roommate-requests', 'label' => 'Yêu cầu ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=admin-roommate-requests'],
-            ['id' => 'maintenance', 'label' => 'Bảo trì', 'icon' => 'build', 'url' => BASE_URL . '?page=admin-maintenance'],
-            ['id' => 'settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune', 'url' => BASE_URL . '?page=admin-settings'],
+
+            [
+                'id' => 'group-settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune',
+                'children' => [
+                    ['id' => 'settings', 'label' => 'Cấu hình chung', 'icon' => 'settings', 'url' => BASE_URL . '?page=admin-settings'],
+                    ['id' => 'amenities', 'label' => 'Tiện ích', 'icon' => 'apps', 'url' => BASE_URL . '?page=admin-amenities'],
+                ],
+            ],
             ['id' => 'areas', 'label' => 'Khu nhà', 'icon' => 'location_city', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
             ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
@@ -127,13 +133,7 @@ function getPanelNavigation($role, $active = '')
                     ['id' => 'contracts', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=admin-contracts'],
                 ],
             ],
-            [
-                'id' => 'group-finance', 'label' => 'Tài chính', 'icon' => 'payments',
-                'children' => [
-                    ['id' => 'invoices', 'label' => 'Lịch sử hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-invoices'],
-                    ['id' => 'stats', 'label' => 'Thống kê', 'icon' => 'analytics', 'url' => BASE_URL . '?page=admin-stats'],
-                ],
-            ],
+
             [
                 'id' => 'group-community', 'label' => 'Cộng đồng & Kiểm duyệt', 'icon' => 'star',
                 'children' => [
@@ -142,12 +142,7 @@ function getPanelNavigation($role, $active = '')
                     ['id' => 'comment-reports', 'label' => 'Báo cáo', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-comment-reports'],
                 ],
             ],
-            [
-                'id' => 'group-website', 'label' => 'Nội dung website', 'icon' => 'web',
-                'children' => [
-                    ['id' => 'amenities', 'label' => 'Tiện ích', 'icon' => 'apps', 'url' => BASE_URL . '?page=admin-amenities'],
-                ],
-            ],
+
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=admin-notifications'],
         ],
         'tenant' => [
@@ -160,6 +155,7 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'contract', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=tenant-contract'],
             ['id' => 'roommate', 'label' => 'Ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=tenant-roommate'],
             ['id' => 'maintenance', 'label' => 'Bảo trì', 'icon' => 'build', 'url' => BASE_URL . '?page=tenant-maintenance'],
+
             ['id' => 'rooms', 'label' => 'Tìm phòng', 'icon' => 'search', 'url' => BASE_URL . '?page=rooms'],
         ],
     ];
@@ -371,14 +367,14 @@ switch ($page) {
         (new AdminController())->vetoRoommate();
         break;
     case 'tenant-maintenance':
-        (new TenantController())->maintenance();
+        redirectTo('tenant');
         break;
     case 'tenant-reject-maintenance':
         (new TenantController())->rejectMaintenance();
         break;
     case 'admin-maintenance':
         requireAdmin();
-        (new AdminController())->maintenance();
+        redirectTo('admin');
         break;
     case 'admin-propose-maintenance':
         requireAdmin();
@@ -422,7 +418,7 @@ switch ($page) {
         break;
     case 'admin-invoices':
         requireAdmin();
-        (new AdminController())->invoices();
+        redirectTo('admin-meter-readings');
         break;
     case 'admin-view-contract':
         requireAdmin();
@@ -450,7 +446,7 @@ switch ($page) {
         break;
     case 'admin-stats':
         requireAdmin();
-        (new AdminController())->stats();
+        redirectTo('admin');
         break;
     case 'tenant':
         requireTenant();

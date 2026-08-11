@@ -328,4 +328,74 @@ class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-
         <?php endif; ?>
     </div>
 </div>
+<!-- [DEV-QWEN-A][NHOM-3] Invoice History Section -->
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
+<div class="px-6 py-4 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+<div>
+<h3 class="font-bold text-lg">Lịch sử hóa đơn</h3>
+<p class="text-sm text-gray-500 mt-1">Danh sách hóa đơn đã tạo cho kỳ <?= e($meterPeriod['label'] ?? '') ?></p>
+</div>
+<form method="POST" action="<?= BASE_URL ?>?page=admin-generate-invoice">
+<?= csrf_field() ?>
+<input type="hidden" name="month" value="<?= (int)($meterPeriod['month'] ?? date('n')) ?>">
+<input type="hidden" name="year" value="<?= (int)($meterPeriod['year'] ?? date('Y')) ?>">
+<input type="hidden" name="generate_scope" value="all">
+<input type="hidden" name="redirect_page" value="admin-meter-readings">
+<button type="submit" class="px-5 py-3 bg-secondary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">Tạo hóa đơn hàng loạt</button>
+</form>
+</div>
+<?php if (empty($invoiceList ?? [])): ?>
+<div class="px-6 py-10 text-center text-gray-500">Chưa có hóa đơn nào cho kỳ này.</div>
+<?php else: ?>
+<div class="overflow-x-auto">
+<table class="w-full min-w-[800px]">
+<thead class="bg-gray-50"><tr>
+<th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phòng</th>
+<th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tổng tiền</th>
+<th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
+<th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Người trả</th>
+<th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Thao tác</th>
+</tr></thead>
+<tbody class="divide-y divide-gray-100">
+<?php foreach ($invoiceList as $invoiceRow): ?>
+<tr class="hover:bg-gray-50 transition">
+<td class="px-6 py-4 align-top">
+<p class="font-semibold text-gray-900"><?= e($invoiceRow['room']['name'] ?? '') ?></p>
+<p class="text-sm text-gray-500 mt-1"><?= e(($invoiceRow['room']['area_name'] ?? '') . ' - ' . ($invoiceRow['room']['floor_name'] ?? '')) ?></p>
+</td>
+<td class="px-6 py-4 align-top font-semibold text-secondary"><?= number_format((float)($invoiceRow['amount'] ?? 0), 0, ',', '.') ?> đ</td>
+<td class="px-6 py-4 align-top">
+<span class="px-3 py-1.5 rounded-full text-sm font-semibold <?= e($invoiceRow['status_meta']['badge_class'] ?? 'bg-slate-100 text-slate-700') ?>"><?= e($invoiceRow['status_meta']['label'] ?? '') ?></span>
+</td>
+<td class="px-6 py-4 align-top">
+<?php if (!empty($invoiceRow['payer']['full_name'])): ?>
+<p class="font-medium text-gray-900"><?= e($invoiceRow['payer']['full_name'] ?? '') ?></p>
+<p class="text-sm text-gray-500 mt-1"><?= e(!empty($invoiceRow['paid_at']) ? date('d/m/Y H:i', strtotime((string)$invoiceRow['paid_at'])) : '') ?></p>
+<?php else: ?><p class="text-sm text-gray-400">Chưa ghi nhận</p><?php endif; ?>
+</td>
+<td class="px-6 py-4 align-top">
+<?php if (($invoiceRow['status'] ?? 'unpaid') === 'unpaid'): ?>
+<form method="POST" action="<?= BASE_URL ?>?page=admin-confirm-payment" class="space-y-2">
+<?= csrf_field() ?>
+<input type="hidden" name="payment_id" value="<?= (int)($invoiceRow['id'] ?? 0) ?>">
+<input type="hidden" name="month" value="<?= (int)($meterPeriod['month'] ?? date('n')) ?>">
+<input type="hidden" name="year" value="<?= (int)($meterPeriod['year'] ?? date('Y')) ?>">
+<input type="hidden" name="redirect_page" value="admin-meter-readings">
+<select name="payer_user_id" class="w-full min-w-[160px] px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none">
+<option value="0">Chọn người trả</option>
+<?php foreach (($invoiceRow['tenants'] ?? []) as $tenant): ?>
+<option value="<?= (int)($tenant['id'] ?? 0) ?>"><?= e($tenant['full_name'] ?? '') ?></option>
+<?php endforeach; ?>
+</select>
+<button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition text-sm">Xác nhận đã trả</button>
+</form>
+<?php else: ?><span class="text-sm font-semibold text-green-600">Đã hoàn tất</span><?php endif; ?>
+</td>
+</tr>
+<?php endforeach; ?>
+</tbody>
+</table>
+</div>
+<?php endif; ?>
+</div>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>

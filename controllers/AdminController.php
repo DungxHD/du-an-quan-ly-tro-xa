@@ -33,6 +33,27 @@ class AdminController
         $heroImagePreview = $this->getSettingFieldValue($settingSections, 'hero_image');
         $dashboardMessage = pullFlash('admin_dashboard_message');
         $dashboardError = pullFlash('admin_dashboard_error');
+        // [DEV-QWEN-A][NHOM-3] Them stats vao dashboard
+        $selectedAreaId = (int)($_GET['area_id'] ?? 0);
+        $selectedYear = max(2000, (int)($_GET['year'] ?? date('Y')));
+        $areas = AreaModel::getAllWithStats();
+        $areaStats = RoomModel::getStatsByArea($selectedAreaId);
+        $selectedArea = $selectedAreaId > 0 ? AreaModel::getById($selectedAreaId) : null;
+        $revenueStats = PaymentModel::getRevenueByMonth($selectedYear);
+        $statsSummary = [
+            'tracked_areas' => count($areaStats),
+            'tracked_rooms' => array_sum(array_map(static fn($row) => (int)($row['total_rooms'] ?? 0), $areaStats)),
+            'tracked_available_rooms' => array_sum(array_map(static fn($row) => (int)($row['available_rooms'] ?? 0), $areaStats)),
+            'tracked_occupancy_rate' => 0,
+            'year_total' => (float)($revenueStats['year_total'] ?? 0),
+            'paid_invoice_count' => (int)($revenueStats['paid_invoice_count'] ?? 0),
+        ];
+        if ($statsSummary['tracked_rooms'] > 0) {
+            $statsSummary['tracked_occupancy_rate'] = round(
+                (($statsSummary['tracked_rooms'] - $statsSummary['tracked_available_rooms']) / $statsSummary['tracked_rooms']) * 100,
+                1
+            );
+        }
         $pageTitle = 'Admin Dashboard - NhaTroA';
         require_once BASE_PATH . 'views/admin/dashboard.php';
     }
@@ -278,59 +299,9 @@ class AdminController
      */
     public function invoices()
     {
-        $period = PaymentModel::normalizePeriod($_GET['month'] ?? null, $_GET['year'] ?? null);
-        $filters = [
-            'month' => $period['month'],
-            'year' => $period['year'],
-            'status' => trim((string)($_GET['status'] ?? '')),
-            'area_id' => (int)($_GET['area_id'] ?? 0),
-            'floor_id' => (int)($_GET['floor_id'] ?? 0),
-            'room_id' => (int)($_GET['room_id'] ?? 0),
-            'invoice_id' => (int)($_GET['invoice_id'] ?? 0),
-        ];
-
-        $selectedFloor = $filters['floor_id'] > 0 ? FloorModel::getById($filters['floor_id']) : null;
-        if ($selectedFloor) {
-            $filters['area_id'] = (int)($selectedFloor['area_id'] ?? 0);
-        }
-
-        $areas = AreaModel::getAllWithStats();
-        $allFloors = FloorModel::getAll();
-        $filterFloors = $filters['area_id'] > 0 ? FloorModel::getByAreaId($filters['area_id']) : $allFloors;
-        $invoiceRoomRows = PaymentModel::getRoomInvoiceOverview($period['month'], $period['year'], [
-            'area_id' => $filters['area_id'],
-            'floor_id' => $filters['floor_id'],
-        ]);
-
-        if ($filters['room_id'] <= 0 && !empty($invoiceRoomRows[0]['room_id'])) {
-            $filters['room_id'] = (int)$invoiceRoomRows[0]['room_id'];
-        }
-
-        $invoicePreview = $filters['room_id'] > 0
-            ? PaymentModel::buildInvoicePreview($filters['room_id'], $period['month'], $period['year'])
-            : null;
-        $invoiceList = PaymentModel::getInvoices([
-            'month' => $period['month'],
-            'year' => $period['year'],
-            'status' => $filters['status'],
-            'area_id' => $filters['area_id'],
-            'floor_id' => $filters['floor_id'],
-        ]);
-        $selectedInvoice = $filters['invoice_id'] > 0 ? PaymentModel::getInvoiceById($filters['invoice_id']) : null;
-        $invoiceMessage = pullFlash('admin_invoice_message');
-        $invoiceError = pullFlash('admin_invoice_error');
-        $invoiceStatusOptions = [
-            '' => 'Tất cả trạng thái',
-            'unpaid' => 'Chưa trả',
-            'paid' => 'Đã trả',
-        ];
-        $pageTitle = 'Quản lý Hóa đơn - NhaTroA';
-        require_once BASE_PATH . 'views/admin/billing/invoices.php';
+        redirectTo('admin-meter-readings');
+        return;
     }
-
-    /**
-     * Tạo hóa đơn cho 1 phòng hoặc toàn bộ phòng đang ở trong kỳ đã chọn.
-     */
     public function generateInvoice()
     {
         PriceChangeModel::applyDueChanges();
@@ -461,33 +432,9 @@ class AdminController
 
     public function stats()
     {
-        $selectedAreaId = (int)($_GET['area_id'] ?? 0);
-        $selectedYear = max(2000, (int)($_GET['year'] ?? date('Y')));
-        $areas = AreaModel::getAllWithStats();
-        $areaStats = RoomModel::getStatsByArea($selectedAreaId);
-        $selectedArea = $selectedAreaId > 0 ? AreaModel::getById($selectedAreaId) : null;
-        $revenueStats = PaymentModel::getRevenueByMonth($selectedYear);
-        $statsSummary = [
-            'tracked_areas' => count($areaStats),
-            'tracked_rooms' => array_sum(array_map(static fn($row) => (int)($row['total_rooms'] ?? 0), $areaStats)),
-            'tracked_available_rooms' => array_sum(array_map(static fn($row) => (int)($row['available_rooms'] ?? 0), $areaStats)),
-            'tracked_occupancy_rate' => 0,
-            'year_total' => (float)($revenueStats['year_total'] ?? 0),
-            'paid_invoice_count' => (int)($revenueStats['paid_invoice_count'] ?? 0),
-        ];
-        if ($statsSummary['tracked_rooms'] > 0) {
-            $statsSummary['tracked_occupancy_rate'] = round(
-                (($statsSummary['tracked_rooms'] - $statsSummary['tracked_available_rooms']) / $statsSummary['tracked_rooms']) * 100,
-                1
-            );
-        }
-        $pageTitle = 'Thống kê - NhaTroA';
-        require_once BASE_PATH . 'views/admin/system/stats.php';
+        redirectTo('admin');
+        return;
     }
-
-    /**
-     * Quản lý toàn bộ dịch vụ và thao tác gán dịch vụ theo phòng.
-     */
     public function services()
     {
         PriceChangeModel::applyDueChanges();
@@ -1096,7 +1043,48 @@ $redirectParams = [];
         $invoiceErr = pullFlash("admin_invoice_error");
         if ($invoiceMsg) { $meterMessage = trim(($meterMessage ? $meterMessage . " " : "") . $invoiceMsg); }
         if ($invoiceErr) { $meterError = trim(($meterError ? $meterError . " " : "") . $invoiceErr); }
-        $pageTitle = 'Ghi chỉ số điện nước - NhaTroA';
+        // [DEV-QWEN-A][NHOM-3] Them invoice history vao meter readings
+        $invoicePeriod = PaymentModel::normalizePeriod($_GET['month'] ?? null, $_GET['year'] ?? null);
+        $invoiceFilters = [
+            'month' => $invoicePeriod['month'],
+            'year' => $invoicePeriod['year'],
+            'status' => trim((string)($_GET['status'] ?? '')),
+            'area_id' => (int)($_GET['area_id'] ?? 0),
+            'floor_id' => (int)($_GET['floor_id'] ?? 0),
+            'room_id' => (int)($_GET['room_id'] ?? 0),
+            'invoice_id' => (int)($_GET['invoice_id'] ?? 0),
+        ];
+        $selectedFloor = $invoiceFilters['floor_id'] > 0 ? FloorModel::getById($invoiceFilters['floor_id']) : null;
+        if ($selectedFloor) {
+            $invoiceFilters['area_id'] = (int)($selectedFloor['area_id'] ?? 0);
+        }
+        $areas = AreaModel::getAllWithStats();
+        $allFloors = FloorModel::getAll();
+        $filterFloors = $invoiceFilters['area_id'] > 0 ? FloorModel::getByAreaId($invoiceFilters['area_id']) : $allFloors;
+        $invoiceRoomRows = PaymentModel::getRoomInvoiceOverview($invoicePeriod['month'], $invoicePeriod['year'], [
+            'area_id' => $invoiceFilters['area_id'],
+            'floor_id' => $invoiceFilters['floor_id'],
+        ]);
+        if ($invoiceFilters['room_id'] <= 0 && !empty($invoiceRoomRows[0]['room_id'])) {
+            $invoiceFilters['room_id'] = (int)$invoiceRoomRows[0]['room_id'];
+        }
+        $invoicePreview = $invoiceFilters['room_id'] > 0
+            ? PaymentModel::buildInvoicePreview($invoiceFilters['room_id'], $invoicePeriod['month'], $invoicePeriod['year'])
+            : null;
+        $invoiceList = PaymentModel::getInvoices([
+            'month' => $invoicePeriod['month'],
+            'year' => $invoicePeriod['year'],
+            'status' => $invoiceFilters['status'],
+            'area_id' => $invoiceFilters['area_id'],
+            'floor_id' => $invoiceFilters['floor_id'],
+        ]);
+        $selectedInvoice = $invoiceFilters['invoice_id'] > 0 ? PaymentModel::getInvoiceById($invoiceFilters['invoice_id']) : null;
+        $invoiceStatusOptions = [
+            '' => 'Tất cả trạng thái',
+            'unpaid' => 'Chưa trả',
+            'paid' => 'Đã trả',
+        ];
+        $pageTitle = 'Hóa đơn - NhaTroA';
         require_once BASE_PATH . 'views/admin/billing/meter_readings.php';
     }
 
