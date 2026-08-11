@@ -70,9 +70,18 @@ class Database {
             return new DatabaseArrayStatement();
         }
 
-        $stmt = self::getInstance()->prepare($sql);
-        $stmt->execute($params);
-        return $stmt;
+        try {
+            $stmt = self::getInstance()->prepare($sql);
+            $stmt->execute($params);
+            return $stmt;
+        } catch (PDOException $e) {
+            // [DEV-QWEN-A][FIX] Bẫy lỗi thiếu bảng (42S02) hoặc thiếu cột (42S22)
+            if (in_array($e->getCode(), ['42S02', '42S22'])) {
+                error_log('[DB Schema Missing] ' . $e->getMessage() . ' | SQL: ' . $sql);
+                return new DatabaseArrayStatement();
+            }
+            throw $e;
+        }
     }
 
     public static function fetchAll($sql, $params = []) {

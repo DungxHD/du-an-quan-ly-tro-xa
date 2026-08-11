@@ -1,1 +1,10 @@
 (empty)
+# [DEV-QWEN-A] chan rac
+.uploads/
+*.bak
+*.bak_*
+*.orig
+*.rej
+project_info.txt
+_fix_*.sql
+nhatroa_*.txt
