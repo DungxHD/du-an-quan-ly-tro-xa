@@ -43,7 +43,33 @@ class TenantController {
             $totalBill = 0;
         }
         
-        $pageTitle = 'Dashboard - NhaTroA';
+        $roomExtra = null;
+if ($room) {
+    $floorRow = FloorModel::getById((int)($room['floor_id'] ?? 0));
+    $areaRow = AreaModel::getById((int)($floorRow['area_id'] ?? 0));
+    $occupantList = array_values(array_filter(UserModel::getAll(), static function ($u) use ($room) {
+        return (int)($u['role'] ?? -1) === 0 && (int)($u['room_id'] ?? 0) === (int)$room['id'];
+    }));
+    $occupantsNow = count($occupantList);
+    $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
+    $amenityLabels = [];
+    $rawAm = trim((string)($room['amenities'] ?? ''));
+    if ($rawAm !== '') {
+        $dec = json_decode($rawAm, true);
+        $parts = is_array($dec) ? $dec : explode(',', $rawAm);
+        foreach ($parts as $p) { $p = trim((string)$p); if ($p !== '') $amenityLabels[] = $p; }
+    }
+    $roomExtra = [
+        'floor_name' => (string)($floorRow['name'] ?? ('Tầng ' . ($room['floor'] ?? ''))),
+        'area_name' => (string)($areaRow['name'] ?? ($room['building_name'] ?? '')),
+        'occupants' => $occupantsNow,
+        'max' => $maxOcc,
+        'free' => max(0, $maxOcc - $occupantsNow),
+        'can_add' => $occupantsNow < $maxOcc,
+        'amenities' => $amenityLabels, 'occupants_list' => $occupantList,
+    ];
+}
+$pageTitle = 'Thông tin phòng - NhaTroA';
         require_once BASE_PATH . 'views/tenant/dashboard.php';
     }
     

@@ -139,7 +139,7 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=admin-notifications'],
         ],
         'tenant' => [
-            ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=tenant'],
+            ['id' => 'dashboard', 'label' => 'Thông tin phòng', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=tenant'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=tenant-services'],
             ['id' => 'meter', 'label' => 'Điện nước', 'icon' => 'speed', 'url' => BASE_URL . '?page=tenant-meter'],
             ['id' => 'invoice', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=tenant-invoice'],
