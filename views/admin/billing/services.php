@@ -100,7 +100,7 @@ $hasAnyPending = $hasPendingPrice || $hasPendingMode || $pendDeac;
 <?php endif; ?>
 </td>
 <!-- CỘT TRẠNG THÁI -->
-<td class="px-6 py-4"><?php $uc = count($roomsUsingByService[$itemId] ?? []); ?><button type="button" data-open-usage="usage-modal-<?= $itemId ?>" class="text-sm font-semibold text-teal-700 hover:text-teal-900 inline-flex items-center gap-1"><span class="material-symbols-outlined text-base">meeting_room</span><?= $uc ?> phòng</button></td>
+<td class="px-6 py-4"><?php if ((int)($item['is_required'] ?? 0) === 1 || ServiceModel::isLockedKind($item['kind'] ?? 'other')): ?><span class="text-sm font-semibold text-gray-700 inline-flex items-center gap-1" title="Dịch vụ bắt buộc - áp dụng cho tất cả phòng đang thuê"><span class="material-symbols-outlined text-base">meeting_room</span>Tất cả</span><?php else: ?><?php $uc = count($roomsUsingByService[$itemId] ?? []); ?><button type="button" data-open-usage="usage-modal-<?= $itemId ?>" class="text-sm font-semibold text-teal-700 hover:text-teal-900 inline-flex items-center gap-1"><span class="material-symbols-outlined text-base">meeting_room</span><?= $uc ?> phòng</button><?php endif; ?></td>
 <td class="px-6 py-4">
 <?php if ((int)($item['is_active'] ?? 0) === 1 && !$pendDeac): ?>
 <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">Đang mở</span>
@@ -196,6 +196,7 @@ Dịch vụ sẽ được tắt từ tháng <?= str_pad((string)(int)($item['dea
 <div class="grid grid-cols-2 gap-4">
 <div><label class="block text-sm font-semibold mb-2">Giá</label>
 <input type="number" min="0" step="0.01" name="price" value="<?= e($formService['price'] ?? 0) ?>" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
+<?php if ($isEditing): ?>
 <div><label class="block text-sm font-semibold mb-2">Tháng áp dụng</label>
 <div class="grid grid-cols-2 gap-2">
 <select name="effective_month" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
@@ -204,6 +205,7 @@ Dịch vụ sẽ được tắt từ tháng <?= str_pad((string)(int)($item['dea
 </select>
 <input type="number" name="effective_year" min="<?= (int)date('Y') ?>" max="<?= (int)date('Y') + 5 ?>" value="<?= (int)date('Y') ?>" class="w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
 </div></div>
+<?php endif; ?>
 </div>
 <div><label class="block text-sm font-semibold mb-2">Cách tính giá</label>
 <?php $formKind = $formService['kind'] ?? 'other'; ?>

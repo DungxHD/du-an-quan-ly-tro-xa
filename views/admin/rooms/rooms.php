@@ -265,8 +265,27 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <textarea name="description" id="drawer-description" rows="3" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"></textarea>
             </div>
 
-            <div><label class="mb-1 block text-sm font-semibold text-gray-700">Tiện nghi (phân cách bởi dấu phẩy)</label>
-                <input type="text" name="amenities" id="drawer-amenities" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+            <div class="space-y-3">
+                <label class="mb-1 block text-sm font-semibold text-gray-700">Tiện ích phòng</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Available amenities -->
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                        <h4 class="text-sm font-bold text-gray-800 mb-2">Tiện ích khả dụng</h4>
+                        <div id="amenities-available" class="space-y-1 max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <!-- Assigned amenities -->
+                    <div class="rounded-xl border border-gray-200 bg-white p-3">
+                        <h4 class="text-sm font-bold text-gray-800 mb-2">Đang gán cho phòng</h4>
+                        <div id="amenities-assigned" class="space-y-1 max-h-48 overflow-y-auto"></div>
+                    </div>
+                </div>
+                <!-- Preview card -->
+                <div class="rounded-xl border border-dashed border-gray-300 bg-blue-50/50 p-3">
+                    <h4 class="text-sm font-bold text-gray-800 mb-2">Preview "website thu nhỏ" (cập nhật theo bản nháp)</h4>
+                    <div id="amenity-preview" class="text-sm text-gray-700">Chưa có tiện ích nào</div>
+                </div>
+                <!-- Hidden CSV input -->
+                <input type="hidden" name="amenities" id="drawer-amenities" value="<?= e($drawerAmenities ?? '') ?>">
             </div>
 
             <div class="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 space-y-3">
@@ -290,6 +309,102 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <button type="submit" class="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white transition hover:bg-opacity-90">
                 <span class="material-symbols-outlined text-base align-middle">save</span> Lưu phòng
             </button>
+
+<script>
+(function() {
+    const allAmenities = <?= json_encode($allAmenities ?? []) ?>;
+    let assigned = [];
+
+    function initAmenities() {
+        const csv = $('drawer-amenities').value.trim();
+        assigned = csv ? csv.split(',').map(s => s.trim()).filter(Boolean) : [];
+        renderAvailable();
+        renderAssigned();
+        renderPreview();
+    }
+
+    function renderAvailable() {
+        const container = $('amenities-available');
+        const available = allAmenities.filter(a => !assigned.includes(a.title));
+        if (available.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-500">Không còn tiện ích nào</p>';
+            return;
+        }
+        container.innerHTML = available.map(a => 
+            `<button type="button" class="w-full text-left px-2 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-primary hover:bg-primary/5 transition text-sm" onclick="addAmenity('${a.title.replace(/'/g, "\\'")}')">
+                <span class="material-symbols-outlined text-base mr-1">${a.icon}</span>
+                ${a.title}
+                <span class="float-right text-primary font-bold">+</span>
+            </button>`
+        ).join('');
+    }
+
+    function renderAssigned() {
+        const container = $('amenities-assigned');
+        if (assigned.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-500">Chưa gán tiện ích nào</p>';
+            return;
+        }
+        container.innerHTML = assigned.map(title => {
+            const amenity = allAmenities.find(a => a.title === title);
+            const icon = amenity ? amenity.icon : 'add';
+            return `<button type="button" class="w-full text-left px-2 py-1.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-red-50 hover:border-red-300 transition text-sm" onclick="removeAmenity('${title.replace(/'/g, "\\'")}')">
+                <span class="material-symbols-outlined text-base mr-1">${icon}</span>
+                ${title}
+                <span class="float-right text-red-600 font-bold">−</span>
+            </button>`;
+        }).join('');
+    }
+
+    function renderPreview() {
+        const container = $('amenity-preview');
+        if (assigned.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-500 italic">Chưa có tiện ích nào — phòng sẽ không hiển thị tiện ích trên website</p>';
+            return;
+        }
+        const items = assigned.map(title => {
+            const amenity = allAmenities.find(a => a.title === title);
+            const icon = amenity ? amenity.icon : 'add';
+            return `<div class="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs mr-1 mb-1">
+                <span class="material-symbols-outlined text-sm">${icon}</span>
+                <span>${title}</span>
+            </div>`;
+        }).join('');
+        container.innerHTML = `<div class="flex flex-wrap">${items}</div>`;
+    }
+
+    window.addAmenity = function(title) {
+        if (!assigned.includes(title)) {
+            assigned.push(title);
+            renderAvailable();
+            renderAssigned();
+            renderPreview();
+            syncCSV();
+        }
+    };
+
+    window.removeAmenity = function(title) {
+        assigned = assigned.filter(t => t !== title);
+        renderAvailable();
+        renderAssigned();
+        renderPreview();
+        syncCSV();
+    };
+
+    function syncCSV() {
+        $('drawer-amenities').value = assigned.join(', ');
+    }
+
+    // Wait for drawer to open
+    const observer = new MutationObserver((mutations, obs) => {
+        if ($('drawer-amenities')) {
+            initAmenities();
+            obs.disconnect();
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
         </form>
     </div>
 </aside>

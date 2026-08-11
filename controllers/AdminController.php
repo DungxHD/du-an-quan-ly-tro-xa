@@ -837,28 +837,37 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
         ], static fn($value) => $value !== null && $value !== '');
         if ($id > 0 && !$existing) {
             setFlash('admin_service_error', 'Dịch vụ cần cập nhật không tồn tại.');
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
         }
         if ($data['name'] === '') {
             setFlash('admin_service_error', 'Tên dịch vụ là bắt buộc.');
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
+        }
+        // Kiểm tra tên trùng
+        $allServices = ServiceModel::getAll();
+        foreach ($allServices as $svc) {
+            if ((int)($svc['id'] ?? 0) !== $id && trim($svc['name'] ?? '') === trim($data['name'])) {
+                setFlash('admin_service_error', 'Tên dịch vụ "' . e($data['name']) . '" đã tồn tại. Vui lòng chọn tên khác.');
+                setFlash('admin_service_old', array_merge($data, ['id' => $id]));
+                redirectTo('admin-services');
+            }
         }
         if ($data['price'] < 0) {
             setFlash('admin_service_error', 'Giá dịch vụ không được nhỏ hơn 0.');
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
         }
         $allowedModes = ServiceModel::getKindBillingModesMap()[$kind] ?? array_keys(ServiceModel::getBillingModeOptions());
         if (!in_array($data['billing_mode'], $allowedModes, true)) {
             setFlash('admin_service_error', 'Cách tính giá không hợp lệ cho loại dịch vụ này. Chấp nhận: ' . implode(', ', $allowedModes) . '.');
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
         }
         if (!in_array($data['applies_to'], $this->getAllowedServiceAppliesTo(), true)) {
             setFlash('admin_service_error', 'Đối tượng áp dụng không hợp lệ.');
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
         }
         if (ServiceModel::isLockedKind($kind)) {
             $data['applies_to'] = 'room';
@@ -877,7 +886,14 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
                     ServiceModel::scheduleDeactivate($id, $dm, $dy);
                     $data['is_active'] = 1;
                     setFlash('admin_service_message', 'Dich vu dang co ' . $usingCount . ' phong su dung. Se tat tu thang ' . str_pad((string)$dm, 2, '0', STR_PAD_LEFT) . '/' . $dy . '.');
-                    redirectTo('admin-services', $redirectParams);
+                    redirectTo('admin-services');
+                } else {
+                    // Không có phòng sử dụng → tắt ngay
+                    $updateData = $data;
+                    $updateData['is_active'] = 0;
+                    ServiceModel::save($updateData, $id);
+                    setFlash('admin_service_message', 'Đã tắt dịch vụ ngay lập tức (không có phòng sử dụng).');
+                    redirectTo('admin-services');
                 }
             }
             if ($wasActive === 1 && !$nowInactive && ServiceModel::isPendingDeactivate($existing)) {
@@ -887,12 +903,12 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
         if ($data['is_required'] === 1 && $data['applies_to'] !== 'room') {
             setFlash('admin_service_error', 'Dịch vụ bắt buộc chỉ được áp dụng theo phòng.');
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
         }
         if ($data['billing_mode'] === 'meter' && $data['applies_to'] !== 'room') {
             setFlash('admin_service_error', 'Dịch vụ tính theo chỉ số chỉ phù hợp với phòng.');
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
         }
         if ($existing) {
             $submittedPrice = (float)$data['price'];
@@ -907,25 +923,39 @@ $core['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'),
             $priceChanged = abs($submittedPrice - (float)$existing['price']) > 0.001;
             $modeChanged = $submittedMode !== (string)$existing['billing_mode'];
             if ($priceChanged || $modeChanged) {
-                try {
-                    $em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
-$curOrder = ((int)date('Y')*100)+(int)date('n');
-if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
-else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
-                    PriceChangeModel::scheduleServiceChange($id, $submittedPrice, $submittedMode, $nextMonth, $nextYear, (int)($_SESSION['user_id'] ?? 0));
-                    setFlash('admin_service_message', 'Đã cập nhật dịch vụ. Giá/cách tính mới áp dụng từ tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '.');
-                } catch (Throwable $exception) {
-                    setFlash('admin_service_error', $exception->getMessage());
+                $usingCount = ServiceModel::countRoomsUsing($id);
+                if ($usingCount === 0) {
+                    // Không có phòng sử dụng → áp dụng ngay
+                    ServiceModel::clearAllPendingChanges($id);
+                    $updateData = $data;
+                    $updateData['price'] = $submittedPrice;
+                    $updateData['billing_mode'] = $submittedMode;
+                    $updateData['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'), $submittedMode);
+                    $updateData['kind'] = (string)($existing['kind'] ?? 'other');
+                    ServiceModel::save($updateData, $id);
+                    setFlash('admin_service_message', 'Đã cập nhật giá/cách tính ngay lập tức (không có phòng sử dụng).');
+                } else {
+                    // Có phòng sử dụng → schedule
+                    try {
+                        $em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
+                        $curOrder = ((int)date('Y')*100)+(int)date('n');
+                        if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
+                        else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
+                        PriceChangeModel::scheduleServiceChange($id, $submittedPrice, $submittedMode, $nextMonth, $nextYear, (int)($_SESSION['user_id'] ?? 0));
+                        setFlash('admin_service_message', 'Đã cập nhật dịch vụ. Giá/cách tính mới áp dụng từ tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . ' (có ' . $usingCount . ' phòng sử dụng).');
+                    } catch (Throwable $exception) {
+                        setFlash('admin_service_error', $exception->getMessage());
+                    }
                 }
             } else {
                 setFlash('admin_service_message', 'Đã cập nhật dịch vụ thành công.');
             }
-            redirectTo('admin-services', $redirectParams);
+            redirectTo('admin-services');
         }
         $data['kind'] = 'other';
         $savedId = ServiceModel::save($data, null);
         setFlash('admin_service_message', 'Đã thêm dịch vụ mới thành công.');
-        redirectTo('admin-services', array_filter(['edit' => $savedId, 'room_id' => $returnRoomId > 0 ? $returnRoomId : null], static fn($v) => $v !== null && $v !== ''));
+        redirectTo('admin-services');
     }
     public function undoDeleteService($id) {
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-services'); }
