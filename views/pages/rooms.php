@@ -1,4 +1,21 @@
 <?php
+// [DEV-QWEN-A][NHOM-2][PAGINATION] Phân trang 10 phòng/trang, giữ filter khi chuyển trang
+$roomsPerPage = 10;
+$totalRooms = count($rooms);
+$totalPages = max(1, (int)ceil($totalRooms / $roomsPerPage));
+$currentPage = max(1, min((int)($_GET['p'] ?? 1), $totalPages));
+$pagedRooms = array_slice($rooms, ($currentPage - 1) * $roomsPerPage, $roomsPerPage);
+$buildPageUrl = static function (int $page) use ($filters, $selectedArea) {
+    $params = ['page' => 'rooms', 'p' => $page];
+    if (!empty($filters['area_id'])) $params['area_id'] = $filters['area_id'];
+    if (($filters['min_price_input'] ?? '') !== '') $params['min_price'] = $filters['min_price_input'];
+    if (($filters['max_price_input'] ?? '') !== '') $params['max_price'] = $filters['max_price_input'];
+    if (!empty($filters['amenities']) && is_array($filters['amenities'])) {
+        foreach ($filters['amenities'] as $am) { $params['amenities'][] = $am; }
+    }
+    return BASE_URL . '?' . http_build_query($params);
+};
+
 // Gom sẵn một số giá trị để view gọn hơn và không phải lặp lại biểu thức dài.
 $selectedArea = $selectedArea ?? null;
 $areas = $areas ?? [];
@@ -139,7 +156,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children">
-                        <?php foreach ($rooms as $room): ?>
+                        <?php foreach ($pagedRooms as $room): ?>
                             <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>"
                                 class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
                                 <div class="relative aspect-video overflow-hidden">
@@ -200,4 +217,24 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
             </div>
         </div>
     </div>
+
+<?php if ($totalPages > 1): ?>
+<nav class="mt-10 mb-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phan trang phong tro">
+    <?php if ($currentPage > 1): ?>
+        <a href="<?= e($buildPageUrl(1)) ?>" class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition" title="Trang đầu">&laquo;</a>
+        <a href="<?= e($buildPageUrl($currentPage - 1)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition">&lsaquo; Trước</a>
+    <?php endif; ?>
+    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+        <?php if ($i === $currentPage): ?>
+            <span class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold shadow-sm"><?= $i ?></span>
+        <?php else: ?>
+            <a href="<?= e($buildPageUrl($i)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition"><?= $i ?></a>
+        <?php endif; ?>
+    <?php endfor; ?>
+    <?php if ($currentPage < $totalPages): ?>
+        <a href="<?= e($buildPageUrl($currentPage + 1)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition">Sau &rsaquo;</a>
+        <a href="<?= e($buildPageUrl($totalPages)) ?>" class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition" title="Trang cuối">&raquo;</a>
+    <?php endif; ?>
+</nav>
+<?php endif; ?>
 </section>

@@ -616,34 +616,15 @@ class RoomModel
      * sang bảng room_features mà không phải thay đổi controller/view.
      */
     public static function getPublicFeatureOptions()
-    {
-        return [
-            [
-                'key' => 'air_conditioner',
-                'label' => 'Điều hòa',
-                'icon' => 'ac_unit',
-                'aliases' => ['điều hòa', 'máy lạnh', 'dieu hoa', 'may lanh', 'air conditioner'],
-            ],
-            [
-                'key' => 'water_heater',
-                'label' => 'Nóng lạnh',
-                'icon' => 'water_heater',
-                'aliases' => ['nóng lạnh', 'nuoc nong', 'nước nóng', 'máy nước nóng', 'water heater'],
-            ],
-            [
-                'key' => 'wifi',
-                'label' => 'Wifi',
-                'icon' => 'wifi',
-                'aliases' => ['wifi', 'internet'],
-            ],
-            [
-                'key' => 'parking',
-                'label' => 'Chỗ để xe',
-                'icon' => 'directions_car',
-                'aliases' => ['giữ xe', 'de xe', 'để xe', 'bãi xe', 'parking'],
-            ],
-        ];
-    }
+{
+    // [DEV-QWEN-A][FIX-FILTER] 4 tien ich chinh theo yeu cau: Wifi, Dieu hoa, Nong lanh, May giat.
+    return [
+        ['key' => 'wifi',      'label' => 'Wifi',      'icon' => 'wifi',                  'aliases' => ['wifi', 'internet']],
+        ['key' => 'dieu_hoa',  'label' => 'Điều hòa',  'icon' => 'ac_unit',               'aliases' => ['điều hòa', 'máy lạnh', 'dieu hoa', 'may lanh']],
+        ['key' => 'nong_lanh', 'label' => 'Nóng lạnh', 'icon' => 'water_heater',          'aliases' => ['nóng lạnh', 'nong lanh', 'máy nước nóng', 'may nuoc nong', 'bình nóng lạnh', 'water heater']],
+        ['key' => 'may_giat',  'label' => 'Máy giặt',  'icon' => 'local_laundry_service', 'aliases' => ['máy giặt', 'may giat', 'giặt sấy']],
+    ];
+}
 
     /**
      * Bổ sung metadata chỉ phục vụ trang public để view không cần suy diễn thêm.
@@ -686,43 +667,30 @@ class RoomModel
     }
 
     private static function roomMatchesFeature(array $room, $featureKey)
-    {
-        $feature = null;
-        foreach (self::getPublicFeatureOptions() as $item) {
-            if (($item['key'] ?? '') === $featureKey) {
-                $feature = $item;
-                break;
-            }
-        }
-
-        if (!$feature) {
-            return false;
-        }
-
-        $normalizedServiceNames = array_map(
-            static fn($serviceName) => mb_strtolower(trim((string)$serviceName), 'UTF-8'),
-            $room['service_names'] ?? []
-        );
-        foreach ($feature['aliases'] as $alias) {
-            if (in_array(mb_strtolower($alias, 'UTF-8'), $normalizedServiceNames, true)) {
-                return true;
-            }
-        }
-
-        $searchBlob = mb_strtolower(implode(' ', array_filter([
-            $room['name'] ?? '',
-            $room['description'] ?? '',
-            implode(' ', $room['service_names'] ?? []),
-        ])), 'UTF-8');
-
-        foreach ($feature['aliases'] as $alias) {
-            if (mb_strpos($searchBlob, mb_strtolower($alias, 'UTF-8')) !== false) {
-                return true;
-            }
-        }
-
-        return false;
+{
+    $feature = null;
+    foreach (self::getPublicFeatureOptions() as $item) {
+        if (($item['key'] ?? '') === $featureKey) { $feature = $item; break; }
     }
+    if (!$feature) { return false; }
+    $aliases = array_values(array_filter(array_map(
+        static fn($a) => self::normalizeFeatureText($a),
+        (array)($feature['aliases'] ?? [])
+    ), static fn($a) => $a !== ''));
+    if (!$aliases) { return false; }
+
+    $labels = self::parseRoomAmenityLabels($room);
+    $blob = self::normalizeFeatureText(implode(' ', array_merge($labels, [(string)($room['description'] ?? '')])));
+
+    foreach ($aliases as $alias) {
+        foreach ($labels as $label) {
+            $hay = self::normalizeFeatureText($label);
+            if ($hay !== '' && (mb_strpos($hay, $alias) !== false || mb_strpos($alias, $hay) !== false)) { return true; }
+        }
+        if ($blob !== '' && mb_strpos($blob, $alias) !== false) { return true; }
+    }
+    return false;
+}
 
     private static function parseHumanPrice($value)
     {
@@ -1040,4 +1008,35 @@ class RoomModel
     {
         return UserModel::findByEmail($email);
     }
+
+private static function normalizeFeatureText($text) {
+    $t = mb_strtolower(trim((string)$text), 'UTF-8');
+    $map = ['á'=>'a','à'=>'a','ả'=>'a','ã'=>'a','ạ'=>'a','ă'=>'a','ắ'=>'a','ằ'=>'a','ẳ'=>'a','ẵ'=>'a','ặ'=>'a','â'=>'a','ấ'=>'a','ầ'=>'a','ẩ'=>'a','ẫ'=>'a','ậ'=>'a','é'=>'e','è'=>'e','ẻ'=>'e','ẽ'=>'e','ẹ'=>'e','ê'=>'e','ế'=>'e','ề'=>'e','ể'=>'e','ễ'=>'e','ệ'=>'e','í'=>'i','ì'=>'i','ỉ'=>'i','ĩ'=>'i','ị'=>'i','ó'=>'o','ò'=>'o','ỏ'=>'o','õ'=>'o','ọ'=>'o','ô'=>'o','ố'=>'o','ồ'=>'o','ổ'=>'o','ỗ'=>'o','ộ'=>'o','ơ'=>'o','ớ'=>'o','ờ'=>'o','ở'=>'o','ỡ'=>'o','ợ'=>'o','ú'=>'u','ù'=>'u','ủ'=>'u','ũ'=>'u','ụ'=>'u','ư'=>'u','ứ'=>'u','ừ'=>'u','ử'=>'u','ữ'=>'u','ự'=>'u','ý'=>'y','ỳ'=>'y','ỷ'=>'y','ỹ'=>'y','ỵ'=>'y','đ'=>'d'];
+    return trim(strtr($t, $map));
+}
+
+private static function parseRoomAmenityLabels(array $room) {
+    $labels = [];
+    $raw = trim((string)($room['amenities'] ?? ''));
+    if ($raw !== '') {
+        $decoded = json_decode($raw, true);
+        $parts = is_array($decoded) ? $decoded : array_map('trim', explode(',', $raw));
+        foreach ($parts as $p) { $p = trim((string)$p); if ($p !== '') $labels[] = $p; }
+    }
+    foreach ((array)($room['service_names'] ?? []) as $s) { $s = trim((string)$s); if ($s !== '') $labels[] = $s; }
+    return array_values(array_unique($labels));
+}
+
+private static function roomMatchesFeatureKey(array $room, $featureKey) {
+    $needle = self::normalizeFeatureText((string)$featureKey);
+    if (strpos($needle, 'am_') === 0) $needle = substr($needle, 3);
+    $needle = trim((string)$needle);
+    if ($needle === '') return false;
+    foreach (self::parseRoomAmenityLabels($room) as $label) {
+        $hay = self::normalizeFeatureText($label);
+        if ($hay === '') continue;
+        if ($hay === $needle || mb_strpos($hay, $needle) !== false || mb_strpos($needle, $hay) !== false) return true;
+    }
+    return false;
+}
 }

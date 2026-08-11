@@ -353,7 +353,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
 INSERT INTO `payments` (`id`, `room_id`, `contract_id`, `user_id`, `month`, `year`, `amount`, `status`, `paid_at`, `created_at`) VALUES
 	(1, 1, 1, 2, 7, 2026, 4290000.00, 'paid', '2026-07-05 03:30:00', '2026-08-04 00:34:48'),
 	(2, 4, NULL, NULL, 7, 2026, 2300000.00, 'unpaid', NULL, '2026-08-04 00:34:48'),
-	(3, 1, NULL, NULL, 8, 2026, 6002000.00, 'unpaid', NULL, '2026-08-09 09:32:07');
+	(3, 1, NULL, NULL, 8, 2026, 4252000.00, 'unpaid', NULL, '2026-08-09 09:32:07');
 
 -- Dumping structure for table manage.payment_items
 CREATE TABLE IF NOT EXISTS `payment_items` (
@@ -387,7 +387,7 @@ INSERT INTO `payment_items` (`id`, `payment_id`, `service_id`, `item_name`, `uni
 	(10, 3, 7, 'Máy giặt', 50000.00, 2.00, 100000.00, 'per_person', '2026-08-09 09:32:07'),
 	(11, 3, 2, 'Tiền nước', 30000.00, 2.00, 60000.00, 'per_person', '2026-08-09 09:32:07'),
 	(12, 3, 3, 'Tiền rác', 20000.00, 2.00, 40000.00, 'per_person', '2026-08-09 09:32:07'),
-	(13, 3, 1, 'Tiền điện', 3500.00, 600.00, 2100000.00, 'meter', '2026-08-09 09:32:07'),
+	(13, 3, 1, 'Tiền điện', 3500.00, 100.00, 350000.00, 'meter', '2026-08-09 09:32:07'),
 	(14, 3, 4, 'Wifi', 51000.00, 2.00, 102000.00, 'per_person', '2026-08-09 09:32:07'),
 	(15, 3, NULL, 'Sạc xe điện - Lê Thị Chi', 100000.00, 1.00, 100000.00, 'per_unit', '2026-08-09 09:32:07');
 

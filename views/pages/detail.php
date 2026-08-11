@@ -34,7 +34,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                 <?php $subImages = array_slice($galleryImages, 1); ?>
                 <?php if (!empty($subImages)): ?>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        <?php foreach ($subImages as $imageUrl): ?>
+                        <?php foreach ($subImages as $subIdx => $imageUrl): ?>
                             <div class="aspect-video rounded-xl overflow-hidden border border-gray-100 bg-white">
                                 <img src="<?= e($imageUrl) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover">
                             </div>
@@ -379,4 +379,41 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
             });
         });
     });
+</script>
+
+
+<!-- [DEV-QWEN-A][NHOM-2][LIGHTBOX-V2] Click anh chinh/phu de zoom, next/prev, Esc/click ngoai de dong -->
+<div id="roomLightbox" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/90" onclick="if(event.target===this) closeRoomLightbox();">
+    <button type="button" onclick="closeRoomLightbox()" class="absolute top-4 right-4 z-[10001] w-11 h-11 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl" aria-label="Dong">&times;</button>
+    <button type="button" onclick="roomLightboxStep(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh truoc">&#10094;</button>
+    <button type="button" onclick="roomLightboxStep(1)" class="absolute right-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh sau">&#10095;</button>
+    <img id="roomLightboxImg" src="" alt="Anh phong" class="max-w-[92vw] max-h-[88vh] object-contain rounded-lg" onclick="event.stopPropagation()">
+    <div id="roomLightboxCounter" class="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 text-white text-sm"></div>
+</div>
+<script>
+(function(){
+    var urls = <?= json_encode(array_values((array)($room['gallery_images'] ?? []))) ?>;
+    var lb = document.getElementById('roomLightbox');
+    var img = document.getElementById('roomLightboxImg');
+    var cnt = document.getElementById('roomLightboxCounter');
+    var cur = 0;
+    function render(){ if (!urls.length) return; img.src = urls[cur]; cnt.textContent = (cur + 1) + ' / ' + urls.length; }
+    window.openRoomLightbox = function(i){ if (!urls.length) return; cur = Math.max(0, Math.min(i | 0, urls.length - 1)); render(); lb.classList.remove('hidden'); lb.classList.add('flex'); document.body.style.overflow = 'hidden'; };
+    window.closeRoomLightbox = function(){ lb.classList.add('hidden'); lb.classList.remove('flex'); document.body.style.overflow = ''; };
+    window.roomLightboxStep = function(d){ if (!urls.length) return; cur = (cur + d + urls.length) % urls.length; render(); };
+    document.addEventListener('keydown', function(e){ if (lb.classList.contains('hidden')) return; if (e.key === 'Escape') closeRoomLightbox(); else if (e.key === 'ArrowLeft') roomLightboxStep(-1); else if (e.key === 'ArrowRight') roomLightboxStep(1); });
+    function bind(){
+        document.querySelectorAll('img').forEach(function(el){
+            if (el.dataset.lbBound) return;
+            var oc = el.getAttribute('onclick') || '';
+            if (oc.indexOf('openRoomLightbox') !== -1) return;
+            var idx = urls.indexOf(el.getAttribute('src') || '');
+            if (idx === -1) return;
+            el.dataset.lbBound = '1';
+            el.style.cursor = 'zoom-in';
+            el.addEventListener('click', function(){ window.openRoomLightbox(idx); });
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+})();
 </script>
