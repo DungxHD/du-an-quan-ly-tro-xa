@@ -499,6 +499,17 @@ $pendingDeactivateByService[$svcId] = ServiceModel::isPendingDeactivate($svc);
 $roomCountByService[$svcId] = ServiceModel::countRoomsUsing($svcId);
 $roomsUsingByService[$svcId] = ServiceModel::getRoomsUsingService($svcId);
 }
+        $iconOptions = [
+            ['key' => 'settings', 'label' => 'Settings'], ['key' => 'bolt', 'label' => 'Bolt (Điện)'],
+            ['key' => 'water_drop', 'label' => 'Water Drop (Nước)'], ['key' => 'delete', 'label' => 'Delete (Rác)'],
+            ['key' => 'wifi', 'label' => 'Wifi'], ['key' => 'local_parking', 'label' => 'Parking (Giữ xe)'],
+            ['key' => 'ev_station', 'label' => 'EV Station (Sạc xe)'], ['key' => 'local_laundry_service', 'label' => 'Laundry (Máy giặt)'],
+            ['key' => 'fitness_center', 'label' => 'Gym'], ['key' => 'pool', 'label' => 'Pool'],
+            ['key' => 'kitchen', 'label' => 'Kitchen'], ['key' => 'ac_unit', 'label' => 'AC'],
+            ['key' => 'security', 'label' => 'Security'], ['key' => 'elevator', 'label' => 'Elevator'],
+            ['key' => 'water_heater', 'label' => 'Water Heater'],
+        ];
+        $isEditing = !empty($formService['id']);
 require_once BASE_PATH . 'views/admin/billing/services.php';
     }
     public function priceChanges()
@@ -938,7 +949,49 @@ setFlash('admin_service_message', 'Đã hủy lịch thay đổi giá/cách tín
 setFlash('admin_service_error', $exception->getMessage());
 }
 redirectTo('admin-services');
-}public function undoDeactivateService($id) {
+}
+
+    /**
+     * [DEV-QWEN-A] Xac nhan xoa dich vu (huy pending changes + xoa hoac len lich xoa thang sau)
+     */
+    public function confirmDeleteService($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-services');
+        }
+        verify_csrf();
+        $serviceId = (int)$id;
+        $service = ServiceModel::getById($serviceId);
+        if (!$service) {
+            setFlash('admin_service_error', 'Dich vu khong ton tai.');
+            redirectTo('admin-services');
+        }
+        $locked = (int)($service['is_required'] ?? 0) === 1 || ServiceModel::isLockedKind($service['kind'] ?? 'other');
+        if ($locked) {
+            setFlash('admin_service_error', 'Dich vu bat buoc khong the xoa.');
+            redirectTo('admin-services');
+        }
+
+        ServiceModel::clearAllPendingChanges($serviceId);
+
+        $using = ServiceModel::countRoomsUsing($serviceId);
+        if ($using > 0) {
+            $nextMonth = (int)date('n') + 1;
+            $nextYear  = (int)date('Y');
+            if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
+            ServiceModel::scheduleDelete($serviceId, $nextMonth, $nextYear);
+            setFlash('admin_service_message', 'Da huy moi thay doi cho. Dich vu se bi xoa vao thang ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '.');
+        } else {
+            try {
+                ServiceModel::delete($serviceId);
+                setFlash('admin_service_message', 'Da huy moi thay doi cho va xoa dich vu thanh cong.');
+            } catch (Throwable $e) {
+                setFlash('admin_service_error', $e->getMessage());
+            }
+        }
+        redirectTo('admin-services');
+    }
+public function undoDeactivateService($id) {
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-services'); }
 verify_csrf();
 $service = ServiceModel::getById((int)$id);
@@ -2827,4 +2880,7 @@ $redirectParams = [];
         setFlash('maintenance_admin_message', 'Đã hoàn tất bảo trì và khôi phục trạng thái phòng.');
         redirectTo('admin-maintenance');
     }
+
+    /** [DEV-QWEN-A] Stub method to prevent fatal error from missing route */
+
 }

@@ -126,13 +126,6 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'areas', 'label' => 'Khu nhà', 'icon' => 'location_city', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
             ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
-            [
-                'id' => 'group-tenants', 'label' => 'Khách thuê', 'icon' => 'group',
-                'children' => [
-                    ['id' => 'tenants', 'label' => 'Người thuê', 'icon' => 'badge', 'url' => BASE_URL . '?page=admin-tenants'],
-                    ['id' => 'contracts', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=admin-contracts'],
-                ],
-            ],
 
             [
                 'id' => 'group-community', 'label' => 'Cộng đồng & Kiểm duyệt', 'icon' => 'star',
@@ -222,7 +215,7 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->dashboard();
         break;
-    case 'admin-settings':
+        case 'admin-settings':
         requireAdmin();
         (new AdminController())->settingsEditor();
         break;
@@ -309,6 +302,10 @@ switch ($page) {
     case 'admin-undo-delete-service':
         requireAdmin();
         (new AdminController())->undoDeleteService($id);
+        break;
+    case 'admin-confirm-delete-service':
+        requireAdmin();
+        (new AdminController())->confirmDeleteService($id);
         break;
     case 'admin-undo-deactivate-service':
         requireAdmin();
