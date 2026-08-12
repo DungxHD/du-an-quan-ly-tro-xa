@@ -35,10 +35,16 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
 
     <?php if (!empty($areaMessage)): ?>
-        <div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800"><?= e($areaMessage) ?></div>
+        <div class="alert-dismissible rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800 flex items-center justify-between">
+<span><?= e($areaMessage) ?></span>
+<button type="button" data-dismiss-alert class="ml-4 text-green-800 hover:text-green-950 font-bold text-lg">&times;</button>
+</div>
     <?php endif; ?>
     <?php if (!empty($areaError)): ?>
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800"><?= e($areaError) ?></div>
+        <div class="alert-dismissible rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800 flex items-center justify-between">
+<span><?= e($areaError) ?></span>
+<button type="button" data-dismiss-alert class="ml-4 text-rose-800 hover:text-rose-950 font-bold text-lg">&times;</button>
+</div>
     <?php endif; ?>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -59,14 +65,14 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
                     <div>
                         <label class="block text-sm font-semibold mb-2">Tên khu (để trống sẽ tự đặt)</label>
-                        <input type="text" name="name" value="<?= e($editArea['name'] ?? '') ?>"
+                        <input type="text" name="name" required value="<?= e($editArea['name'] ?? '') ?>"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="VD: Khu A - Sinh viên">
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold mb-2">Địa chỉ</label>
-                        <input type="text" name="address" value="<?= e($editArea['address'] ?? '') ?>"
+                        <input type="text" name="address" required value="<?= e($editArea['address'] ?? '') ?>"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="VD: 123 Đường ABC, Quận 9">
                     </div>
@@ -266,5 +272,16 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
         renderFloorOptions();
     })();
+</script>
+<!-- [DEV-QWEN-A][FIX-UX] JS dismiss alert -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-dismiss-alert]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var alert = btn.closest('.alert-dismissible');
+            if (alert) alert.remove();
+        });
+    });
+});
 </script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>
