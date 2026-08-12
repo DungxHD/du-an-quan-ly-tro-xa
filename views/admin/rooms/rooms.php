@@ -110,7 +110,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <form method="GET" class="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <?php ($currentFilters['area_id'] > 0) = (($currentFilters['area_id'] > 0)); $selectedAreaName = "khu"; foreach ($areas as $a) { if ((int)($a["id"] ?? 0) === (int)$selectedAreaId) { $selectedAreaName = $a["name"] ?? "khu"; break; } } ?>
+            <?php $hasArea = ($currentFilters['area_id'] > 0); $selectedAreaName = "khu"; foreach ($areas as $a) { if ((int)($a["id"] ?? 0) === (int)$selectedAreaId) { $selectedAreaName = $a["name"] ?? "khu"; break; } } ?>
             <input type="hidden" name="page" value="admin-rooms">
             <div>
                 <label class="mb-1 block text-sm font-semibold text-gray-700">Khu</label>
@@ -144,7 +144,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <button type="button" id="btn-add-room" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 font-semibold text-white transition hover:bg-opacity-90">
                         <span class="material-symbols-outlined text-base">add_home</span> Thêm phòng vào <?= e($selectedFloor['name'] ?? 'tầng') ?>
                     </button>
-                <?php elseif (($currentFilters['area_id'] > 0)): ?>
+                <?php elseif ($hasArea): ?>
                     <button type="button" id="btn-add-floor" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2 font-semibold text-white transition hover:bg-opacity-90">
                         <span class="material-symbols-outlined text-base">add_business</span> Thêm tầng vào <?= e($selectedAreaName) ?>
                     </button>
