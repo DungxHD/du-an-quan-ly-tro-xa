@@ -33,6 +33,17 @@ spl_autoload_register(static function ($className) {
 
 // Cache settings sớm để header/footer/public view dùng ổn định kể cả khi thiếu DB.
 RoomModel::loadSettings();
+// Auto-apply pending room price changes khi admin login
+if (isset($_SESSION['role']) && $_SESSION['role'] == 1 && Database::hasConnection()) {
+    try {
+        $applied = RoomPriceChangeModel::applyDueChanges();
+        if ($applied > 0) {
+            // Optional: log hoặc flash message
+        }
+    } catch (Exception $e) {
+        // Silent fail - không block user
+    }
+}
 
 // Helper hiển thị và điều hướng dùng chung.
 function e($str)
@@ -116,15 +127,7 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
             ['id' => 'rent-requests', 'label' => 'Yêu cầu thuê', 'icon' => 'inbox', 'url' => BASE_URL . '?page=admin-rent-requests'],
             ['id' => 'roommate-requests', 'label' => 'Yêu cầu ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=admin-roommate-requests'],
-
-            [
-                'id' => 'group-settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune',
-                'children' => [
-                    ['id' => 'settings', 'label' => 'Cấu hình chung', 'icon' => 'settings', 'url' => BASE_URL . '?page=admin-settings'],
-                    ['id' => 'amenities', 'label' => 'Tiện ích', 'icon' => 'apps', 'url' => BASE_URL . '?page=admin-amenities'],
-                ],
-            ],
-            ['id' => 'areas', 'label' => 'Khu nhà', 'icon' => 'location_city', 'url' => BASE_URL . '?page=admin-areas'],
+['id' => 'areas', 'label' => 'Quản lý khu', 'icon' => 'apartment', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
             ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
 
@@ -242,19 +245,11 @@ switch ($page) {
         break;
     case 'admin-delete-area':
         requireAdmin();
-        (new AdminController())->deleteArea($id);
+        (new AdminController())->deleteArea((int)($_POST['id'] ?? 0));
         break;
-    case 'admin-floors':
+    case 'admin-delete-floor-top':
         requireAdmin();
-        (new AdminController())->floors();
-        break;
-    case 'admin-save-floor':
-        requireAdmin();
-        (new AdminController())->saveFloor();
-        break;
-    case 'admin-delete-floor':
-        requireAdmin();
-        (new AdminController())->deleteFloor($id);
+        (new AdminController())->deleteTopFloor((int)($_POST['id'] ?? 0));
         break;
     case 'admin-rooms':
         requireAdmin();

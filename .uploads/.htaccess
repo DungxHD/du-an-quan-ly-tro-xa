@@ -1,0 +1,26 @@
+﻿# [DEV-QWEN-A][FIX-SECURITY] Chan thuc thi script trong thu muc upload
+# Apache
+<FilesMatch "\.(php|php3|php4|php5|php7|phtml|pl|py|jsp|asp|sh|cgi|exe|bat|cmd)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Tat PHP engine
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Chan liet ke thu muc
+Options -Indexes -ExecCGI
+
+# Chặn truy cập trực tiếp file PHP
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule \.(php|phtml|php[0-9])$ - [F,L]
+</IfModule>

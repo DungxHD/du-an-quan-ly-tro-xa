@@ -216,6 +216,16 @@ document.querySelectorAll('[data-confirm]').forEach((element) => {
     });
 });
 
+// Thông báo sau redirect có thể được đóng mà không cần tải lại trang.
+document.querySelectorAll('[data-dismiss-alert]').forEach((element) => {
+    element.addEventListener('click', () => {
+        const alert = element.closest('.alert-dismissible');
+        if (alert) {
+            alert.remove();
+        }
+    });
+});
+
 /**
  * Bộ lọc giá cho trang rooms:
  * - Chấp nhận cách nhập ngắn như 2, 2.5, 1500, 2 triệu.

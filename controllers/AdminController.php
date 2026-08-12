@@ -1,4 +1,7 @@
-<?php
+﻿<?php
+require_once BASE_PATH . 'models/room/RoomPriceChangeModel.php';
+
+
 
 class AdminController
 {
@@ -115,7 +118,7 @@ class AdminController
     }
 
 
-    /**
+/**
      * Quản lý khu theo schema mới `areas`.
      */
     public function areas()
@@ -126,22 +129,77 @@ class AdminController
         $expandedAreaId = (int)($_GET['area'] ?? ($editId ?: 0));
         $editArea = $editId > 0 ? AreaModel::getById($editId) : null;
         $pageTitle = 'Quản lý Khu - NhaTroA';
+        // [DEV-QWEN-A][NHOM-2][2026-08-13] Xử lý flash message popup xóa bị chặn
+        $deleteBlocked = pullFlash('admin_delete_blocked');
+        $areaMessage = pullFlash('admin_area_message');
+        $areaError = pullFlash('admin_area_error');
         require_once BASE_PATH . 'views/admin/rooms/areas.php';
     }
 
     /**
-     * Quản lý tầng thuộc khu.
+     * [DEV-QWEN-A][NHOM-2][2026-08-13]
+     * Xóa tầng CAO NHẤT của một khu trực tiếp từ trang Quản lý khu.
      */
-    public function floors()
+    public function deleteTopFloor($areaId)
     {
-        $areas = AreaModel::getAllWithStats();
-        $editId = (int)($_GET['edit'] ?? 0);
-        $editFloor = $editId > 0 ? FloorModel::getById($editId) : null;
-        $selectedAreaId = (int)($_GET['area_id'] ?? ($editFloor['area_id'] ?? ($areas[0]['id'] ?? 0)));
-        $selectedArea = $selectedAreaId > 0 ? AreaModel::getById($selectedAreaId) : null;
-        $floors = $selectedAreaId > 0 ? FloorModel::getByAreaId($selectedAreaId) : [];
-        $pageTitle = 'Quản lý Tầng - NhaTroA';
-        require_once BASE_PATH . 'views/admin/rooms/floors.php';
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-areas');
+        }
+        verify_csrf();
+
+        $areaId = (int)$areaId;
+        $area = AreaModel::getById($areaId);
+        if (!$area) {
+            setFlash('admin_area_error', 'Khu không tồn tại hoặc đã bị xóa.');
+            redirectTo('admin-areas');
+        }
+
+        $floors = FloorModel::getByAreaId($areaId);
+        if (empty($floors)) {
+            setFlash('admin_area_message', 'Khu "' . ($area['name'] ?? '') . '" chưa có tầng nào để xóa.');
+            redirectTo('admin-areas', ['area' => $areaId]);
+        }
+
+        $topFloor = null;
+        $maxFloorNumber = -1;
+        foreach ($floors as $floor) {
+            $floorNumber = (int)($floor['floor_number'] ?? 0);
+            if ($floorNumber > $maxFloorNumber) {
+                $maxFloorNumber = $floorNumber;
+                $topFloor = $floor;
+            }
+        }
+
+        if (!$topFloor) {
+            setFlash('admin_area_error', 'Không tìm thấy tầng cao nhất để xóa.');
+            redirectTo('admin-areas', ['area' => $areaId]);
+        }
+
+        $topFloorId = (int)($topFloor['id'] ?? 0);
+        $rentedCount = 0;
+        foreach ($floors as $floor) {
+            if ((int)($floor['id'] ?? 0) === $topFloorId) {
+                $rentedCount = (int)($floor['rented_count'] ?? 0);
+                break;
+            }
+        }
+
+        if ($rentedCount > 0) {
+            setFlash('admin_delete_blocked', [
+                'type' => 'top_floor',
+                'area_name' => $area['name'] ?? '',
+                'floor_name' => $topFloor['name'] ?? '',
+                'floor_number' => $maxFloorNumber,
+                'rented_count' => $rentedCount,
+                'return_url' => BASE_URL . '?page=admin-areas&area=' . $areaId,
+                'message' => 'Tầng "' . ($topFloor['name'] ?? '') . '" (tầng ' . $maxFloorNumber . ') của khu "' . ($area['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa tầng này khi còn phòng đang thuê.',
+            ]);
+            redirectTo('admin-areas', ['area' => $areaId]);
+        }
+
+        FloorModel::delete($topFloorId);
+        setFlash('admin_area_message', 'Đã xóa Tầng ' . $maxFloorNumber . ' (tầng cao nhất) của khu "' . ($area['name'] ?? '') . '".');
+        redirectTo('admin-areas', ['area' => $areaId]);
     }
 
     /**
@@ -179,14 +237,42 @@ class AdminController
         $allFloors = FloorModel::getAll();
         $selectedFloor = $filters['floor_id'] > 0 ? FloorModel::getById($filters['floor_id']) : null;
 
+        // [DEV-QWEN-A][NHOM-2][2026-08-13] Logic bộ lọc cải tiến:
+        // 1. Khi chọn "Tất cả khu" (area_id = 0) thì floor_id luôn bị reset về 0 và bị khóa
+        // 2. Khi chọn một khu cụ thể thì floor_id sẽ được phép chọn và chỉ hiển thị tầng của khu đó
+        // 3. Khi chuyển đổi khu (từ khu A sang khu B), floor_id tự động reset về 0 ("Tất cả tầng")
+        if ($filters['area_id'] <= 0) {
+            // Đang ở "Tất cả khu" → ép floor về 0 và disable
+            $filters['floor_id'] = 0;
+            $selectedFloor = null;
+        }
+
         if ($selectedFloor) {
-            $filters['area_id'] = (int)($selectedFloor['area_id'] ?? 0);
+            $floorAreaId = (int)($selectedFloor['area_id'] ?? 0);
+            // Bảo vệ URL: nếu floor thuộc khu khác với area_id đang chọn, reset floor
+            if ($filters['area_id'] > 0 && $filters['area_id'] !== $floorAreaId) {
+                $filters['floor_id'] = 0;
+                $selectedFloor = null;
+            } else {
+                $filters['area_id'] = $floorAreaId;
+            }
         }
 
         $rooms = array_map(static function ($room) {
             $room['occupant_count'] = RoomModel::countOccupants($room['id'] ?? 0);
             return $room;
         }, RoomModel::getAll($filters));
+        $pendingRoomPriceChanges = [];
+        foreach ($rooms as $room) {
+            $roomId = (int)($room['id'] ?? 0);
+            if ($roomId <= 0 || ($room['status'] ?? '') !== 'rented') {
+                continue;
+            }
+            $pendingChanges = RoomPriceChangeModel::getPendingByRoom($roomId);
+            if (!empty($pendingChanges)) {
+                $pendingRoomPriceChanges[$roomId] = $pendingChanges[0];
+            }
+        }
 
         $editId = (int)($_GET['edit'] ?? 0);
         $editRoom = $editId > 0 ? RoomModel::getById($editId) : null;
@@ -194,22 +280,21 @@ class AdminController
         $formRoom = is_array($oldRoomInput) ? $oldRoomInput : ($editRoom ?? null);
 
         $selectedAreaId = $filters['area_id'];
-        if ($selectedAreaId <= 0 && $selectedFloor) {
-            $selectedAreaId = (int)($selectedFloor['area_id'] ?? 0);
-        }
-        if ($selectedAreaId <= 0 && !empty($areas[0]['id'])) {
-            $selectedAreaId = (int)$areas[0]['id'];
-        }
+        // [DEV-QWEN-A][FIX-FILTER][2026-08-13] BỎ fallback ép chọn khu đầu tiên
+        // Không ép area_id khi user chọn "Tất cả khu"
 
         $formAreaId = (int)($formRoom['area_id'] ?? ($editRoom['area_id'] ?? $selectedAreaId));
         if ($formAreaId <= 0 && !empty($areas[0]['id'])) {
             $formAreaId = (int)$areas[0]['id'];
         }
 
+        // [DEV-QWEN-A][NHOM-2][2026-08-13] Chỉ load floors khi có khu được chọn
         $filterFloors = $selectedAreaId > 0 ? FloorModel::getByAreaId($selectedAreaId) : [];
         $formFloors = $formAreaId > 0 ? FloorModel::getByAreaId($formAreaId) : [];
         $roomMessage = pullFlash('admin_room_message');
         $roomError = pullFlash('admin_room_error');
+        // [DEV-QWEN-A][NHOM-2][2026-08-13] Xử lý flash message popup xóa bị chặn
+        $deleteBlocked = pullFlash('admin_delete_blocked');
         $pageTitle = 'Quản lý Phòng - NhaTroA';
         $drawerOpenFlag = pullFlash('admin_room_drawer_open');
         require_once BASE_PATH . 'views/admin/rooms/rooms.php';
@@ -421,6 +506,12 @@ class AdminController
 
         try {
             ContractModel::terminate($contractId, $moveOutDate);
+            
+            // Apply pending price changes ngay lập tức khi phòng giải phóng
+            $contract = ContractModel::getById($contractId);
+            if ($contract && isset($contract['room_id'])) {
+                RoomPriceChangeModel::applyPendingImmediately((int)$contract['room_id']);
+            }
             setFlash('admin_contract_message', 'Đã kết thúc hợp đồng và giải phóng phòng.');
             redirectTo('admin-contracts');
         } catch (Throwable $exception) {
@@ -1240,6 +1331,12 @@ $redirectParams = [];
         verify_csrf();
 
         $id = (int)($_POST['id'] ?? 0);
+        $amenityValues = array_values(array_unique(array_filter(array_map(
+            static fn($value) => trim((string)$value),
+            explode(',', (string)($_POST['amenities'] ?? ''))
+        ), static fn($value) => $value !== '')));
+        $amenityValues = array_slice(array_map(static fn($value) => mb_substr($value, 0, 80), $amenityValues), 0, 20);
+
         $data = [
             'name'        => trim((string)($_POST['name'] ?? '')),
             'address'     => trim((string)($_POST['address'] ?? '')),
@@ -1247,13 +1344,29 @@ $redirectParams = [];
             'image'       => '',
         ];
 
-        // Nếu không nhập tên, tự đặt tên mặc định
-        if ($data['name'] === '') {
-            $data['name'] = 'Khu mới ' . date('d/m/Y H:i');
+        $returnParams = $id > 0 ? ['edit' => $id] : [];
+        if ($id > 0 && !AreaModel::getById($id)) {
+            setFlash('admin_area_error', 'Khu cần cập nhật không tồn tại hoặc đã bị xóa.');
+            redirectTo('admin-areas');
+        }
+        if (mb_strlen($data['name']) < 2 || mb_strlen($data['name']) > 120) {
+            setFlash('admin_area_error', 'Tên khu phải có từ 2 đến 120 ký tự.');
+            redirectTo('admin-areas', $returnParams);
+        }
+        if (mb_strlen($data['address']) < 5 || mb_strlen($data['address']) > 255) {
+            setFlash('admin_area_error', 'Địa chỉ khu phải có từ 5 đến 255 ký tự.');
+            redirectTo('admin-areas', $returnParams);
+        }
+        if (mb_strlen($data['description']) > 2000) {
+            setFlash('admin_area_error', 'Mô tả khu không được vượt quá 2.000 ký tự.');
+            redirectTo('admin-areas', $returnParams);
         }
 
         // === XỬ LÝ UPLOAD ẢNH KHU ===
         $uploadedImageUrl = $this->handleAreaImageUpload($id);
+        if ($uploadedImageUrl === false) {
+            redirectTo('admin-areas', $returnParams);
+        }
         if ($uploadedImageUrl !== null) {
             $data['image'] = $uploadedImageUrl;
         } elseif ($id > 0) {
@@ -1270,15 +1383,36 @@ $redirectParams = [];
         }
 
         // ==== CHỨC NĂNG TẠO MỚI: khu -> tầng -> phòng nháp ====
-        $areaCode = $this->deriveAreaCode($data['name'], '');
-        $floorCount = max(1, min(50, (int)($_POST['floor_count'] ?? 1)));
+        $rawFloorCount = filter_var($_POST['floor_count'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 50],
+        ]);
+        if ($rawFloorCount === false) {
+            setFlash('admin_area_error', 'Số tầng phải là số nguyên từ 1 đến 50.');
+            redirectTo('admin-areas');
+        }
+        $floorCount = (int)$rawFloorCount;
         $floorRooms = is_array($_POST['floor_rooms'] ?? null) ? $_POST['floor_rooms'] : [];
+        $roomLimits = [];
+        for ($n = 1; $n <= $floorCount; $n++) {
+            if (!array_key_exists($n, $floorRooms)) {
+                $roomLimits[$n] = 0;
+                continue;
+            }
+            $roomLimit = filter_var($floorRooms[$n], FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 0, 'max_range' => 50],
+            ]);
+            if ($roomLimit === false) {
+                setFlash('admin_area_error', 'Số phòng của mỗi tầng phải là số nguyên từ 0 đến 50.');
+                redirectTo('admin-areas');
+            }
+            $roomLimits[$n] = (int)$roomLimit;
+        }
 
         $areaId = (int)AreaModel::save($data, null);
         $createdRooms = 0;
 
         for ($n = 1; $n <= $floorCount; $n++) {
-            $roomLimit = max(0, min(50, (int)($floorRooms[$n] ?? 0)));
+            $roomLimit = $roomLimits[$n];
             $floorId = (int)FloorModel::save([
                 'area_id'      => $areaId,
                 'name'         => 'Tầng ' . $n,
@@ -1298,17 +1432,25 @@ $redirectParams = [];
 
     /**
      * [DEV-QWEN-A][NHOM-2][2026-08-07]
-     * Xử lý upload ảnh khu từ file. Trả về URL hoặc null nếu không có file.
+     * Xử lý upload ảnh khu từ file. Trả về URL, null nếu không có file, false nếu file không hợp lệ.
      */
     private function handleAreaImageUpload($areaId = 0)
     {
         $file = $_FILES['area_image'] ?? null;
-        if (empty($file) || (int)($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        if (empty($file)) {
             return null;
+        }
+        $uploadError = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($uploadError === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            setFlash('admin_area_error', 'Tải ảnh khu lên không thành công. Vui lòng thử lại.');
+            return false;
         }
         if ((int)($file['size'] ?? 0) > 5 * 1024 * 1024) {
             setFlash('admin_area_error', 'Ảnh khu vượt quá 5MB.');
-            return null;
+            return false;
         }
 
         $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
@@ -1320,7 +1462,7 @@ $redirectParams = [];
         $allowedMimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
         if (!isset($allowedMimes[$mime])) {
             setFlash('admin_area_error', 'Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF.');
-            return null;
+            return false;
         }
 
         $subFolder = $areaId > 0 ? 'image_khu_' . (int)$areaId : 'image_khu_new';
@@ -1334,7 +1476,7 @@ $redirectParams = [];
 
         if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
             setFlash('admin_area_error', 'Không lưu được tệp ảnh. Kiểm tra thư mục .uploads.');
-            return null;
+            return false;
         }
 
         return BASE_URL . '.uploads/' . $subFolder . '/' . $fileName;
@@ -1370,86 +1512,52 @@ $redirectParams = [];
         redirectTo('admin-rooms', ['area_id' => $areaId, 'floor_id' => 0]);
     }
 
-    /**
+/**
      * Xóa khu theo schema mới. DB sẽ tự cascade tầng và phòng liên quan.
      */
     public function deleteArea($id)
     {
-        $areaId = (int)$id;
-        if ($areaId > 0) {
-            $area = AreaModel::getById($areaId);
-            if (!$area) {
-                setFlash('admin_area_error', 'Khu không tồn tại.');
-                redirectTo('admin-areas');
-            }
-            $roomCount = 0;
-            $rentedCount = 0;
-            foreach (FloorModel::getByAreaId($areaId) as $floor) {
-                $roomCount += (int)($floor['room_count'] ?? 0);
-                $rentedCount += (int)($floor['rented_count'] ?? 0);
-            }
-            if ($rentedCount > 0) {
-                setFlash('admin_area_error', 'Khu ' . ($area['name'] ?? '') . ' không thể xóa. Lý do: Khu ' . ($area['name'] ?? '') . ' này có phòng vẫn đang hoạt động, không thể xóa.');
-                redirectTo('admin-areas', ['area' => $areaId]);
-            }
-            AreaModel::delete($areaId);
-            setFlash('admin_area_message', 'Đã xóa khu ' . ($area['name'] ?? '') . ($roomCount > 0 ? ' cùng ' . $roomCount . ' phòng trống.' : '.'));
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-areas');
         }
+        verify_csrf();
+        $areaId = (int)$id;
+        $area = $areaId > 0 ? AreaModel::getById($areaId) : null;
+        if (!$area) {
+            setFlash('admin_area_error', 'Khu không tồn tại hoặc đã bị xóa.');
+            redirectTo('admin-areas');
+        }
+
+        $roomCount = 0;
+        $rentedCount = 0;
+        foreach (FloorModel::getByAreaId($areaId) as $floor) {
+            $roomCount += (int)($floor['room_count'] ?? 0);
+            $rentedCount += (int)($floor['rented_count'] ?? 0);
+        }
+        if ($rentedCount > 0) {
+            // [DEV-QWEN-A][NHOM-2][2026-08-13]
+            // Cải thiện popup: lưu message + trạng thái để view hiển thị modal popup có button "Quay lại"
+            setFlash('admin_delete_blocked', [
+                'type' => 'area',
+                'name' => $area['name'] ?? '',
+                'rented_count' => $rentedCount,
+                'return_url' => BASE_URL . '?page=admin-areas&area=' . $areaId,
+                'message' => 'Khu "' . ($area['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa khu này.',
+            ]);
+            redirectTo('admin-areas');
+        }
+
+        AreaModel::delete($areaId);
+        setFlash('admin_area_message', 'Đã xóa khu ' . ($area['name'] ?? '') . ($roomCount > 0 ? ' cùng ' . $roomCount . ' phòng chưa thuê.' : '.'));
 
         redirectTo('admin-areas');
     }
-
+    
     /**
-     * Tạo mới hoặc cập nhật tầng.
+     * [DEV-QWEN-A][NHOM-2][2026-08-13]
+     * Đã xóa saveFloor() và deleteFloor() - chuyển toàn bộ logic xóa tầng vào deleteTopFloor().
+     * Trang quản lý tầng đã bị xóa, chỉ quản lý qua trang khu nhà.
      */
-    public function saveFloor()
-    {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            verify_csrf();
-            $data = [
-                'area_id' => (int)($_POST['area_id'] ?? 0),
-                'name' => trim((string)($_POST['name'] ?? '')),
-                'floor_number' => (int)($_POST['floor_number'] ?? 1),
-            ];
-            $id = (int)($_POST['id'] ?? 0);
-
-            if ($data['area_id'] > 0) {
-                FloorModel::save($data, $id > 0 ? $id : null);
-            }
-
-            redirectTo('admin-floors', ['area_id' => $data['area_id']]);
-        }
-
-        redirectTo('admin-floors');
-    }
-
-    /**
-     * Xóa tầng. Theo schema hiện tại thao tác này sẽ kéo theo xóa phòng thuộc tầng.
-     */
-    public function deleteFloor($id)
-    {
-        $floor = FloorModel::getById($id);
-        if ($floor) {
-            $areaId = (int)($floor['area_id'] ?? 0);
-            $rentedCount = 0;
-            foreach (FloorModel::getByAreaId($areaId) as $f) {
-                if ((int)($f['id'] ?? 0) === (int)$id) {
-                    $rentedCount = (int)($f['rented_count'] ?? 0);
-                    break;
-                }
-            }
-            if ($rentedCount > 0) {
-                setFlash('admin_area_error', 'Tầng ' . ($floor['name'] ?? '') . ' không thể xóa. Lý do: Tầng này có phòng vẫn đang hoạt động, không thể xóa.');
-                redirectTo('admin-floors', ['area_id' => $areaId]);
-            }
-            FloorModel::delete($id);
-            setFlash('admin_area_message', 'Đã xóa tầng ' . ($floor['name'] ?? '') . '.');
-            redirectTo('admin-floors', ['area_id' => $areaId]);
-        }
-
-        redirectTo('admin-floors');
-    }
-
     /**
      * Tạo mới hoặc cập nhật tiện ích hiển thị ngoài landing page.
      */
@@ -1759,6 +1867,7 @@ $redirectParams = [];
         verify_csrf();
         $redirectParams = $this->getRoomAdminFilters($_POST);
         $id = (int)($_POST['id'] ?? 0);
+        $editRoom = $id > 0 ? RoomModel::getById($id) : null;
         $status = $this->normalizeRoomStatus($_POST['status'] ?? 'draft', 'draft');
 
         if (!empty($_POST['quick_status_update'])) {
@@ -1788,8 +1897,16 @@ $redirectParams = [];
             'area'          => (float)($_POST['area'] ?? 0),
             'max_occupancy' => (int)($_POST['max_occupancy'] ?? 2),
             'description'   => trim((string)($_POST['description'] ?? '')),
-            'amenities'     => trim((string)($_POST['amenities'] ?? '')),
         ];
+
+        // [DEV-QWEN-A][NHOM-2][2026-08-13] Fix: khai báo $amenityValues trước khi dùng implode
+        $amenityValues = array_values(array_unique(array_filter(array_map(
+            static fn($value) => trim((string)$value),
+            is_array($_POST['amenities'] ?? null) ? $_POST['amenities'] : explode(',', (string)($_POST['amenities'] ?? ''))
+        ), static fn($value) => $value !== '')));
+        $amenityValues = array_slice(array_map(static fn($value) => mb_substr($value, 0, 80), $amenityValues), 0, 20);
+        $data['amenities'] = implode(', ', $amenityValues);
+
         $formState = array_merge($data, ['id' => $id, 'area_id' => (int)($_POST['area_id'] ?? 0)]);
 
         $floor = RoomModel::floorExists($data['floor_id']) ? FloorModel::getById($data['floor_id']) : null;
@@ -1818,11 +1935,44 @@ $redirectParams = [];
             redirectTo('admin-rooms', $redirectParams);
         }
 
-        $primaryImage  = trim((string)($_POST['primary_image'] ?? $_POST['thumbnail'] ?? ''));
-        $galleryImages = array_slice(array_values(array_filter(
-            array_map(static fn($v) => trim((string)$v), (array)($_POST['gallery_images'] ?? [])),
-            static fn($v) => $v !== ''
-        )), 0, 3);
+        $primaryImage = trim((string)($_POST['primary_image'] ?? $_POST['thumbnail'] ?? ''));
+        $submittedGalleryImages = array_slice(array_map(
+            static fn($value) => trim((string)$value),
+            (array)($_POST['gallery_images'] ?? [])
+        ), 0, 3);
+        $galleryImages = array_values(array_filter($submittedGalleryImages, static fn($value) => $value !== ''));
+
+        // Form sửa không có thao tác xóa ảnh. Nếu browser không gửi lại một slot ảnh,
+        // giữ nguyên ảnh hiện có thay vì sync gallery rỗng làm mất dữ liệu.
+        if ($id > 0 && $editRoom) {
+            $existingImages = RoomImageModel::getByRoom($id);
+            $existingPrimary = '';
+            $existingGallery = [];
+            foreach ($existingImages as $image) {
+                $url = trim((string)($image['image_url'] ?? ''));
+                if ($url === '') {
+                    continue;
+                }
+                if ((int)($image['is_primary'] ?? 0) === 1) {
+                    $existingPrimary = $url;
+                } else {
+                    $existingGallery[] = $url;
+                }
+            }
+            if ($primaryImage === '') {
+                $primaryImage = $existingPrimary ?: trim((string)($editRoom['thumbnail'] ?? ''));
+            }
+            $galleryImages = [];
+            for ($index = 0; $index < 3; $index++) {
+                $url = trim((string)($submittedGalleryImages[$index] ?? ''));
+                if ($url === '') {
+                    $url = trim((string)($existingGallery[$index] ?? ''));
+                }
+                if ($url !== '') {
+                    $galleryImages[] = $url;
+                }
+            }
+        }
 
         if ($id === 0) {
             $limit = (int)($floor['room_limit'] ?? 0);
@@ -1853,6 +2003,68 @@ $redirectParams = [];
         }
 
         $savedRoomId = (int)RoomModel::save($data, $id > 0 ? $id : null);
+        // === PRICE CHANGE LOGIC ===
+        $pendingPriceMessage = '';
+        if ($id > 0 && $editRoom) {
+            $oldPrice = (float)($editRoom['price'] ?? 0);
+            $newPrice = (float)($data['price'] ?? 0);
+            $priceChanged = abs($oldPrice - $newPrice) > 0.01;
+            
+            // Nếu phòng đang rented và giá thay đổi → schedule change
+            if ($editRoom['status'] === 'rented' && $priceChanged) {
+                $effectiveMonth = (int)($_POST['price_effective_month'] ?? 0);
+                $effectiveYear = (int)($_POST['price_effective_year'] ?? 0);
+                
+                // Validate tháng áp dụng (min = tháng sau)
+                $currentOrder = ((int)date('Y') * 100) + (int)date('n');
+                $minOrder = $currentOrder + 1;
+                
+                if ($effectiveYear === 0 || $effectiveMonth === 0) {
+                    // Mặc định: tháng sau
+                    $effectiveMonth = (int)date('n') + 1;
+                    $effectiveYear = (int)date('Y');
+                    if ($effectiveMonth > 12) {
+                        $effectiveMonth = 1;
+                        $effectiveYear++;
+                    }
+                }
+                
+                $order = ($effectiveYear * 100) + $effectiveMonth;
+                if ($order < $minOrder) {
+                    setFlash('admin_room_error', 'Tháng áp dụng giá mới phải từ tháng sau trở đi.');
+                    setFlash('admin_room_old', $formState);
+                    redirectTo('admin-rooms', $redirectParams);
+                }
+                
+                // Schedule price change (ghi đè bản cũ nếu có)
+                $deleted = RoomPriceChangeModel::scheduleChange(
+                    $savedRoomId,
+                    $oldPrice,
+                    $newPrice,
+                    $effectiveMonth,
+                    $effectiveYear,
+                    (int)($_SESSION['user_id'] ?? 0)
+                );
+                
+                // Revert price về giá cũ (chưa áp dụng ngay)
+                Database::update('rooms', ['price' => $oldPrice], 'id = :id', ['id' => $savedRoomId]);
+                
+                $msg = 'Giá mới ' . number_format($newPrice, 0, ',', '.') . 'đ sẽ áp dụng từ tháng ' 
+                     . str_pad((string)$effectiveMonth, 2, '0', STR_PAD_LEFT) . '/' . $effectiveYear . '.';
+                if ($deleted > 0) {
+                    $msg .= ' (Đã hủy ' . $deleted . ' lịch thay đổi giá trước đó.)';
+                }
+                $pendingPriceMessage = $msg;
+            }
+            
+            // Nếu status chuyển từ rented → available/draft/maintenance → apply pending price ngay
+            if ($editRoom['status'] === 'rented' && $status !== 'rented') {
+                $applied = RoomPriceChangeModel::applyPendingImmediately($savedRoomId);
+                if ($applied > 0) {
+                    $pendingPriceMessage = 'Đã áp dụng ' . $applied . ' thay đổi giá chờ cho phòng.';
+                }
+            }
+        }
 
         // Dời ảnh từ image_phong_new -> image_phong_{id}
         $movedPrimary = $this->finalizeNewRoomImage($savedRoomId, $primaryImage);
@@ -1867,7 +2079,9 @@ $redirectParams = [];
 
         RoomImageModel::syncForRoom($savedRoomId, $primaryImage, $galleryImages);
 
-        setFlash('admin_room_message', $data['status'] === 'draft' ? 'Đã lưu phòng NHÁP — chưa hiển thị web.' : 'Đã lưu phòng và đăng lên website.');
+        setFlash('admin_room_message', $pendingPriceMessage !== ''
+            ? $pendingPriceMessage
+            : ($data['status'] === 'draft' ? 'Đã lưu phòng NHÁP — chưa hiển thị web.' : 'Đã lưu phòng và đăng lên website.'));
         redirectTo('admin-rooms', ['area_id' => (int)($floor['area_id'] ?? 0), 'floor_id' => (int)$data['floor_id']]);
     }
 
@@ -2914,3 +3128,5 @@ $redirectParams = [];
     /** [DEV-QWEN-A] Stub method to prevent fatal error from missing route */
 
 }
+
+// [QUAN TRỌNG] CẦN FIX LỖI MẤT ẢNH: Khi update, nếu \ rỗng, PHẢI lấy lại ảnh cũ từ DB trước khi chạy câu lệnh UPDATE. Ví dụ: if (empty(\['...'])) { \['images'] = \['images']; }

@@ -35,11 +35,109 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
 
     <?php if (!empty($areaMessage)): ?>
-        <div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800"><?= e($areaMessage) ?></div>
+        <div class="alert-dismissible rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800 flex items-center justify-between">
+            <span><?= e($areaMessage) ?></span>
+            <button type="button" data-dismiss-alert class="ml-4 text-green-800 hover:text-green-950 font-bold text-lg" aria-label="Đóng thông báo">&times;</button>
+</div>
     <?php endif; ?>
     <?php if (!empty($areaError)): ?>
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800"><?= e($areaError) ?></div>
+        <div class="alert-dismissible rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800">
+            <p><?= e($areaError) ?></p>
+            <button type="button" data-dismiss-alert class="mt-3 inline-flex items-center gap-1 rounded-lg bg-rose-200 px-3 py-1.5 text-xs font-bold text-rose-900 hover:bg-rose-300">
+                <span class="material-symbols-outlined text-base">arrow_back</span> Quay lại
+            </button>
+        </div>
     <?php endif; ?>
+
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Popup thông báo khi xóa khu/tầng bị chặn -->
+    <?php if (!empty($deleteBlocked)): ?>
+        <div id="delete-blocked-popup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-4xl text-rose-500">warning</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">
+                            <?php if ($deleteBlocked['type'] === 'area'): ?>
+                                Không thể xóa khu
+                            <?php elseif ($deleteBlocked['type'] === 'top_floor'): ?>
+                                Không thể xóa tầng
+                            <?php else: ?>
+                                Không thể xóa
+                            <?php endif; ?>
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            <?= e($deleteBlocked['message']) ?>
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            <?php if ($deleteBlocked['type'] === 'area'): ?>
+                                <span class="font-semibold">Tên khu:</span> <?= e($deleteBlocked['name']) ?>
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php elseif ($deleteBlocked['type'] === 'top_floor'): ?>
+                                <span class="font-semibold">Khu:</span> <?= e($deleteBlocked['area_name']) ?>
+                                <br>
+                                <span class="font-semibold">Tầng:</span> <?= e($deleteBlocked['floor_name']) ?> (tầng <?= (int)($deleteBlocked['floor_number'] ?? 0) ?>)
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php else: ?>
+                                <span class="font-semibold">Tên:</span> <?= e($deleteBlocked['name']) ?>
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4">
+                    <button type="button" onclick="document.getElementById('delete-blocked-popup').remove()"
+                        class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
+                        Đóng
+                    </button>
+                    <a href="<?= e($deleteBlocked['return_url']) ?>"
+                        class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-opacity-90 transition">
+                        <span class="material-symbols-outlined text-sm">arrow_back</span>
+                        Quay lại
+                    </a>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Popup xác nhận xóa tầng cao nhất -->
+    <div id="delete-floor-confirm-popup" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50">
+        <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onclick="document.getElementById('delete-floor-confirm-popup').classList.add('hidden')">
+            <div class="flex items-start gap-4" onclick="event.stopPropagation()">
+                <div class="flex-shrink-0">
+                    <span class="material-symbols-outlined text-4xl text-orange-500">warning</span>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Xác nhận xóa tầng cao nhất</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Bạn có chắc chắn muốn xóa <strong>tầng cao nhất</strong> của khu này không?
+                        <br><br>
+                        <span class="font-semibold">Lưu ý:</span> Tầng cao nhất sẽ được xóa cùng với toàn bộ phòng chưa thuê thuộc tầng đó.
+                        Nếu tầng này đang có phòng đang thuê, hệ thống sẽ thông báo và không thể xóa.
+                    </p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4">
+                <button type="button" id="cancel-delete-floor"
+                    class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
+                    Hủy bỏ
+                </button>
+                <form method="POST" id="confirm-delete-floor-form" action="<?= BASE_URL ?>?page=admin-delete-floor-top" class="inline" onclick="event.stopPropagation()">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="">
+                    <button type="submit"
+                        class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-rose-500 text-white font-semibold hover:bg-rose-600 transition">
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                        Xác nhận xóa
+                    </button>
+                </form>
+            </div>
+        </div>
+</div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <!-- ============ FORM KHU ============ -->
@@ -51,29 +149,29 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php endif; ?>
 
             <div id="area-form-card" class="<?= $editArea ? '' : 'hidden' ?> bg-white p-6 rounded-2xl shadow-sm border border-gray-100 xl:sticky xl:top-20 space-y-5">
-                <form method="POST" action="<?= BASE_URL ?>?page=admin-save-area" id="area-main-form" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="<?= BASE_URL ?>?page=admin-save-area" id="area-main-form" data-validate enctype="multipart/form-data" class="space-y-4">
                     <?= csrf_field() ?>
                     <?php if ($editArea): ?>
                         <input type="hidden" name="id" value="<?= (int)($editArea['id'] ?? 0) ?>">
                     <?php endif; ?>
 
                     <div>
-                        <label class="block text-sm font-semibold mb-2">Tên khu (để trống sẽ tự đặt)</label>
-                        <input type="text" name="name" value="<?= e($editArea['name'] ?? '') ?>"
+                        <label class="block text-sm font-semibold mb-2">Tên khu *</label>
+                        <input type="text" name="name" required minlength="2" maxlength="120" value="<?= e($editArea['name'] ?? '') ?>"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="VD: Khu A - Sinh viên">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold mb-2">Địa chỉ</label>
-                        <input type="text" name="address" value="<?= e($editArea['address'] ?? '') ?>"
+                        <label class="block text-sm font-semibold mb-2">Địa chỉ *</label>
+                        <input type="text" name="address" required minlength="5" maxlength="255" value="<?= e($editArea['address'] ?? '') ?>"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="VD: 123 Đường ABC, Quận 9">
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold mb-2">Mô tả</label>
-                        <textarea name="description" rows="3"
+                        <textarea name="description" rows="3" maxlength="2000"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="Mô tả ngắn về khu nhà..."><?= e($editArea['description'] ?? '') ?></textarea>
                     </div>
@@ -88,7 +186,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <?php if (!$editArea): ?>
                         <div>
                             <label class="block text-sm font-semibold mb-2">Số tầng của khu *</label>
-                            <input type="number" id="area-floor-count" name="floor_count" min="1" max="50" step="1" value="1"
+                            <input type="number" id="area-floor-count" name="floor_count" required min="1" max="50" step="1" value="1"
                                 class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
                             <p class="mt-1 text-xs text-gray-500">Nhập tổng số tầng. Hệ thống sẽ tạo select để bạn chọn từng tầng và nhập số phòng.</p>
                         </div>
@@ -110,7 +208,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         </div>
                     <?php endif; ?>
 
-                    <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
+                    <p id="area-form-validity" class="text-xs text-rose-600" role="status"></p>
+                    <button type="submit" id="area-submit-button" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-gray-300 transition">
                         <?= $editArea ? 'Cập nhật khu' : 'Tạo khu + tạo phòng nháp' ?>
                     </button>
                     <?php if ($editArea): ?>
@@ -161,9 +260,27 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <a href="<?= BASE_URL ?>?page=admin-areas&edit=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 transition">
                                 <span class="material-symbols-outlined text-base">edit</span> Sửa khu
                             </a>
-                            <a href="<?= BASE_URL ?>?page=admin-rooms&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 transition">
-                                <span class="material-symbols-outlined text-base">meeting_room</span> Quản lý phòng
-                            </a>
+                             <a href="<?= BASE_URL ?>?page=admin-rooms&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 transition">
+                                 <span class="material-symbols-outlined text-base">meeting_room</span> Quản lý phòng
+                             </a>
+<!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Xóa tầng cao nhất -->
+                              <?php if ((int)($area['floor_count'] ?? 0) > 0): ?>
+                              <button type="button" data-delete-floor-top="<?= $areaIdNow ?>"
+                                  class="inline-flex items-center gap-2 rounded-xl bg-orange-50 px-4 py-2 font-semibold text-orange-700 hover:bg-orange-100 transition">
+                                  <span class="material-symbols-outlined text-base">remove_layers</span> Xóa tầng cao nhất
+                              </button>
+                              <?php endif; ?>
+                             <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-area" class="inline">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="id" value="<?= $areaIdNow ?>">
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-2 font-semibold text-rose-700 hover:bg-rose-100 transition"
+                                    <?= (int)($area['rented_count'] ?? 0) === 0 ? 'data-confirm="' . e('Xóa khu này sẽ xóa toàn bộ tầng và phòng chưa thuê bên trong. Bạn có chắc chắn muốn xóa?') . '"' : '' ?>
+                                >
+                                    <span class="material-symbols-outlined text-base">delete</span> Xóa khu
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </details>
@@ -267,4 +384,74 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         renderFloorOptions();
     })();
 </script>
+<script>
+    (function() {
+        var form = document.getElementById('area-main-form');
+        var submitButton = document.getElementById('area-submit-button');
+        var validityMessage = document.getElementById('area-form-validity');
+        if (!form || !submitButton || !validityMessage) return;
+
+        function updateSubmitState() {
+            var name = form.elements.name;
+            var address = form.elements.address;
+            var floorCount = form.elements.floor_count;
+            var image = form.elements.area_image;
+            var valid = name && name.value.trim().length >= 2 && name.value.trim().length <= 120
+                && address && address.value.trim().length >= 5 && address.value.trim().length <= 255;
+            var message = '';
+
+            if (valid && floorCount) {
+                var count = Number(floorCount.value);
+                valid = Number.isInteger(count) && count >= 1 && count <= 50;
+                if (!valid) message = 'Số tầng phải là số nguyên từ 1 đến 50.';
+            }
+            if (valid && image && image.files && image.files[0]) {
+                var allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+                valid = allowedTypes.indexOf(image.files[0].type) !== -1 && image.files[0].size <= 5 * 1024 * 1024;
+                if (!valid) message = 'Ảnh khu phải là JPG, PNG, WEBP hoặc GIF và không quá 5MB.';
+            }
+            if (!valid && !message) message = 'Điền tên khu và địa chỉ hợp lệ để có thể lưu.';
+            submitButton.disabled = !valid;
+            validityMessage.textContent = message;
+            return valid;
+        }
+
+        form.querySelectorAll('input, textarea').forEach(function(field) {
+            field.addEventListener('input', updateSubmitState);
+            field.addEventListener('change', updateSubmitState);
+        });
+        form.addEventListener('submit', function(event) {
+            if (!updateSubmitState()) event.preventDefault();
+        });
+updateSubmitState();
+    })();
+</script>
+
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Xử lý popup xác nhận xóa tầng cao nhất (đặt cuối file để DOM sẵn sàng) -->
+    <script>
+        (function() {
+            var deleteFloorButtons = document.querySelectorAll('[data-delete-floor-top]');
+            var confirmPopup = document.getElementById('delete-floor-confirm-popup');
+            var confirmForm = document.getElementById('confirm-delete-floor-form');
+            var formHiddenInput = confirmForm ? confirmForm.querySelector('input[name="id"]') : null;
+            var cancelBtn = document.getElementById('cancel-delete-floor');
+
+            deleteFloorButtons.forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var areaId = this.getAttribute('data-delete-floor-top');
+                    if (formHiddenInput && confirmPopup) {
+                        formHiddenInput.value = areaId;
+                        confirmPopup.classList.remove('hidden');
+                    }
+                });
+            });
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function() {
+                    if (confirmPopup) confirmPopup.classList.add('hidden');
+                });
+            }
+        })();
+    </script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>
