@@ -1,4 +1,7 @@
 <?php
+require_once BASE_PATH . 'models/room/RoomPriceChangeModel.php';
+
+
 
 class AdminController
 {
@@ -197,9 +200,8 @@ class AdminController
         if ($selectedAreaId <= 0 && $selectedFloor) {
             $selectedAreaId = (int)($selectedFloor['area_id'] ?? 0);
         }
-        if ($selectedAreaId <= 0 && !empty($areas[0]['id'])) {
-            $selectedAreaId = (int)$areas[0]['id'];
-        }
+        // [DEV-QWEN-A][FIX-FILTER] BỎ fallback ép chọn khu đầu tiên
+        // Không ép area_id khi user chọn "Tất cả khu"
 
         $formAreaId = (int)($formRoom['area_id'] ?? ($editRoom['area_id'] ?? $selectedAreaId));
         if ($formAreaId <= 0 && !empty($areas[0]['id'])) {
@@ -421,6 +423,12 @@ class AdminController
 
         try {
             ContractModel::terminate($contractId, $moveOutDate);
+            
+            // Apply pending price changes ngay lập tức khi phòng giải phóng
+            $contract = ContractModel::getById($contractId);
+            if ($contract && isset($contract['room_id'])) {
+                RoomPriceChangeModel::applyPendingImmediately((int)$contract['room_id']);
+            }
             setFlash('admin_contract_message', 'Đã kết thúc hợp đồng và giải phóng phòng.');
             redirectTo('admin-contracts');
         } catch (Throwable $exception) {
@@ -1247,9 +1255,14 @@ $redirectParams = [];
             'image'       => '',
         ];
 
-        // Nếu không nhập tên, tự đặt tên mặc định
+        // [DEV-QWEN-A][FIX-VALIDATE] Bắt buộc nhập tên và địa chỉ
         if ($data['name'] === '') {
-            $data['name'] = 'Khu mới ' . date('d/m/Y H:i');
+            setFlash('admin_area_error', 'Tên khu là bắt buộc. Vui lòng nhập tên khu.');
+            redirectTo('admin-areas', $id > 0 ? ['edit' => $id] : []);
+        }
+        if ($data['address'] === '') {
+            setFlash('admin_area_error', 'Địa chỉ khu là bắt buộc.');
+            redirectTo('admin-areas', $id > 0 ? ['edit' => $id] : []);
         }
 
         // === XỬ LÝ UPLOAD ẢNH KHU ===
@@ -1389,7 +1402,8 @@ $redirectParams = [];
                 $rentedCount += (int)($floor['rented_count'] ?? 0);
             }
             if ($rentedCount > 0) {
-                setFlash('admin_area_error', 'Khu ' . ($area['name'] ?? '') . ' không thể xóa. Lý do: Khu ' . ($area['name'] ?? '') . ' này có phòng vẫn đang hoạt động, không thể xóa.');
+                // [DEV-QWEN-A][FIX-DELETE] Message rõ ràng hơn cho UX dismiss
+            setFlash('admin_area_error', 'Khu "' . ($area['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa khu này.');
                 redirectTo('admin-areas', ['area' => $areaId]);
             }
             AreaModel::delete($areaId);
@@ -1439,7 +1453,8 @@ $redirectParams = [];
                 }
             }
             if ($rentedCount > 0) {
-                setFlash('admin_area_error', 'Tầng ' . ($floor['name'] ?? '') . ' không thể xóa. Lý do: Tầng này có phòng vẫn đang hoạt động, không thể xóa.');
+                // [DEV-QWEN-A][FIX-DELETE] Message rõ ràng hơn cho UX dismiss
+            setFlash('admin_area_error', 'Tầng "' . ($floor['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa tầng này.');
                 redirectTo('admin-floors', ['area_id' => $areaId]);
             }
             FloorModel::delete($id);
@@ -1759,6 +1774,7 @@ $redirectParams = [];
         verify_csrf();
         $redirectParams = $this->getRoomAdminFilters($_POST);
         $id = (int)($_POST['id'] ?? 0);
+        $editRoom = $id > 0 ? RoomModel::getById($id) : null;
         $status = $this->normalizeRoomStatus($_POST['status'] ?? 'draft', 'draft');
 
         if (!empty($_POST['quick_status_update'])) {
@@ -1853,6 +1869,68 @@ $redirectParams = [];
         }
 
         $savedRoomId = (int)RoomModel::save($data, $id > 0 ? $id : null);
+        // === PRICE CHANGE LOGIC ===
+        if ($id > 0 && $editRoom) {
+            $oldPrice = (float)($editRoom['price'] ?? 0);
+            $newPrice = (float)($data['price'] ?? 0);
+            $priceChanged = abs($oldPrice - $newPrice) > 0.01;
+            
+            // Nếu phòng đang rented và giá thay đổi → schedule change
+            if ($editRoom['status'] === 'rented' && $priceChanged) {
+                $effectiveMonth = (int)($_POST['price_effective_month'] ?? 0);
+                $effectiveYear = (int)($_POST['price_effective_year'] ?? 0);
+                
+                // Validate tháng áp dụng (min = tháng sau)
+                $currentOrder = ((int)date('Y') * 100) + (int)date('n');
+                $minOrder = $currentOrder + 1;
+                
+                if ($effectiveYear === 0 || $effectiveMonth === 0) {
+                    // Mặc định: tháng sau
+                    $effectiveMonth = (int)date('n') + 1;
+                    $effectiveYear = (int)date('Y');
+                    if ($effectiveMonth > 12) {
+                        $effectiveMonth = 1;
+                        $effectiveYear++;
+                    }
+                }
+                
+                $order = ($effectiveYear * 100) + $effectiveMonth;
+                if ($order < $minOrder) {
+                    setFlash('admin_room_error', 'Tháng áp dụng giá mới phải từ tháng sau trở đi.');
+                    setFlash('admin_room_old', $formState);
+                    redirectTo('admin-rooms', $redirectParams);
+                }
+                
+                // Schedule price change (ghi đè bản cũ nếu có)
+                $deleted = RoomPriceChangeModel::scheduleChange(
+                    $savedRoomId,
+                    $oldPrice,
+                    $newPrice,
+                    $effectiveMonth,
+                    $effectiveYear,
+                    (int)($_SESSION['user_id'] ?? 0)
+                );
+                
+                // Revert price về giá cũ (chưa áp dụng ngay)
+                Database::update('rooms', ['price' => $oldPrice], 'id = :id', ['id' => $savedRoomId]);
+                
+                $msg = 'Giá mới ' . number_format($newPrice, 0, ',', '.') . 'đ sẽ áp dụng từ tháng ' 
+                     . str_pad((string)$effectiveMonth, 2, '0', STR_PAD_LEFT) . '/' . $effectiveYear . '.';
+                if ($deleted > 0) {
+                    $msg .= ' (Đã hủy ' . $deleted . ' lịch thay đổi giá trước đó.)';
+                }
+                setFlash('admin_room_message', $msg);
+                redirectTo('admin-rooms', ['area_id' => (int)($floor['area_id'] ?? 0), 'floor_id' => (int)$data['floor_id']]);
+            }
+            
+            // Nếu status chuyển từ rented → available/draft/maintenance → apply pending price ngay
+            if ($editRoom['status'] === 'rented' && $status !== 'rented') {
+                $applied = RoomPriceChangeModel::applyPendingImmediately($savedRoomId);
+                if ($applied > 0) {
+                    setFlash('admin_room_message', 'Đã áp dụng ' . $applied . ' thay đổi giá chờ cho phòng.');
+                }
+            }
+        }
 
         // Dời ảnh từ image_phong_new -> image_phong_{id}
         $movedPrimary = $this->finalizeNewRoomImage($savedRoomId, $primaryImage);

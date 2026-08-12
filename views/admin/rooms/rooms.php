@@ -93,7 +93,20 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
 
     <?php if (!empty($roomMessage)): ?><div class="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800"><?= e($roomMessage) ?></div><?php endif; ?>
-    <?php if (!empty($roomError)): ?><div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800"><?= e($roomError) ?></div><?php endif; ?>
+    <?php if (!empty($roomError)): ?>
+        <!-- [DEV-QWEN-A][FIX-UX] Alert dismiss -->
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800 relative" id="room-error-box">
+            <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-rose-500 mt-0.5">error</span>
+                <div class="flex-1">
+                    <p class="text-sm mt-1"><?= e($roomError) ?></p>
+                    <button type="button" onclick="document.getElementById('room-error-box').remove()"
+                            class="mt-2 px-3 py-1.5 bg-rose-200 text-rose-800 rounded-lg text-xs font-bold hover:bg-rose-300 transition">Đã hiểu, ẩn thông báo</button>
+                </div>
+                <button type="button" onclick="document.getElementById('room-error-box').remove()" class="text-rose-400 hover:text-rose-600 text-xl font-bold">&times;</button>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <form method="GET" class="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -249,6 +262,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="mb-1 block text-sm font-semibold text-gray-700">Giá thuê (VNĐ) *</label>
                     <input type="number" name="price" id="drawer-price" min="0" step="1000" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                    <input type="hidden" name="price_effective_month" id="drawer-price-month" value="0">
+                    <input type="hidden" name="price_effective_year" id="drawer-price-year" value="0">
                 </div>
                 <div><label class="mb-1 block text-sm font-semibold text-gray-700">Diện tích (m2)</label>
                     <input type="number" name="area" id="drawer-area" min="0" step="0.1" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
@@ -263,6 +278,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <select name="status" id="drawer-status" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                         <?php foreach ($formStatusOptions as $key => $meta): ?><option value="<?= $key ?>"><?= e($meta['label']) ?></option><?php endforeach; ?>
                     </select>
+                    <input type="text" id="drawer-status-readonly" readonly class="hidden w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500 cursor-not-allowed outline-none" value="Đã thuê">
+                    <input type="hidden" name="status" id="drawer-status-hidden" value="" disabled>
                 </div>
             </div>
 
@@ -509,7 +526,20 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             $('drawer-price').value = r.price || '';
             $('drawer-area').value = r.area || '';
             $('drawer-max').value = r.max_occupancy || 2;
-            $('drawer-status').value = (['draft', 'available', 'maintenance'].includes(r.status)) ? r.status : 'draft';
+            if (r.status === 'rented') {
+                $('drawer-status').classList.add('hidden');
+                $('drawer-status-readonly').classList.remove('hidden');
+                $('drawer-status-hidden').value = 'rented';
+                $('drawer-status-hidden').disabled = false;
+                $('drawer-status').disabled = true;
+            } else {
+                $('drawer-status').classList.remove('hidden');
+                $('drawer-status-readonly').classList.add('hidden');
+                $('drawer-status-hidden').value = '';
+                $('drawer-status-hidden').disabled = true;
+                $('drawer-status').disabled = false;
+                $('drawer-status').value = (['draft', 'available', 'maintenance'].includes(r.status)) ? r.status : 'draft';
+            }
             $('drawer-description').value = r.description || '';
             $('drawer-amenities').value = r.amenities || '';
             const imgs = roomImages[id] || [];
@@ -582,6 +612,32 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             });
         });
 
+                // === PRICE CHANGE INTERCEPTOR ===
+        let originalPrice = null;
+        let isRented = false;
+        
+        // Override openEdit để track giá gốc và status
+        const originalOpenEdit = openEdit;
+        openEdit = (id) => {
+            const r = rooms.find(x => Number(x.id) === Number(id));
+            if (r) {
+                originalPrice = parseFloat(r.price || 0);
+                isRented = (r.status === 'rented');
+            }
+            originalOpenEdit(id);
+        };
+        
+        form.addEventListener('submit', function(e) {
+            if (!isRented) return; // Không intercept nếu không rented
+            
+            const newPrice = parseFloat($('drawer-price').value || 0);
+            if (Math.abs(originalPrice - newPrice) < 0.01) return; // Giá không đổi
+            
+            // Giá thay đổi + phòng rented → show modal
+            e.preventDefault();
+            e.stopPropagation();
+            window.showPriceChangeModal();
+        }, true); // Use capture phase
         form.addEventListener('submit', e => {
             if (Number($('drawer-room-id').value || 0) > 0) return;
             const floor = floors.find(f => Number(f.id) === Number($('drawer-floor-id').value || 0));
@@ -626,6 +682,104 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     if (btn) btn.addEventListener('click', function(){ modal.classList.remove('hidden'); modal.classList.add('flex'); });
     if (cancel) cancel.addEventListener('click', function(){ modal.classList.add('hidden'); modal.classList.remove('flex'); });
     if (modal) modal.addEventListener('click', function(e){ if (e.target === modal){ modal.classList.add('hidden'); modal.classList.remove('flex'); } });
+})();
+</script>
+
+<!-- Modal Chọn Tháng Áp Dụng Giá -->
+<div id="price-change-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <h3 class="text-lg font-bold mb-4">Phòng đang được thuê</h3>
+        <p class="text-sm text-gray-600 mb-4">Giá mới sẽ không áp dụng ngay lập tức. Vui lòng chọn tháng áp dụng:</p>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div>
+                <label class="block text-sm font-semibold mb-2">Tháng</label>
+                <select id="modal-month" class="w-full rounded-xl border border-gray-200 px-3 py-2">
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-2">Năm</label>
+                <select id="modal-year" class="w-full rounded-xl border border-gray-200 px-3 py-2">
+                </select>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">* Tối thiểu từ tháng sau</p>
+        <div class="flex gap-3">
+            <button type="button" id="modal-cancel" class="flex-1 rounded-xl border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50">Hủy</button>
+            <button type="button" id="modal-confirm" class="flex-1 rounded-xl bg-primary px-4 py-2 font-semibold text-white hover:bg-opacity-90">Xác nhận</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const modal = document.getElementById('price-change-modal');
+    const monthSel = document.getElementById('modal-month');
+    const yearSel = document.getElementById('modal-year');
+    const cancelBtn = document.getElementById('modal-cancel');
+    const confirmBtn = document.getElementById('modal-confirm');
+    
+    // Populate month/year options
+    const now = new Date();
+    let startMonth = now.getMonth() + 2; // Tháng sau
+    let startYear = now.getFullYear();
+    if (startMonth > 12) { startMonth = 1; startYear++; }
+    
+    for (let y = startYear; y <= startYear + 2; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        yearSel.appendChild(opt);
+    }
+    
+    for (let m = 1; m <= 12; m++) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = 'Tháng ' + m;
+        monthSel.appendChild(opt);
+    }
+    
+    monthSel.value = startMonth;
+    yearSel.value = startYear;
+    
+    // Update month options based on selected year
+    yearSel.addEventListener('change', () => {
+        const selYear = parseInt(yearSel.value);
+        const minMonth = (selYear === startYear) ? startMonth : 1;
+        for (let i = 0; i < monthSel.options.length; i++) {
+            const m = parseInt(monthSel.options[i].value);
+            monthSel.options[i].disabled = (selYear === startYear && m < minMonth);
+        }
+        // Select first valid month
+        for (let i = 0; i < monthSel.options.length; i++) {
+            if (!monthSel.options[i].disabled) {
+                monthSel.selectedIndex = i;
+                break;
+            }
+        }
+    });
+    yearSel.dispatchEvent(new Event('change'));
+    
+    window.showPriceChangeModal = () => {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    };
+    
+    window.hidePriceChangeModal = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    };
+    
+    cancelBtn.addEventListener('click', window.hidePriceChangeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) window.hidePriceChangeModal();
+    });
+    
+    confirmBtn.addEventListener('click', () => {
+        document.getElementById('drawer-price-month').value = monthSel.value;
+        document.getElementById('drawer-price-year').value = yearSel.value;
+        window.hidePriceChangeModal();
+        document.getElementById('room-drawer-form').submit();
+    });
 })();
 </script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>
