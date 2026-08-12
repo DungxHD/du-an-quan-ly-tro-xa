@@ -110,11 +110,11 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <form method="GET" class="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <?php $hasArea = ($selectedAreaId > 0); $selectedAreaName = "khu"; foreach ($areas as $a) { if ((int)($a["id"] ?? 0) === (int)$selectedAreaId) { $selectedAreaName = $a["name"] ?? "khu"; break; } } ?>
+            <?php ($currentFilters['area_id'] > 0) = (($currentFilters['area_id'] > 0)); $selectedAreaName = "khu"; foreach ($areas as $a) { if ((int)($a["id"] ?? 0) === (int)$selectedAreaId) { $selectedAreaName = $a["name"] ?? "khu"; break; } } ?>
             <input type="hidden" name="page" value="admin-rooms">
             <div>
                 <label class="mb-1 block text-sm font-semibold text-gray-700">Khu</label>
-                <select name="area_id" onchange="this.form.submit()" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                <select name="area_id" id="filter-area" onchange="var f=document.getElementById('filter-floor'); if(f){f.value='0'; f.disabled=(this.value=='0');} this.form.submit();" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                     <option value="0">Tất cả khu</option>
                     <?php foreach ($areas as $area): ?>
                         <option value="<?= (int)($area['id'] ?? 0) ?>" <?= $currentFilters['area_id'] === (int)($area['id'] ?? 0) ? 'selected' : '' ?>><?= e($area['name'] ?? 'Khu') ?></option>
@@ -123,7 +123,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
             <div>
                 <label class="mb-1 block text-sm font-semibold text-gray-700">Tầng</label>
-                <select name="floor_id" onchange="this.form.submit()" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                <select name="floor_id" id="filter-floor" onchange="this.form.submit()" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 <?= $currentFilters['area_id'] <= 0 ? 'bg-gray-100 cursor-not-allowed text-gray-400' : '' ?>" <?= $currentFilters['area_id'] <= 0 ? 'disabled' : '' ?>>
                     <option value="0">-- Tất cả tầng --</option>
                     <?php foreach ($filterFloors as $floor): ?>
                         <option value="<?= (int)($floor['id'] ?? 0) ?>" <?= $currentFilters['floor_id'] === (int)($floor['id'] ?? 0) ? 'selected' : '' ?>><?= e($floor['name'] ?? 'Tầng') ?></option>
@@ -144,7 +144,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <button type="button" id="btn-add-room" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 font-semibold text-white transition hover:bg-opacity-90">
                         <span class="material-symbols-outlined text-base">add_home</span> Thêm phòng vào <?= e($selectedFloor['name'] ?? 'tầng') ?>
                     </button>
-                <?php elseif ($hasArea): ?>
+                <?php elseif (($currentFilters['area_id'] > 0)): ?>
                     <button type="button" id="btn-add-floor" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2 font-semibold text-white transition hover:bg-opacity-90">
                         <span class="material-symbols-outlined text-base">add_business</span> Thêm tầng vào <?= e($selectedAreaName) ?>
                     </button>
