@@ -32,6 +32,17 @@ spl_autoload_register(static function ($className) {
 
 // Cache settings sớm để header/footer/public view dùng ổn định kể cả khi thiếu DB.
 RoomModel::loadSettings();
+// Auto-apply pending room price changes khi admin login
+if (isset($_SESSION['role']) && $_SESSION['role'] == 1 && Database::hasConnection()) {
+    try {
+        $applied = RoomPriceChangeModel::applyDueChanges();
+        if ($applied > 0) {
+            // Optional: log hoặc flash message
+        }
+    } catch (Exception $e) {
+        // Silent fail - không block user
+    }
+}
 
 // Helper hiển thị và điều hướng dùng chung.
 function e($str)
