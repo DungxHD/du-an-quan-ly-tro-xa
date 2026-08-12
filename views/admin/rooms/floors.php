@@ -5,6 +5,8 @@ $panelActive = 'floors';
 $panelTitle = $siteName . ' Admin';
 $panelSubtitle = 'Quản lý tầng theo khu và sắp xếp bằng floor_number';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
+$floorMessage = pullFlash('admin_floor_message');
+$floorError = pullFlash('admin_floor_error');
 require BASE_PATH . 'views/layouts/panel_header.php';
 
 $selectedAreaId = (int)($selectedAreaId ?? 0);
@@ -17,6 +19,20 @@ foreach ($floors as $floorRow) {
 }
 ?>
         <div class="space-y-6">
+            <?php if (!empty($floorMessage)): ?>
+            <div class="alert-dismissible flex items-center justify-between rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
+                <span><?= e($floorMessage) ?></span>
+                <button type="button" data-dismiss-alert class="ml-4 text-lg font-bold text-green-800 hover:text-green-950" aria-label="Đóng thông báo">&times;</button>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($floorError)): ?>
+            <div class="alert-dismissible rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800">
+                <p><?= e($floorError) ?></p>
+                <button type="button" data-dismiss-alert class="mt-3 inline-flex items-center gap-1 rounded-lg bg-rose-200 px-3 py-1.5 text-xs font-bold text-rose-900 hover:bg-rose-300">
+                    <span class="material-symbols-outlined text-base">arrow_back</span> Quay lại
+                </button>
+            </div>
+            <?php endif; ?>
             <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
                 <div>
                     <h2 class="text-3xl font-bold">Quản lý Tầng</h2>
@@ -186,13 +202,17 @@ foreach ($floors as $floorRow) {
                                                 <a href="<?= BASE_URL ?>?page=admin-floors&area_id=<?= (int)($selectedAreaId ?: ($floor['area_id'] ?? 0)) ?>&edit=<?= (int)($floor['id'] ?? 0) ?>" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">
                                                     Sửa
                                                 </a>
-                                                <a
-                                                    href="<?= BASE_URL ?>?page=admin-delete-floor&id=<?= (int)($floor['id'] ?? 0) ?>"
-                                                    data-confirm="Theo schema hiện tại, xóa tầng sẽ xóa luôn các phòng thuộc tầng này. Bạn vẫn muốn xóa?"
-                                                    class="text-red-600 hover:text-red-800 font-semibold text-sm"
-                                                >
-                                                    Xóa
-                                                </a>
+                                                <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-floor" class="inline-flex">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="id" value="<?= (int)($floor['id'] ?? 0) ?>">
+                                                    <button
+                                                        type="submit"
+                                                        class="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 hover:text-rose-900"
+                                                        <?= (int)($floor['rented_count'] ?? 0) === 0 ? 'data-confirm="' . e('Xóa tầng này sẽ xóa toàn bộ phòng chưa thuê thuộc tầng. Bạn có chắc chắn muốn xóa?') . '"' : '' ?>
+                                                    >
+                                                        <span class="material-symbols-outlined text-base">delete</span> Xóa tầng
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>

@@ -36,15 +36,17 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <?php if (!empty($areaMessage)): ?>
         <div class="alert-dismissible rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800 flex items-center justify-between">
-<span><?= e($areaMessage) ?></span>
-<button type="button" data-dismiss-alert class="ml-4 text-green-800 hover:text-green-950 font-bold text-lg">&times;</button>
+            <span><?= e($areaMessage) ?></span>
+            <button type="button" data-dismiss-alert class="ml-4 text-green-800 hover:text-green-950 font-bold text-lg" aria-label="Đóng thông báo">&times;</button>
 </div>
     <?php endif; ?>
     <?php if (!empty($areaError)): ?>
-        <div class="alert-dismissible rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800 flex items-center justify-between">
-<span><?= e($areaError) ?></span>
-<button type="button" data-dismiss-alert class="ml-4 text-rose-800 hover:text-rose-950 font-bold text-lg">&times;</button>
-</div>
+        <div class="alert-dismissible rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800">
+            <p><?= e($areaError) ?></p>
+            <button type="button" data-dismiss-alert class="mt-3 inline-flex items-center gap-1 rounded-lg bg-rose-200 px-3 py-1.5 text-xs font-bold text-rose-900 hover:bg-rose-300">
+                <span class="material-symbols-outlined text-base">arrow_back</span> Quay lại
+            </button>
+        </div>
     <?php endif; ?>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -57,29 +59,29 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php endif; ?>
 
             <div id="area-form-card" class="<?= $editArea ? '' : 'hidden' ?> bg-white p-6 rounded-2xl shadow-sm border border-gray-100 xl:sticky xl:top-20 space-y-5">
-                <form method="POST" action="<?= BASE_URL ?>?page=admin-save-area" id="area-main-form" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="<?= BASE_URL ?>?page=admin-save-area" id="area-main-form" data-validate enctype="multipart/form-data" class="space-y-4">
                     <?= csrf_field() ?>
                     <?php if ($editArea): ?>
                         <input type="hidden" name="id" value="<?= (int)($editArea['id'] ?? 0) ?>">
                     <?php endif; ?>
 
                     <div>
-                        <label class="block text-sm font-semibold mb-2">Tên khu (để trống sẽ tự đặt)</label>
-                        <input type="text" name="name" required value="<?= e($editArea['name'] ?? '') ?>"
+                        <label class="block text-sm font-semibold mb-2">Tên khu *</label>
+                        <input type="text" name="name" required minlength="2" maxlength="120" value="<?= e($editArea['name'] ?? '') ?>"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="VD: Khu A - Sinh viên">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold mb-2">Địa chỉ</label>
-                        <input type="text" name="address" required value="<?= e($editArea['address'] ?? '') ?>"
+                        <label class="block text-sm font-semibold mb-2">Địa chỉ *</label>
+                        <input type="text" name="address" required minlength="5" maxlength="255" value="<?= e($editArea['address'] ?? '') ?>"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="VD: 123 Đường ABC, Quận 9">
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold mb-2">Mô tả</label>
-                        <textarea name="description" rows="3"
+                        <textarea name="description" rows="3" maxlength="2000"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             placeholder="Mô tả ngắn về khu nhà..."><?= e($editArea['description'] ?? '') ?></textarea>
                     </div>
@@ -94,7 +96,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <?php if (!$editArea): ?>
                         <div>
                             <label class="block text-sm font-semibold mb-2">Số tầng của khu *</label>
-                            <input type="number" id="area-floor-count" name="floor_count" min="1" max="50" step="1" value="1"
+                            <input type="number" id="area-floor-count" name="floor_count" required min="1" max="50" step="1" value="1"
                                 class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
                             <p class="mt-1 text-xs text-gray-500">Nhập tổng số tầng. Hệ thống sẽ tạo select để bạn chọn từng tầng và nhập số phòng.</p>
                         </div>
@@ -116,7 +118,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         </div>
                     <?php endif; ?>
 
-                    <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
+                    <p id="area-form-validity" class="text-xs text-rose-600" role="status"></p>
+                    <button type="submit" id="area-submit-button" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-gray-300 transition">
                         <?= $editArea ? 'Cập nhật khu' : 'Tạo khu + tạo phòng nháp' ?>
                     </button>
                     <?php if ($editArea): ?>
@@ -170,6 +173,20 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <a href="<?= BASE_URL ?>?page=admin-rooms&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 transition">
                                 <span class="material-symbols-outlined text-base">meeting_room</span> Quản lý phòng
                             </a>
+                            <a href="<?= BASE_URL ?>?page=admin-floors&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 rounded-xl bg-amber-100 px-4 py-2 font-semibold text-amber-800 hover:bg-amber-200 transition">
+                                <span class="material-symbols-outlined text-base">layers</span> Quản lý tầng
+                            </a>
+                            <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-area" class="inline">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="id" value="<?= $areaIdNow ?>">
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-2 font-semibold text-rose-700 hover:bg-rose-100 transition"
+                                    <?= (int)($area['rented_count'] ?? 0) === 0 ? 'data-confirm="' . e('Xóa khu này sẽ xóa toàn bộ tầng và phòng chưa thuê bên trong. Bạn có chắc chắn muốn xóa?') . '"' : '' ?>
+                                >
+                                    <span class="material-symbols-outlined text-base">delete</span> Xóa khu
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </details>
@@ -273,15 +290,46 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         renderFloorOptions();
     })();
 </script>
-<!-- [DEV-QWEN-A][FIX-UX] JS dismiss alert -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('[data-dismiss-alert]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var alert = btn.closest('.alert-dismissible');
-            if (alert) alert.remove();
+    (function() {
+        var form = document.getElementById('area-main-form');
+        var submitButton = document.getElementById('area-submit-button');
+        var validityMessage = document.getElementById('area-form-validity');
+        if (!form || !submitButton || !validityMessage) return;
+
+        function updateSubmitState() {
+            var name = form.elements.name;
+            var address = form.elements.address;
+            var floorCount = form.elements.floor_count;
+            var image = form.elements.area_image;
+            var valid = name && name.value.trim().length >= 2 && name.value.trim().length <= 120
+                && address && address.value.trim().length >= 5 && address.value.trim().length <= 255;
+            var message = '';
+
+            if (valid && floorCount) {
+                var count = Number(floorCount.value);
+                valid = Number.isInteger(count) && count >= 1 && count <= 50;
+                if (!valid) message = 'Số tầng phải là số nguyên từ 1 đến 50.';
+            }
+            if (valid && image && image.files && image.files[0]) {
+                var allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+                valid = allowedTypes.indexOf(image.files[0].type) !== -1 && image.files[0].size <= 5 * 1024 * 1024;
+                if (!valid) message = 'Ảnh khu phải là JPG, PNG, WEBP hoặc GIF và không quá 5MB.';
+            }
+            if (!valid && !message) message = 'Điền tên khu và địa chỉ hợp lệ để có thể lưu.';
+            submitButton.disabled = !valid;
+            validityMessage.textContent = message;
+            return valid;
+        }
+
+        form.querySelectorAll('input, textarea').forEach(function(field) {
+            field.addEventListener('input', updateSubmitState);
+            field.addEventListener('change', updateSubmitState);
         });
-    });
-});
+        form.addEventListener('submit', function(event) {
+            if (!updateSubmitState()) event.preventDefault();
+        });
+        updateSubmitState();
+    })();
 </script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>
