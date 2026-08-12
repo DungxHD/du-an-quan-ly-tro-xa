@@ -393,4 +393,36 @@ if(m) m.classList.add('hidden');
 <?php if ($isEditing): ?>openDrawer();<?php endif; ?>
 })();
 </script>
+<script>
+// [svc-dup-check] Chan trung ten dich vu ngay khi submit (phia client)
+(function(){
+  var existingServices = <?= json_encode(array_values(array_map(function($s){ return ['id' => (int)($s['id'] ?? 0), 'name' => trim((string)($s['name'] ?? ''))]; }, $services ?? [])), JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>;
+  var form = document.querySelector('#service-drawer form');
+  if (!form) return;
+  var nameInput = form.querySelector('input[name="name"]');
+  if (!nameInput) return;
+  var errEl = document.createElement('p');
+  errEl.className = 'text-sm text-red-600 mt-1 hidden';
+  nameInput.closest('div').appendChild(errEl);
+  nameInput.addEventListener('input', function(){
+    errEl.classList.add('hidden');
+    nameInput.classList.remove('border-red-300','bg-red-50');
+  });
+  form.addEventListener('submit', function(e){
+    var val = (nameInput.value || '').trim();
+    if (val === '') return;
+    var idInput = form.querySelector('input[name="id"]');
+    var cur = idInput ? (parseInt(idInput.value, 10) || 0) : 0;
+    var dup = existingServices.some(function(s){ return s.id !== cur && s.name === val; });
+    if (dup) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      errEl.textContent = 'Tên dịch vụ "' + val + '" đã tồn tại. Vui lòng chọn tên khác.';
+      errEl.classList.remove('hidden');
+      nameInput.classList.add('border-red-300','bg-red-50');
+      nameInput.focus();
+    }
+  });
+})();
+</script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>

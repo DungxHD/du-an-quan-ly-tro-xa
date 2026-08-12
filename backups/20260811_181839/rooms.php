@@ -97,7 +97,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <form method="GET" class="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <?php $hasArea = ($selectedAreaId > 0); $selectedAreaName = "khu"; foreach ($areas as $a) { if ((int)($a["id"] ?? 0) === (int)$selectedAreaId) { $selectedAreaName = $a["name"] ?? "khu"; break; } } ?>
             <input type="hidden" name="page" value="admin-rooms">
             <div>
                 <label class="mb-1 block text-sm font-semibold text-gray-700">Khu</label>
@@ -131,12 +130,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <button type="button" id="btn-add-room" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 font-semibold text-white transition hover:bg-opacity-90">
                         <span class="material-symbols-outlined text-base">add_home</span> Thêm phòng vào <?= e($selectedFloor['name'] ?? 'tầng') ?>
                     </button>
-                <?php elseif ($hasArea): ?>
-                    <button type="button" id="btn-add-floor" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2 font-semibold text-white transition hover:bg-opacity-90">
-                        <span class="material-symbols-outlined text-base">add_business</span> Thêm tầng vào <?= e($selectedAreaName) ?>
-                    </button>
                 <?php else: ?>
-                    <p class="w-full rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">Chọn một khu để hiện "Thêm tầng"; chọn thêm tầng để hiện "Thêm phòng".</p>
+                    <p class="w-full rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">Chọn một tầng để hiện nút "Thêm phòng".</p>
                 <?php endif; ?>
             </div>
         </form>
@@ -598,34 +593,5 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <?php if (!empty($drawerOpenFlag) && $isEditing): ?>openEdit(<?= $formRoomId ?>);
     <?php endif; ?>
     })();
-</script>
-<!-- Modal Thêm Tầng -->
-<div id="modal-add-floor" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
-    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <h3 class="text-lg font-bold mb-4">Thêm tầng mới vào <?= e($selectedAreaName) ?></h3>
-        <form id="form-add-floor" method="POST" action="<?= BASE_URL ?>?page=admin-add-floor">
-            <?= csrf_field() ?>
-            <input type="hidden" name="area_id" value="<?= (int)$selectedAreaId ?>">
-            <div class="mb-4">
-                <label class="block text-sm font-semibold mb-2">Số phòng nháp cần tạo</label>
-                <input type="number" name="room_count" min="0" max="50" value="0" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
-                <p class="text-xs text-gray-500 mt-1">Hệ thống tự đặt tên tầng. Nhập 0 nếu chỉ tạo tầng trống.</p>
-            </div>
-            <div class="flex gap-3">
-                <button type="button" id="btn-cancel-add-floor" class="flex-1 rounded-xl border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50">Hủy</button>
-                <button type="submit" class="flex-1 rounded-xl bg-primary px-4 py-2 font-semibold text-white hover:bg-opacity-90">Thêm tầng</button>
-            </div>
-        </form>
-    </div>
-</div>
-<script>
-(function(){
-    var btn = document.getElementById('btn-add-floor');
-    var modal = document.getElementById('modal-add-floor');
-    var cancel = document.getElementById('btn-cancel-add-floor');
-    if (btn) btn.addEventListener('click', function(){ modal.classList.remove('hidden'); modal.classList.add('flex'); });
-    if (cancel) cancel.addEventListener('click', function(){ modal.classList.add('hidden'); modal.classList.remove('flex'); });
-    if (modal) modal.addEventListener('click', function(e){ if (e.target === modal){ modal.classList.add('hidden'); modal.classList.remove('flex'); } });
-})();
 </script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>

@@ -1365,9 +1365,9 @@ $redirectParams = [];
             'floor_number' => $next,
             'room_limit' => $roomLimit,
         ], null);
-        $created = $this->createRoomSlots($floorId, $next, $roomLimit);
-        setFlash('admin_room_message', "Đã thêm Tầng {$next}" . ($created > 0 ? " với {$created} phòng nháp." : '.'));
-        redirectTo('admin-rooms', ['area_id' => $areaId, 'floor_id' => 0]);
+        $created = $this->createRoomSlots($floorId, $areaCode, $next, $roomLimit);
+        setFlash('admin_area_message', "Đã thêm Tầng {$next}" . ($created > 0 ? " với {$created} phòng nháp." : '.'));
+        redirectTo('admin-areas', ['area' => $areaId]);
     }
 
     /**
