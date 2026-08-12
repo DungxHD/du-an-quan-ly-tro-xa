@@ -17,6 +17,7 @@ $formStatusOptions = [
     'available' => $statusMap['available'],
     'maintenance' => $statusMap['maintenance'],
 ];
+$roomAmenityOptions = ['Điều hòa', 'Nóng lạnh', 'Tủ lạnh', 'Giường', 'Bàn ghế', 'Tủ quần áo', 'Máy giặt', 'Wifi'];
 
 $currentFilters = [
     'area_id'  => (int)($filters['area_id'] ?? 0),
@@ -108,13 +109,79 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     <?php endif; ?>
 
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Popup thông báo khi xóa khu/tầng bị chặn -->
+    <?php if (!empty($deleteBlocked)): ?>
+        <div id="delete-blocked-popup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-4xl text-rose-500">warning</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">
+                            <?php if ($deleteBlocked['type'] === 'area'): ?>
+                                Không thể xóa khu
+                            <?php elseif ($deleteBlocked['type'] === 'top_floor'): ?>
+                                Không thể xóa tầng
+                            <?php else: ?>
+                                Không thể xóa
+                            <?php endif; ?>
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            <?= e($deleteBlocked['message']) ?>
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            <?php if ($deleteBlocked['type'] === 'top_floor'): ?>
+                                <span class="font-semibold">Khu:</span> <?= e($deleteBlocked['area_name']) ?>
+                                <br>
+                                <span class="font-semibold">Tầng:</span> <?= e($deleteBlocked['floor_name']) ?> (tầng <?= (int)($deleteBlocked['floor_number'] ?? 0) ?>)
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php else: ?>
+                                <span class="font-semibold">Tên:</span> <?= e($deleteBlocked['name']) ?>
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4">
+                    <button type="button" onclick="document.getElementById('delete-blocked-popup').remove()"
+                        class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
+                        Đóng
+                    </button>
+                    <a href="<?= e($deleteBlocked['return_url']) ?>"
+                        class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-opacity-90 transition">
+                        <span class="material-symbols-outlined text-sm">arrow_back</span>
+                        Quay lại
+                    </a>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <form method="GET" class="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <?php $hasArea = ($currentFilters['area_id'] > 0); $selectedAreaName = "khu"; foreach ($areas as $a) { if ((int)($a["id"] ?? 0) === (int)$selectedAreaId) { $selectedAreaName = $a["name"] ?? "khu"; break; } } ?>
+            <?php 
+            // [DEV-QWEN-A][NHOM-2][2026-08-13] Chuẩn hóa logic button Thêm tầng
+            // - Button "Thêm tầng" CHỈ hiển thị khi đang chọn một khu cụ thể (area_id > 0)
+            // - Khi chọn "Tất cả khu" (area_id = 0) thì KHÔNG hiển thị button "Thêm tầng"
+            // - selectedAreaId được lấy từ filter để tìm tên khu hiển thị trên button
+            $selectedAreaId = (int)($currentFilters['area_id'] ?? 0);
+            $hasArea = ($selectedAreaId > 0); 
+            $selectedAreaName = "khu"; 
+            foreach ($areas as $a) { 
+                if ((int)($a["id"] ?? 0) === $selectedAreaId) { 
+                    $selectedAreaName = $a["name"] ?? "khu"; 
+                    break; 
+                } 
+            } 
+            ?>
             <input type="hidden" name="page" value="admin-rooms">
             <div>
                 <label class="mb-1 block text-sm font-semibold text-gray-700">Khu</label>
-                <select name="area_id" id="filter-area" onchange="var f=document.getElementById('filter-floor'); if(f){f.value='0'; f.disabled=(this.value=='0');} this.form.submit();" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Dropdown khu - khi đổi khu, tự động reset tầng về 0 -->
+                <select name="area_id" id="filter-area" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
                     <option value="0">Tất cả khu</option>
                     <?php foreach ($areas as $area): ?>
                         <option value="<?= (int)($area['id'] ?? 0) ?>" <?= $currentFilters['area_id'] === (int)($area['id'] ?? 0) ? 'selected' : '' ?>><?= e($area['name'] ?? 'Khu') ?></option>
@@ -123,13 +190,63 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
             <div>
                 <label class="mb-1 block text-sm font-semibold text-gray-700">Tầng</label>
-                <select name="floor_id" id="filter-floor" onchange="this.form.submit()" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 <?= $currentFilters['area_id'] <= 0 ? 'bg-gray-100 cursor-not-allowed text-gray-400' : '' ?>" <?= $currentFilters['area_id'] <= 0 ? 'disabled' : '' ?>>
+                <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Dropdown tầng chỉ bật khi có khu được chọn -->
+                <!-- Khi chọn "Tất cả khu" thì dropdown bị disable và reset về "Tất cả tầng" -->
+                <!-- Khi đổi khu, dropdown tự động reset về "Tất cả tầng" -->
+                <select name="floor_id" id="filter-floor" onchange="this.form.submit()" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:ring-primary/20 transition-colors <?= $currentFilters['area_id'] <= 0 ? 'bg-gray-100 cursor-not-allowed text-gray-400' : '' ?>" <?= $currentFilters['area_id'] <= 0 ? 'disabled' : '' ?>>
                     <option value="0">-- Tất cả tầng --</option>
                     <?php foreach ($filterFloors as $floor): ?>
                         <option value="<?= (int)($floor['id'] ?? 0) ?>" <?= $currentFilters['floor_id'] === (int)($floor['id'] ?? 0) ? 'selected' : '' ?>><?= e($floor['name'] ?? 'Tầng') ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
+            
+            <script>
+                // [DEV-QWEN-A][NHOM-2][2026-08-13] Logic reset dropdown tầng khi thay đổi khu
+                // [DEV-QWEN-A][NHOM-2][2026-08-13] Logic button Thêm tầng: chỉ hiện khi chọn khu cụ thể
+                (function() {
+                    var areaSelect = document.getElementById('filter-area');
+                    var floorSelect = document.getElementById('filter-floor');
+                    var addFloorBtn = document.getElementById('btn-add-floor');
+                    var addRoomBtn = document.getElementById('btn-add-room');
+                    
+                    if (!areaSelect || !floorSelect) return;
+                    
+                    areaSelect.addEventListener('change', function() {
+                        var selectedArea = this.value;
+                        
+                        if (selectedArea === '0' || selectedArea === '') {
+                            // Chọn "Tất cả khu" → disable dropdown tầng, reset về 0
+                            // Và ẩn button "Thêm tầng" (chỉ có thể thêm phòng khi chọn khu + tầng cụ thể)
+                            floorSelect.value = '0';
+                            floorSelect.disabled = true;
+                        } else {
+                            // Chọn khu cụ thể → bật dropdown tầng, reset về "Tất cả tầng"
+                            // Button "Thêm tầng" sẽ được hiển thị lại từ server side
+                            floorSelect.value = '0';
+                            floorSelect.disabled = false;
+                        }
+                        // Submit form để cập nhật filter và danh sách tầng
+                        this.form.submit();
+                    });
+                    
+                    // [DEV-QWEN-A][NHOM-2][2026-08-13] Đảm bảo button Thêm tầng chỉ hiện khi có khu được chọn
+                    // Kiểm tra trạng thái ban đầu khi trang load
+                    function updateAddButtons() {
+                        var currentArea = areaSelect.value;
+                        if (currentArea === '0' || currentArea === '') {
+                            // Đang ở "Tất cả khu" → không cho phép thêm tầng
+                            if (addFloorBtn) {
+                                addFloorBtn.closest('.flex.items-end').innerHTML = 
+                                    '<p class="w-full rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">Chọn một khu để hiện "Thêm tầng"; chọn thêm tầng để hiện "Thêm phòng".</p>';
+                            }
+                        }
+                    }
+                    
+                    // Chạy kiểm tra khi trang load
+                    updateAddButtons();
+                })();
+            </script>
             <div>
                 <label class="mb-1 block text-sm font-semibold text-gray-700">Trạng thái</label>
                 <select name="status" onchange="this.form.submit()" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
@@ -181,6 +298,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     $roomId = (int)($room['id'] ?? 0);
                     $meta = $statusMap[$room['status'] ?? 'draft'] ?? $statusMap['draft'];
                     $isRented = ($room['status'] ?? '') === 'rented' || (int)($room['occupant_count'] ?? 0) > 0;
+                    $pendingPriceChange = $pendingRoomPriceChanges[$roomId] ?? null;
                     $deleteParams = http_build_query(array_filter(['page' => 'admin-delete-room', 'id' => $roomId, 'area_id' => $currentFilters['area_id'], 'floor_id' => $currentFilters['floor_id'], 'status' => $currentFilters['status']], static fn($v) => $v !== '' && $v !== null));
                     ?>
                     <div class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
@@ -198,6 +316,12 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">Ở: <?= (int)($room['occupant_count'] ?? 0) ?>/<?= (int)($room['max_occupancy'] ?? 0) ?></span>
                             </div>
                             <p class="font-semibold text-primary"><?= number_format((float)($room['price'] ?? 0), 0, ',', '.') ?>đ/tháng</p>
+                            <?php if ($pendingPriceChange): ?>
+                            <div class="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
+                                <p class="font-bold"><span class="material-symbols-outlined mr-1 align-middle text-sm">event_upcoming</span>Đã lên lịch giá mới</p>
+                                <p class="mt-1"><?= number_format((float)($pendingPriceChange['new_price'] ?? 0), 0, ',', '.') ?>đ/tháng · áp dụng từ <?= str_pad((string)($pendingPriceChange['effective_month'] ?? 0), 2, '0', STR_PAD_LEFT) ?>/<?= (int)($pendingPriceChange['effective_year'] ?? 0) ?></p>
+                            </div>
+                            <?php endif; ?>
                             <div class="mt-auto flex items-center gap-2 pt-2">
                                 <button type="button" data-edit-room="<?= $roomId ?>" class="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100">
                                     <span class="material-symbols-outlined text-base">edit</span> Sửa
@@ -236,7 +360,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
             <button type="button" data-close-drawer class="rounded-xl border border-gray-200 p-2 text-gray-600 transition hover:bg-gray-50"><span class="material-symbols-outlined">close</span></button>
         </div>
-        <form id="room-drawer-form" method="POST" action="<?= BASE_URL ?>?page=admin-save-room" class="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+        <form id="room-drawer-form" method="POST" action="<?= BASE_URL ?>?page=admin-save-room" data-validate class="flex-1 space-y-4 overflow-y-auto px-6 py-5">
             <?= csrf_field() ?>
             <input type="hidden" name="id" id="drawer-room-id" value="0">
             <input type="hidden" name="position" id="drawer-position" value="0">
@@ -264,18 +388,18 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="mb-1 block text-sm font-semibold text-gray-700">Giá thuê (VNĐ) *</label>
-                    <input type="number" name="price" id="drawer-price" min="0" step="1000" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                    <input type="number" name="price" id="drawer-price" required step="1000" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                     <input type="hidden" name="price_effective_month" id="drawer-price-month" value="0">
                     <input type="hidden" name="price_effective_year" id="drawer-price-year" value="0">
                 </div>
-                <div><label class="mb-1 block text-sm font-semibold text-gray-700">Diện tích (m2)</label>
-                    <input type="number" name="area" id="drawer-area" min="0" step="0.1" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                <div><label class="mb-1 block text-sm font-semibold text-gray-700">Diện tích (m2) *</label>
+                    <input type="number" name="area" id="drawer-area" required min="0.1" step="0.1" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="mb-1 block text-sm font-semibold text-gray-700">Sức chứa tối đa *</label>
-                    <input type="number" name="max_occupancy" id="drawer-max" min="1" value="2" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                    <input type="number" name="max_occupancy" id="drawer-max" required min="1" value="2" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                 </div>
                 <div><label class="mb-1 block text-sm font-semibold text-gray-700">Trạng thái *</label>
                     <select name="status" id="drawer-status" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
@@ -287,29 +411,24 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
 
             <div><label class="mb-1 block text-sm font-semibold text-gray-700">Mô tả *</label>
-                <textarea name="description" id="drawer-description" rows="3" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"></textarea>
+                <textarea name="description" id="drawer-description" required rows="3" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"></textarea>
             </div>
 
             <div class="space-y-3">
-                <label class="mb-1 block text-sm font-semibold text-gray-700">Tiện ích phòng</label>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <!-- Available amenities -->
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                        <h4 class="text-sm font-bold text-gray-800 mb-2">Tiện ích khả dụng</h4>
-                        <div id="amenities-available" class="space-y-1 max-h-48 overflow-y-auto"></div>
-                    </div>
-                    <!-- Assigned amenities -->
-                    <div class="rounded-xl border border-gray-200 bg-white p-3">
-                        <h4 class="text-sm font-bold text-gray-800 mb-2">Đang gán cho phòng</h4>
-                        <div id="amenities-assigned" class="space-y-1 max-h-48 overflow-y-auto"></div>
-                    </div>
+                <label class="mb-1 block text-sm font-semibold text-gray-700">Tiện nghi <span class="font-normal text-gray-400">(có thể để trống)</span></label>
+                <div class="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:grid-cols-3">
+                    <?php foreach ($roomAmenityOptions as $amenity): ?>
+                    <label class="flex cursor-pointer items-center gap-2 rounded-lg bg-white px-2 py-2 text-sm text-gray-700 shadow-sm hover:bg-primary/5">
+                        <input type="checkbox" value="<?= e($amenity) ?>" data-room-amenity class="rounded border-gray-300 text-primary focus:ring-primary">
+                        <span><?= e($amenity) ?></span>
+                    </label>
+                    <?php endforeach; ?>
                 </div>
-                <!-- Preview card -->
-                <div class="rounded-xl border border-dashed border-gray-300 bg-blue-50/50 p-3">
-                    <h4 class="text-sm font-bold text-gray-800 mb-2">Preview "website thu nhỏ" (cập nhật theo bản nháp)</h4>
-                    <div id="amenity-preview" class="text-sm text-gray-700">Chưa có tiện ích nào</div>
+                <div>
+                    <label for="drawer-amenity-other" class="mb-1 block text-sm font-semibold text-gray-700">Khác:</label>
+                    <input type="text" id="drawer-amenity-other" maxlength="800" placeholder="Ví dụ: Bếp riêng, ban công, khóa vân tay..." class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                    <p class="mt-1 text-xs text-gray-500">Ngăn cách nhiều tiện nghi khác bằng dấu phẩy.</p>
                 </div>
-                <!-- Hidden CSV input -->
                 <input type="hidden" name="amenities" id="drawer-amenities" value="<?= e($drawerAmenities ?? '') ?>">
             </div>
 
@@ -331,105 +450,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <?php endfor; ?>
             </div>
 
-            <button type="submit" class="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white transition hover:bg-opacity-90">
+            <button type="submit" class="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-gray-300">
                 <span class="material-symbols-outlined text-base align-middle">save</span> Lưu phòng
             </button>
 
-<script>
-(function() {
-    const allAmenities = <?= json_encode($allAmenities ?? []) ?>;
-    let assigned = [];
-
-    function initAmenities() {
-        const csv = $('drawer-amenities').value.trim();
-        assigned = csv ? csv.split(',').map(s => s.trim()).filter(Boolean) : [];
-        renderAvailable();
-        renderAssigned();
-        renderPreview();
-    }
-
-    function renderAvailable() {
-        const container = $('amenities-available');
-        const available = allAmenities.filter(a => !assigned.includes(a.title));
-        if (available.length === 0) {
-            container.innerHTML = '<p class="text-xs text-gray-500">Không còn tiện ích nào</p>';
-            return;
-        }
-        container.innerHTML = available.map(a => 
-            `<button type="button" class="w-full text-left px-2 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-primary hover:bg-primary/5 transition text-sm" onclick="addAmenity('${a.title.replace(/'/g, "\\'")}')">
-                <span class="material-symbols-outlined text-base mr-1">${a.icon}</span>
-                ${a.title}
-                <span class="float-right text-primary font-bold">+</span>
-            </button>`
-        ).join('');
-    }
-
-    function renderAssigned() {
-        const container = $('amenities-assigned');
-        if (assigned.length === 0) {
-            container.innerHTML = '<p class="text-xs text-gray-500">Chưa gán tiện ích nào</p>';
-            return;
-        }
-        container.innerHTML = assigned.map(title => {
-            const amenity = allAmenities.find(a => a.title === title);
-            const icon = amenity ? amenity.icon : 'add';
-            return `<button type="button" class="w-full text-left px-2 py-1.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-red-50 hover:border-red-300 transition text-sm" onclick="removeAmenity('${title.replace(/'/g, "\\'")}')">
-                <span class="material-symbols-outlined text-base mr-1">${icon}</span>
-                ${title}
-                <span class="float-right text-red-600 font-bold">−</span>
-            </button>`;
-        }).join('');
-    }
-
-    function renderPreview() {
-        const container = $('amenity-preview');
-        if (assigned.length === 0) {
-            container.innerHTML = '<p class="text-xs text-gray-500 italic">Chưa có tiện ích nào — phòng sẽ không hiển thị tiện ích trên website</p>';
-            return;
-        }
-        const items = assigned.map(title => {
-            const amenity = allAmenities.find(a => a.title === title);
-            const icon = amenity ? amenity.icon : 'add';
-            return `<div class="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs mr-1 mb-1">
-                <span class="material-symbols-outlined text-sm">${icon}</span>
-                <span>${title}</span>
-            </div>`;
-        }).join('');
-        container.innerHTML = `<div class="flex flex-wrap">${items}</div>`;
-    }
-
-    window.addAmenity = function(title) {
-        if (!assigned.includes(title)) {
-            assigned.push(title);
-            renderAvailable();
-            renderAssigned();
-            renderPreview();
-            syncCSV();
-        }
-    };
-
-    window.removeAmenity = function(title) {
-        assigned = assigned.filter(t => t !== title);
-        renderAvailable();
-        renderAssigned();
-        renderPreview();
-        syncCSV();
-    };
-
-    function syncCSV() {
-        $('drawer-amenities').value = assigned.join(', ');
-    }
-
-    // Wait for drawer to open
-    const observer = new MutationObserver((mutations, obs) => {
-        if ($('drawer-amenities')) {
-            initAmenities();
-            obs.disconnect();
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
         </form>
     </div>
 </aside>
@@ -445,6 +469,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         const form = document.getElementById('room-drawer-form');
         const $ = (id) => document.getElementById(id);
         const defaultThumb = '<?= $defaultThumb ?>';
+        const roomAmenityOptions = <?= json_encode($roomAmenityOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const amenityCheckboxes = Array.from(document.querySelectorAll('[data-room-amenity]'));
+        const amenityOtherInput = $('drawer-amenity-other');
+        const roomSaveButton = form.querySelector('button[type="submit"]');
         let currentRoomId = 0;
 
         const getAreaName = (id) => {
@@ -513,7 +541,43 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             if (p) p.src = url || defaultThumb;
         };
 
-        const openEdit = (id) => {
+        function splitAmenities(value) {
+            return String(value || '').split(',').map(item => item.trim()).filter(Boolean);
+        }
+
+        function syncAmenities() {
+            const selected = amenityCheckboxes.filter(item => item.checked).map(item => item.value);
+            const others = splitAmenities(amenityOtherInput ? amenityOtherInput.value : '');
+            $('drawer-amenities').value = Array.from(new Set([...selected, ...others])).join(', ');
+        }
+
+        function setAmenities(value) {
+            const values = splitAmenities(value);
+            amenityCheckboxes.forEach(item => {
+                item.checked = values.includes(item.value);
+            });
+            if (amenityOtherInput) {
+                amenityOtherInput.value = values.filter(item => !roomAmenityOptions.includes(item)).join(', ');
+            }
+            syncAmenities();
+        }
+
+        function updateRoomSubmitState() {
+            const price = Number($('drawer-price').value);
+            const area = Number($('drawer-area').value);
+            const maxOccupancy = Number($('drawer-max').value);
+            const hasDescription = $('drawer-description').value.trim() !== '';
+            roomSaveButton.disabled = !(price > 0 && area > 0 && Number.isInteger(maxOccupancy) && maxOccupancy > 0 && hasDescription);
+        }
+
+        amenityCheckboxes.forEach(item => item.addEventListener('change', syncAmenities));
+        if (amenityOtherInput) amenityOtherInput.addEventListener('input', syncAmenities);
+        ['drawer-price', 'drawer-area', 'drawer-max', 'drawer-description'].forEach(id => {
+            $(id).addEventListener('input', updateRoomSubmitState);
+            $(id).addEventListener('change', updateRoomSubmitState);
+        });
+
+        let openEdit = (id) => {
             const r = rooms.find(x => Number(x.id) === Number(id));
             if (!r) return;
             currentRoomId = Number(id);
@@ -544,7 +608,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 $('drawer-status').value = (['draft', 'available', 'maintenance'].includes(r.status)) ? r.status : 'draft';
             }
             $('drawer-description').value = r.description || '';
-            $('drawer-amenities').value = r.amenities || '';
+            setAmenities(r.amenities || '');
             const imgs = roomImages[id] || [];
             const primary = imgs.find(i => i.is_primary === 1) || imgs[0] || null;
             const subs = imgs.filter(i => i.is_primary === 0);
@@ -552,6 +616,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             for (let i = 0; i < 3; i++) setFieldImg(1 + i, subs[i] ? subs[i].image_url : '');
             $('drawer-title').textContent = 'Sửa phòng ' + (r.name || '#' + id);
             $('drawer-context').textContent = (r.area_name || '') + ' · ' + (r.floor_name || '');
+            updateRoomSubmitState();
             openDrawer();
         };
 
@@ -570,8 +635,12 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             setFieldImg(0, '');
             for (let i = 0; i < 3; i++) setFieldImg(1 + i, '');
             $('drawer-status').value = 'draft';
+            setAmenities('');
+            originalPrice = null;
+            isRented = false;
             $('drawer-title').textContent = 'Thêm phòng mới';
             $('drawer-context').textContent = 'Phòng mới gắn vào: ' + getAreaName(areaId) + ' · ' + getFloorName(floorId);
+            updateRoomSubmitState();
             openDrawer();
         };
 

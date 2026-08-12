@@ -49,6 +49,96 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     <?php endif; ?>
 
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Popup thông báo khi xóa khu/tầng bị chặn -->
+    <?php if (!empty($deleteBlocked)): ?>
+        <div id="delete-blocked-popup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-4xl text-rose-500">warning</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">
+                            <?php if ($deleteBlocked['type'] === 'area'): ?>
+                                Không thể xóa khu
+                            <?php elseif ($deleteBlocked['type'] === 'top_floor'): ?>
+                                Không thể xóa tầng
+                            <?php else: ?>
+                                Không thể xóa
+                            <?php endif; ?>
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            <?= e($deleteBlocked['message']) ?>
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            <?php if ($deleteBlocked['type'] === 'area'): ?>
+                                <span class="font-semibold">Tên khu:</span> <?= e($deleteBlocked['name']) ?>
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php elseif ($deleteBlocked['type'] === 'top_floor'): ?>
+                                <span class="font-semibold">Khu:</span> <?= e($deleteBlocked['area_name']) ?>
+                                <br>
+                                <span class="font-semibold">Tầng:</span> <?= e($deleteBlocked['floor_name']) ?> (tầng <?= (int)($deleteBlocked['floor_number'] ?? 0) ?>)
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php else: ?>
+                                <span class="font-semibold">Tên:</span> <?= e($deleteBlocked['name']) ?>
+                                <br>
+                                <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4">
+                    <button type="button" onclick="document.getElementById('delete-blocked-popup').remove()"
+                        class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
+                        Đóng
+                    </button>
+                    <a href="<?= e($deleteBlocked['return_url']) ?>"
+                        class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-opacity-90 transition">
+                        <span class="material-symbols-outlined text-sm">arrow_back</span>
+                        Quay lại
+                    </a>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Popup xác nhận xóa tầng cao nhất -->
+    <div id="delete-floor-confirm-popup" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50">
+        <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onclick="document.getElementById('delete-floor-confirm-popup').classList.add('hidden')">
+            <div class="flex items-start gap-4" onclick="event.stopPropagation()">
+                <div class="flex-shrink-0">
+                    <span class="material-symbols-outlined text-4xl text-orange-500">warning</span>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Xác nhận xóa tầng cao nhất</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Bạn có chắc chắn muốn xóa <strong>tầng cao nhất</strong> của khu này không?
+                        <br><br>
+                        <span class="font-semibold">Lưu ý:</span> Tầng cao nhất sẽ được xóa cùng với toàn bộ phòng chưa thuê thuộc tầng đó.
+                        Nếu tầng này đang có phòng đang thuê, hệ thống sẽ thông báo và không thể xóa.
+                    </p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4">
+                <button type="button" id="cancel-delete-floor"
+                    class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
+                    Hủy bỏ
+                </button>
+                <form method="POST" id="confirm-delete-floor-form" action="<?= BASE_URL ?>?page=admin-delete-floor-top" class="inline" onclick="event.stopPropagation()">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="">
+                    <button type="submit"
+                        class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-rose-500 text-white font-semibold hover:bg-rose-600 transition">
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                        Xác nhận xóa
+                    </button>
+                </form>
+            </div>
+        </div>
+</div>
+
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <!-- ============ FORM KHU ============ -->
         <div class="xl:col-span-1">
@@ -170,13 +260,17 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <a href="<?= BASE_URL ?>?page=admin-areas&edit=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 transition">
                                 <span class="material-symbols-outlined text-base">edit</span> Sửa khu
                             </a>
-                            <a href="<?= BASE_URL ?>?page=admin-rooms&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 transition">
-                                <span class="material-symbols-outlined text-base">meeting_room</span> Quản lý phòng
-                            </a>
-                            <a href="<?= BASE_URL ?>?page=admin-floors&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 rounded-xl bg-amber-100 px-4 py-2 font-semibold text-amber-800 hover:bg-amber-200 transition">
-                                <span class="material-symbols-outlined text-base">layers</span> Quản lý tầng
-                            </a>
-                            <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-area" class="inline">
+                             <a href="<?= BASE_URL ?>?page=admin-rooms&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 transition">
+                                 <span class="material-symbols-outlined text-base">meeting_room</span> Quản lý phòng
+                             </a>
+<!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Xóa tầng cao nhất -->
+                              <?php if ((int)($area['floor_count'] ?? 0) > 0): ?>
+                              <button type="button" data-delete-floor-top="<?= $areaIdNow ?>"
+                                  class="inline-flex items-center gap-2 rounded-xl bg-orange-50 px-4 py-2 font-semibold text-orange-700 hover:bg-orange-100 transition">
+                                  <span class="material-symbols-outlined text-base">remove_layers</span> Xóa tầng cao nhất
+                              </button>
+                              <?php endif; ?>
+                             <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-area" class="inline">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="id" value="<?= $areaIdNow ?>">
                                 <button
@@ -329,7 +423,35 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         form.addEventListener('submit', function(event) {
             if (!updateSubmitState()) event.preventDefault();
         });
-        updateSubmitState();
+updateSubmitState();
     })();
 </script>
+
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Xử lý popup xác nhận xóa tầng cao nhất (đặt cuối file để DOM sẵn sàng) -->
+    <script>
+        (function() {
+            var deleteFloorButtons = document.querySelectorAll('[data-delete-floor-top]');
+            var confirmPopup = document.getElementById('delete-floor-confirm-popup');
+            var confirmForm = document.getElementById('confirm-delete-floor-form');
+            var formHiddenInput = confirmForm ? confirmForm.querySelector('input[name="id"]') : null;
+            var cancelBtn = document.getElementById('cancel-delete-floor');
+
+            deleteFloorButtons.forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var areaId = this.getAttribute('data-delete-floor-top');
+                    if (formHiddenInput && confirmPopup) {
+                        formHiddenInput.value = areaId;
+                        confirmPopup.classList.remove('hidden');
+                    }
+                });
+            });
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function() {
+                    if (confirmPopup) confirmPopup.classList.add('hidden');
+                });
+            }
+        })();
+    </script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>

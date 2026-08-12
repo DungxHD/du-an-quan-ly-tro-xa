@@ -8,3 +8,6 @@
 project_info.txt
 _fix_*.sql
 nhatroa_*.txt
+
+# local dev tooling, never commit
+.devtools/

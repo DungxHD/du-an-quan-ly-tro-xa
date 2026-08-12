@@ -50,10 +50,26 @@ class RoomPriceChangeModel
     public static function getPendingByRoom($roomId)
     {
         $roomId = (int)$roomId;
-        return Database::fetchAll(
-            'SELECT * FROM room_price_changes WHERE room_id = :room_id AND applied = 0 ORDER BY effective_year, effective_month',
-            ['room_id' => $roomId]
+        if ($roomId <= 0) {
+            return [];
+        }
+
+        if (Database::hasConnection()) {
+            return Database::fetchAll(
+                'SELECT * FROM room_price_changes WHERE room_id = :room_id AND applied = 0 ORDER BY effective_year, effective_month',
+                ['room_id' => $roomId]
+            );
+        }
+
+        $changes = array_values(array_filter(
+            Database::getTable('room_price_changes'),
+            static fn($change) => (int)($change['room_id'] ?? 0) === $roomId && (int)($change['applied'] ?? 0) === 0
+        ));
+        usort($changes, static fn($left, $right) =>
+            ((int)($left['effective_year'] ?? 0) * 100 + (int)($left['effective_month'] ?? 0))
+            <=> ((int)($right['effective_year'] ?? 0) * 100 + (int)($right['effective_month'] ?? 0))
         );
+        return $changes;
     }
 
     /**
