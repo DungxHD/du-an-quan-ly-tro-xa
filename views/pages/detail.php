@@ -112,33 +112,72 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 
         <?php
         /**
-         * [DEV-QWEN-A][NHOM-2][2026-08-08]
-         * GỘP "Tiện nghi trong phòng" vào "Tiện ích của phòng":
-         * - Xóa khối tiện nghi riêng biệt, chỉ còn 1 khối duy nhất.
-         * - Nguồn dữ liệu = tiện ích admin nhập (rooms.amenities) + tên dịch vụ đã gán (services).
-         * - Tự loại trùng không phân biệt hoa/thường (vd: "wifi" và "Wifi" chỉ hiện 1 lần).
+         * [DEV-QWEN-A][NHOM-2][2026-08-14]
+         * Hiển thị tiện ích đồng nhất với admin và public filter:
+         * - Dùng danh sách chuẩn từ RoomModel::getCanonicalAmenities()
+         * - Map tiện ích nhập tay (rooms.amenities) + dịch vụ gán (services) về key chuẩn
+         * - Tự loại trùng, hiển thị icon Material Symbols
          */
-        $roomAmenityLabels = array_values(array_filter(array_map('trim', explode(',', (string)($room['amenities'] ?? '')))));
+        $canonicalAmenities = RoomModel::getCanonicalAmenities();
+        $canonicalKeyMap = [];
+        foreach ($canonicalAmenities as $a) {
+            $canonicalKeyMap[$a['key']] = $a;
+            // Thêm alias lowercase để match dễ dàng
+            $canonicalKeyMap[mb_strtolower($a['label'], 'UTF-8')] = $a;
+        }
+
+        $rawAmenities = array_values(array_filter(array_map('trim', explode(',', (string)($room['amenities'] ?? '')))));
         $roomServiceLabels = array_values(array_filter(array_map(static fn($svc) => trim((string)($svc['name'] ?? '')), $services ?? [])));
-        $mergedAmenityLabels = [];
-        $mergedAmenityKeys = [];
-        foreach (array_merge($roomAmenityLabels, $roomServiceLabels) as $labelItem) {
+
+        $merged = [];
+        $mergedKeys = [];
+        foreach (array_merge($rawAmenities, $roomServiceLabels) as $labelItem) {
             $labelKey = mb_strtolower($labelItem, 'UTF-8');
-            if ($labelItem === '' || isset($mergedAmenityKeys[$labelKey])) {
+            if ($labelItem === '' || isset($mergedKeys[$labelKey])) {
                 continue;
             }
-            $mergedAmenityKeys[$labelKey] = true;
-            $mergedAmenityLabels[] = $labelItem;
+            $matched = null;
+            // Thử match với key chuẩn hoặc label chuẩn
+            if (isset($canonicalKeyMap[$labelKey])) {
+                $matched = $canonicalKeyMap[$labelKey];
+            } else {
+                // Thử match một phần (vd: "máy lạnh" match "dieu_hoa")
+                foreach ($canonicalAmenities as $ca) {
+                    $caKey = mb_strtolower($ca['key'], 'UTF-8');
+                    $caLabel = mb_strtolower($ca['label'], 'UTF-8');
+                    if (mb_strpos($labelKey, $caKey) !== false || mb_strpos($labelKey, $caLabel) !== false ||
+                        mb_strpos($caKey, $labelKey) !== false || mb_strpos($caLabel, $labelKey) !== false) {
+                        $matched = $ca;
+                        break;
+                    }
+                }
+            }
+            if ($matched) {
+                $matchedKey = $matched['key'];
+                if (!isset($mergedKeys[$matchedKey])) {
+                    $mergedKeys[$matchedKey] = true;
+                    $merged[] = $matched;
+                }
+            } else {
+                // Tiện ích custom không trong danh sách chuẩn
+                if (!isset($mergedKeys[$labelKey])) {
+                    $mergedKeys[$labelKey] = true;
+                    $merged[] = ['key' => $labelKey, 'label' => $labelItem, 'icon' => 'check'];
+                }
+            }
         }
         ?>
         <div class="mt-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 reveal">
             <h2 class="text-2xl font-bold mb-6">Tiện ích của phòng</h2>
-            <?php if (empty($mergedAmenityLabels)): ?>
+            <?php if (empty($merged)): ?>
                 <p class="text-gray-500">Phòng chưa có tiện ích nào được cập nhật.</p>
             <?php else: ?>
                 <div class="flex flex-wrap gap-2">
-                    <?php foreach ($mergedAmenityLabels as $amenityLabel): ?>
-                        <span class="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold"><?= e($amenityLabel) ?></span>
+                    <?php foreach ($merged as $amenity): ?>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                            <span class="material-symbols-outlined text-base"><?= e($amenity['icon'] ?? 'check') ?></span>
+                            <?= e($amenity['label']) ?>
+                        </span>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>

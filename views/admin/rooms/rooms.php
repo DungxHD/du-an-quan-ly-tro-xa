@@ -17,7 +17,9 @@ $formStatusOptions = [
     'available' => $statusMap['available'],
     'maintenance' => $statusMap['maintenance'],
 ];
-$roomAmenityOptions = ['Điều hòa', 'Nóng lạnh', 'Tủ lạnh', 'Giường', 'Bàn ghế', 'Tủ quần áo', 'Máy giặt', 'Wifi'];
+
+// [DEV-QWEN-A][NHOM-2][2026-08-14] Dùng danh sách tiện ích chuẩn từ RoomModel
+$roomAmenityOptions = RoomModel::getCanonicalAmenities();
 
 $currentFilters = [
     'area_id'  => (int)($filters['area_id'] ?? 0),
@@ -419,8 +421,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <div class="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:grid-cols-3">
                     <?php foreach ($roomAmenityOptions as $amenity): ?>
                     <label class="flex cursor-pointer items-center gap-2 rounded-lg bg-white px-2 py-2 text-sm text-gray-700 shadow-sm hover:bg-primary/5">
-                        <input type="checkbox" value="<?= e($amenity) ?>" data-room-amenity class="rounded border-gray-300 text-primary focus:ring-primary">
-                        <span><?= e($amenity) ?></span>
+                        <input type="checkbox" value="<?= e($amenity['key']) ?>" data-room-amenity class="rounded border-gray-300 text-primary focus:ring-primary">
+                        <span class="material-symbols-outlined text-primary text-base"><?= e($amenity['icon']) ?></span>
+                        <span><?= e($amenity['label']) ?></span>
                     </label>
                     <?php endforeach; ?>
                 </div>
@@ -470,6 +473,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         const $ = (id) => document.getElementById(id);
         const defaultThumb = '<?= $defaultThumb ?>';
         const roomAmenityOptions = <?= json_encode($roomAmenityOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const amenityKeySet = new Set(roomAmenityOptions.map(a => a.key));
         const amenityCheckboxes = Array.from(document.querySelectorAll('[data-room-amenity]'));
         const amenityOtherInput = $('drawer-amenity-other');
         const roomSaveButton = form.querySelector('button[type="submit"]');
@@ -557,7 +561,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 item.checked = values.includes(item.value);
             });
             if (amenityOtherInput) {
-                amenityOtherInput.value = values.filter(item => !roomAmenityOptions.includes(item)).join(', ');
+                amenityOtherInput.value = values.filter(item => !amenityKeySet.has(item)).join(', ');
             }
             syncAmenities();
         }

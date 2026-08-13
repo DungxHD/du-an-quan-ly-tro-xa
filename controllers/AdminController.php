@@ -121,7 +121,7 @@ class AdminController
     }
 
 
-/**
+    /**
      * Quản lý khu theo schema mới `areas`.
      */
     public function areas()
@@ -141,9 +141,9 @@ class AdminController
 
     /**
      * [DEV-QWEN-A][NHOM-2][2026-08-13]
-     * Xóa tầng CAO NHẤT của một khu trực tiếp từ trang Quản lý khu.
+     * Xóa tầng DƯỚI CÙNG (Tầng 1) của một khu trực tiếp từ trang Quản lý khu.
      */
-    public function deleteTopFloor($areaId)
+    public function deleteBottomFloor($areaId)
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-areas');
@@ -163,25 +163,37 @@ class AdminController
             redirectTo('admin-areas', ['area' => $areaId]);
         }
 
-        $topFloor = null;
-        $maxFloorNumber = -1;
+        // Tìm tầng có floor_number = 1 (tầng dưới cùng)
+        $bottomFloor = null;
         foreach ($floors as $floor) {
-            $floorNumber = (int)($floor['floor_number'] ?? 0);
-            if ($floorNumber > $maxFloorNumber) {
-                $maxFloorNumber = $floorNumber;
-                $topFloor = $floor;
+            if ((int)($floor['floor_number'] ?? 0) === 1) {
+                $bottomFloor = $floor;
+                break;
             }
         }
 
-        if (!$topFloor) {
-            setFlash('admin_area_error', 'Không tìm thấy tầng cao nhất để xóa.');
+        if (!$bottomFloor) {
+            // Fallback: nếu không có tầng 1, lấy tầng có floor_number nhỏ nhất
+            $minFloorNumber = PHP_INT_MAX;
+            foreach ($floors as $floor) {
+                $floorNumber = (int)($floor['floor_number'] ?? 0);
+                if ($floorNumber < $minFloorNumber) {
+                    $minFloorNumber = $floorNumber;
+                    $bottomFloor = $floor;
+                }
+            }
+        }
+
+        if (!$bottomFloor) {
+            setFlash('admin_area_error', 'Không tìm thấy tầng dưới cùng để xóa.');
             redirectTo('admin-areas', ['area' => $areaId]);
         }
 
-        $topFloorId = (int)($topFloor['id'] ?? 0);
+        $bottomFloorId = (int)($bottomFloor['id'] ?? 0);
+        $bottomFloorNumber = (int)($bottomFloor['floor_number'] ?? 0);
         $rentedCount = 0;
         foreach ($floors as $floor) {
-            if ((int)($floor['id'] ?? 0) === $topFloorId) {
+            if ((int)($floor['id'] ?? 0) === $bottomFloorId) {
                 $rentedCount = (int)($floor['rented_count'] ?? 0);
                 break;
             }
@@ -189,19 +201,19 @@ class AdminController
 
         if ($rentedCount > 0) {
             setFlash('admin_delete_blocked', [
-                'type' => 'top_floor',
+                'type' => 'bottom_floor',
                 'area_name' => $area['name'] ?? '',
-                'floor_name' => $topFloor['name'] ?? '',
-                'floor_number' => $maxFloorNumber,
+                'floor_name' => $bottomFloor['name'] ?? '',
+                'floor_number' => $bottomFloorNumber,
                 'rented_count' => $rentedCount,
                 'return_url' => BASE_URL . '?page=admin-areas&area=' . $areaId,
-                'message' => 'Tầng "' . ($topFloor['name'] ?? '') . '" (tầng ' . $maxFloorNumber . ') của khu "' . ($area['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa tầng này khi còn phòng đang thuê.',
+                'message' => 'Tầng "' . ($bottomFloor['name'] ?? '') . '" (tầng ' . $bottomFloorNumber . ') của khu "' . ($area['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa tầng này khi còn phòng đang thuê.',
             ]);
             redirectTo('admin-areas', ['area' => $areaId]);
         }
 
-        FloorModel::delete($topFloorId);
-        setFlash('admin_area_message', 'Đã xóa Tầng ' . $maxFloorNumber . ' (tầng cao nhất) của khu "' . ($area['name'] ?? '') . '".');
+        FloorModel::delete($bottomFloorId);
+        setFlash('admin_area_message', 'Đã xóa Tầng ' . $bottomFloorNumber . ' (tầng dưới cùng) của khu "' . ($area['name'] ?? '') . '".');
         redirectTo('admin-areas', ['area' => $areaId]);
     }
 
@@ -577,7 +589,7 @@ class AdminController
 
         try {
             ContractModel::terminate($contractId, $moveOutDate);
-            
+
             // Apply pending price changes ngay lập tức khi phòng giải phóng
             $contract = ContractModel::getById($contractId);
             if ($contract && isset($contract['room_id'])) {
@@ -601,7 +613,7 @@ class AdminController
     {
         PriceChangeModel::applyDueChanges();
         $searchKeyword = trim((string)($_GET['search'] ?? ''));
-$services = ServiceModel::getAll(['search' => $searchKeyword]);
+        $services = ServiceModel::getAll(['search' => $searchKeyword]);
         $rooms = array_map(static function ($room) {
             $room['occupant_count'] = RoomModel::countOccupants((int)($room['id'] ?? 0));
             return $room;
@@ -647,38 +659,45 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
         $pendingChanges = PriceChangeModel::getPendingByServiceMap();
         $pageTitle = 'Quản lý Dịch vụ - NhaTroA';
         ServiceModel::applyDueDeletes();
-ServiceModel::applyDueDeactivates();
-$priceHistories = [];
-$pendingDeleteByService = [];
-$pendingDeactivateByService = [];
-$roomCountByService = [];
-$roomsUsingByService = [];
-foreach ($services as $svc) {
-$svcId = (int)($svc['id'] ?? 0);
-$priceHistories[$svcId] = PriceChangeModel::getPendingHistoryByService($svcId);
-$pendingDeleteByService[$svcId] = ServiceModel::isPendingDelete($svc);
-$pendingDeactivateByService[$svcId] = ServiceModel::isPendingDeactivate($svc);
-$roomCountByService[$svcId] = ServiceModel::countRoomsUsing($svcId);
-$roomsUsingByService[$svcId] = ServiceModel::getRoomsUsingService($svcId);
-}
+        ServiceModel::applyDueDeactivates();
+        $priceHistories = [];
+        $pendingDeleteByService = [];
+        $pendingDeactivateByService = [];
+        $roomCountByService = [];
+        $roomsUsingByService = [];
+        foreach ($services as $svc) {
+            $svcId = (int)($svc['id'] ?? 0);
+            $priceHistories[$svcId] = PriceChangeModel::getPendingHistoryByService($svcId);
+            $pendingDeleteByService[$svcId] = ServiceModel::isPendingDelete($svc);
+            $pendingDeactivateByService[$svcId] = ServiceModel::isPendingDeactivate($svc);
+            $roomCountByService[$svcId] = ServiceModel::countRoomsUsing($svcId);
+            $roomsUsingByService[$svcId] = ServiceModel::getRoomsUsingService($svcId);
+        }
         $iconOptions = [
-            ['key' => 'settings', 'label' => 'Settings'], ['key' => 'bolt', 'label' => 'Bolt (Điện)'],
-            ['key' => 'water_drop', 'label' => 'Water Drop (Nước)'], ['key' => 'delete', 'label' => 'Delete (Rác)'],
-            ['key' => 'wifi', 'label' => 'Wifi'], ['key' => 'local_parking', 'label' => 'Parking (Giữ xe)'],
-            ['key' => 'ev_station', 'label' => 'EV Station (Sạc xe)'], ['key' => 'local_laundry_service', 'label' => 'Laundry (Máy giặt)'],
-            ['key' => 'fitness_center', 'label' => 'Gym'], ['key' => 'pool', 'label' => 'Pool'],
-            ['key' => 'kitchen', 'label' => 'Kitchen'], ['key' => 'ac_unit', 'label' => 'AC'],
-            ['key' => 'security', 'label' => 'Security'], ['key' => 'elevator', 'label' => 'Elevator'],
+            ['key' => 'settings', 'label' => 'Settings'],
+            ['key' => 'bolt', 'label' => 'Bolt (Điện)'],
+            ['key' => 'water_drop', 'label' => 'Water Drop (Nước)'],
+            ['key' => 'delete', 'label' => 'Delete (Rác)'],
+            ['key' => 'wifi', 'label' => 'Wifi'],
+            ['key' => 'local_parking', 'label' => 'Parking (Giữ xe)'],
+            ['key' => 'ev_station', 'label' => 'EV Station (Sạc xe)'],
+            ['key' => 'local_laundry_service', 'label' => 'Laundry (Máy giặt)'],
+            ['key' => 'fitness_center', 'label' => 'Gym'],
+            ['key' => 'pool', 'label' => 'Pool'],
+            ['key' => 'kitchen', 'label' => 'Kitchen'],
+            ['key' => 'ac_unit', 'label' => 'AC'],
+            ['key' => 'security', 'label' => 'Security'],
+            ['key' => 'elevator', 'label' => 'Elevator'],
             ['key' => 'water_heater', 'label' => 'Water Heater'],
         ];
         $isEditing = !empty($formService['id']);
-require_once BASE_PATH . 'views/admin/billing/services.php';
+        require_once BASE_PATH . 'views/admin/billing/services.php';
     }
     public function priceChanges()
     {
         PriceChangeModel::applyDueChanges();
         $searchKeyword = trim((string)($_GET['search'] ?? ''));
-$services = ServiceModel::getAll(['search' => $searchKeyword]);
+        $services = ServiceModel::getAll(['search' => $searchKeyword]);
         $selectedServiceId = (int)($_GET['service_id'] ?? 0);
         if ($selectedServiceId <= 0 && !empty($services[0]['id'])) {
             $selectedServiceId = (int)$services[0]['id'];
@@ -784,105 +803,78 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
     }
 
     /**
-     * Quản lý danh sách từ cấm, hỗ trợ thêm/sửa/xóa/bật-tắt ngay trên một màn hình.
+     * Trang quản lý Phản ánh từ người thuê (feedback tenant -> chủ trọ).
      */
-    public function bannedWords()
+    public function feedbacks()
     {
-        $bannedWordFilters = BannedWordModel::normalizeFilters($_GET);
-        $bannedWords = BannedWordModel::getAll($bannedWordFilters);
-        $bannedWordStats = BannedWordModel::getStats($bannedWords);
+        $filters = [
+            'status' => trim((string)($_GET['status'] ?? '')),
+            'keyword' => trim((string)($_GET['keyword'] ?? '')),
+        ];
+        $feedbacks = FeedbackModel::getAdminFeedbacks($filters);
+        $feedbackStats = FeedbackModel::getAdminStats($feedbacks);
         $editId = (int)($_GET['edit'] ?? 0);
-        $editBannedWord = $editId > 0 ? BannedWordModel::getById($editId) : null;
-        $bannedWordOld = pullFlash('admin_banned_word_old');
-        $bannedWordForm = array_merge([
-            'id' => 0,
-            'word' => '',
-            'type' => 'word',
-            'replacement' => '***',
-            'is_active' => 1,
-        ], is_array($bannedWordOld) ? $bannedWordOld : ($editBannedWord ?? []));
-        $bannedWordMessage = pullFlash('admin_banned_word_message');
-        $bannedWordError = pullFlash('admin_banned_word_error');
-        $bannedWordTypeOptions = BannedWordModel::getTypeOptions();
-        $normalizedPreview = BannedWordModel::normalizeWord((string)($bannedWordForm['word'] ?? ''));
-        $pageTitle = 'Quản lý Từ cấm - NhaTroA';
-        require_once BASE_PATH . 'views/admin/moderation/banned_words.php';
+        $editFeedback = $editId > 0 ? FeedbackModel::getById($editId) : null;
+        $feedbackMessage = pullFlash('admin_feedback_message');
+        $feedbackError = pullFlash('admin_feedback_error');
+        $pageTitle = 'Quản lý Phản ánh - NhaTroA';
+        require_once BASE_PATH . 'views/admin/moderation/feedbacks.php';
     }
 
     /**
-     * Lưu hoặc xóa từ cấm từ form admin.
+     * Lưu hoặc cập nhật phản ánh (admin xử lý).
      */
-    public function saveBannedWord()
+    public function saveFeedback()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-banned-words');
+            redirectTo('admin-feedbacks');
         }
         verify_csrf();
 
         $id = (int)($_POST['id'] ?? 0);
         $action = trim((string)($_POST['form_action'] ?? 'save'));
         $redirectParams = array_filter([
-            'type' => trim((string)($_POST['return_type'] ?? '')) ?: null,
+            'status' => trim((string)($_POST['return_status'] ?? '')) ?: null,
             'keyword' => trim((string)($_POST['return_keyword'] ?? '')) ?: null,
-            'is_active' => in_array((string)($_POST['return_is_active'] ?? ''), ['0', '1'], true)
-                ? (string)$_POST['return_is_active']
-                : null,
         ], static fn($value) => $value !== null && $value !== '');
 
         if ($action === 'delete') {
             try {
-                BannedWordModel::delete($id);
-                setFlash('admin_banned_word_message', 'Đã xóa từ cấm thành công.');
+                FeedbackModel::delete($id);
+                setFlash('admin_feedback_message', 'Đã xóa phản ánh thành công.');
             } catch (Throwable $exception) {
-                setFlash('admin_banned_word_error', $exception->getMessage());
+                setFlash('admin_feedback_error', $exception->getMessage());
             }
-
-            redirectTo('admin-banned-words', $redirectParams);
+            redirectTo('admin-feedbacks', $redirectParams);
         }
 
         $payload = [
-            'word' => trim((string)($_POST['word'] ?? '')),
-            'type' => trim((string)($_POST['type'] ?? 'word')),
-            'replacement' => trim((string)($_POST['replacement'] ?? '***')),
-            'is_active' => !empty($_POST['is_active']) ? 1 : 0,
+            'admin_note' => trim((string)($_POST['admin_note'] ?? '')),
+            'status' => (int)($_POST['status'] ?? 1),
         ];
 
         try {
-            $savedId = BannedWordModel::save($payload, $id > 0 ? $id : null);
-            setFlash('admin_banned_word_message', $id > 0 ? 'Đã cập nhật từ cấm thành công.' : 'Đã thêm từ cấm mới thành công.');
-            redirectTo('admin-banned-words', array_merge($redirectParams, ['edit' => $savedId]));
+            $savedId = FeedbackModel::save($payload, $id > 0 ? $id : null);
+            setFlash('admin_feedback_message', $id > 0 ? 'Đã cập nhật phản ánh thành công.' : 'Đã thêm phản ánh thành công.');
+            redirectTo('admin-feedbacks', array_merge($redirectParams, ['edit' => $savedId]));
         } catch (Throwable $exception) {
-            setFlash('admin_banned_word_old', array_merge($payload, ['id' => $id]));
-            setFlash('admin_banned_word_error', $exception->getMessage());
-            redirectTo('admin-banned-words', array_merge($redirectParams, $id > 0 ? ['edit' => $id] : []));
+            setFlash('admin_feedback_old', array_merge($payload, ['id' => $id]));
+            setFlash('admin_feedback_error', $exception->getMessage());
+            redirectTo('admin-feedbacks', array_merge($redirectParams, $id > 0 ? ['edit' => $id] : []));
         }
     }
 
     /**
-     * Trang quản lý báo cáo cộng đồng cho comment.
+     * Admin giải quyết phản ánh.
      */
-    public function commentReports()
-    {
-        $commentReportFilters = CommentReportModel::normalizeFilters($_GET);
-        $commentReports = CommentReportModel::getAdminReports($commentReportFilters);
-        $commentReportStats = CommentReportModel::getStats($commentReports);
-        $commentReportMessage = pullFlash('admin_comment_report_message');
-        $commentReportError = pullFlash('admin_comment_report_error');
-        $pageTitle = 'Báo cáo Đánh giá - NhaTroA';
-        require_once BASE_PATH . 'views/admin/moderation/comment_reports.php';
-    }
-
-    /**
-     * Admin giải quyết hoặc bác bỏ báo cáo comment.
-     */
-    public function resolveReport()
+    public function resolveFeedback()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-comment-reports');
+            redirectTo('admin-feedbacks');
         }
         verify_csrf();
 
-        $reportId = (int)($_POST['report_id'] ?? 0);
+        $feedbackId = (int)($_POST['feedback_id'] ?? 0);
         $action = trim((string)($_POST['resolve_action'] ?? ''));
         $redirectParams = array_filter([
             'status' => trim((string)($_POST['return_status'] ?? '')) ?: null,
@@ -890,18 +882,18 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
         ], static fn($value) => $value !== null && $value !== '');
 
         try {
-            $result = CommentReportModel::resolve($reportId, $action);
+            $result = FeedbackModel::resolve($feedbackId, $action);
             setFlash(
-                'admin_comment_report_message',
+                'admin_feedback_message',
                 ($result['action'] ?? '') === 'resolved'
-                    ? 'Đã ẩn đánh giá và đánh dấu các báo cáo liên quan là đã giải quyết.'
-                    : 'Đã bác bỏ các báo cáo đang chờ của đánh giá này.'
+                    ? 'Đã đánh dấu phản ánh là đã xử lý.'
+                    : 'Đã bác bỏ phản ánh này.'
             );
         } catch (Throwable $exception) {
-            setFlash('admin_comment_report_error', $exception->getMessage());
+            setFlash('admin_feedback_error', $exception->getMessage());
         }
 
-        redirectTo('admin-comment-reports', $redirectParams);
+        redirectTo('admin-feedbacks', $redirectParams);
     }
 
     /**
@@ -1043,8 +1035,12 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
             if ($wasActive === 1 && $nowInactive) {
                 $usingCount = ServiceModel::countRoomsUsing($id);
                 if ($usingCount > 0) {
-                    $dm = (int)date('n') + 1; $dy = (int)date('Y');
-                    if ($dm > 12) { $dm = 1; $dy++; }
+                    $dm = (int)date('n') + 1;
+                    $dy = (int)date('Y');
+                    if ($dm > 12) {
+                        $dm = 1;
+                        $dy++;
+                    }
                     ServiceModel::scheduleDeactivate($id, $dm, $dy);
                     $data['is_active'] = 1;
                     setFlash('admin_service_message', 'Dich vu dang co ' . $usingCount . ' phong su dung. Se tat tu thang ' . str_pad((string)$dm, 2, '0', STR_PAD_LEFT) . '/' . $dy . '.');
@@ -1078,8 +1074,8 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
             $core = $data;
             $core['price'] = (float)$existing['price'];
             $core['billing_mode'] = (string)$existing['billing_mode'];
-$core['applies_to'] = (string)($existing['applies_to'] ?? 'room');
-$core['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'), (string)$existing['billing_mode']);
+            $core['applies_to'] = (string)($existing['applies_to'] ?? 'room');
+            $core['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'), (string)$existing['billing_mode']);
             $core['kind'] = (string)($existing['kind'] ?? 'other');
             ServiceModel::save($core, $id);
             $priceChanged = abs($submittedPrice - (float)$existing['price']) > 0.001;
@@ -1099,10 +1095,20 @@ $core['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'),
                 } else {
                     // Có phòng sử dụng → schedule
                     try {
-                        $em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
-                        $curOrder = ((int)date('Y')*100)+(int)date('n');
-                        if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
-                        else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
+                        $em = (int)($_POST['effective_month'] ?? 0);
+                        $ey = (int)($_POST['effective_year'] ?? 0);
+                        $curOrder = ((int)date('Y') * 100) + (int)date('n');
+                        if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey * 100 + $em) > $curOrder) {
+                            $nextMonth = $em;
+                            $nextYear = $ey;
+                        } else {
+                            $nextMonth = (int)date('n') + 1;
+                            $nextYear = (int)date('Y');
+                            if ($nextMonth > 12) {
+                                $nextMonth = 1;
+                                $nextYear++;
+                            }
+                        }
                         PriceChangeModel::scheduleServiceChange($id, $submittedPrice, $submittedMode, $nextMonth, $nextYear, (int)($_SESSION['user_id'] ?? 0));
                         setFlash('admin_service_message', 'Đã cập nhật dịch vụ. Giá/cách tính mới áp dụng từ tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . ' (có ' . $usingCount . ' phòng sử dụng).');
                     } catch (Throwable $exception) {
@@ -1119,29 +1125,35 @@ $core['unit'] = ServiceModel::deriveUnit((string)($existing['kind'] ?? 'other'),
         setFlash('admin_service_message', 'Đã thêm dịch vụ mới thành công.');
         redirectTo('admin-services');
     }
-    public function undoDeleteService($id) {
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-services'); }
-verify_csrf();
-$service = ServiceModel::getById((int)$id);
-if ($service && ServiceModel::isPendingDelete($service)) {
-ServiceModel::undoDelete((int)$id);
-setFlash('admin_service_message', 'Đã hoàn tác xóa. Dịch vụ "' . ($service['name'] ?? '') . '" tiếp tục hoạt động.');
-} else {
-setFlash('admin_service_error', 'Dịch vụ không tồn tại hoặc không ở trạng thái chờ xóa.');
-}
-redirectTo('admin-services');
-}
-public function cancelPriceChange($id) {
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-services'); }
-verify_csrf();
-try {
-PriceChangeModel::cancelPendingChange((int)$id);
-setFlash('admin_service_message', 'Đã hủy lịch thay đổi giá/cách tính.');
-} catch (Throwable $exception) {
-setFlash('admin_service_error', $exception->getMessage());
-}
-redirectTo('admin-services');
-}
+    public function undoDeleteService($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-services');
+        }
+        verify_csrf();
+        $service = ServiceModel::getById((int)$id);
+        if ($service && ServiceModel::isPendingDelete($service)) {
+            ServiceModel::undoDelete((int)$id);
+            setFlash('admin_service_message', 'Đã hoàn tác xóa. Dịch vụ "' . ($service['name'] ?? '') . '" tiếp tục hoạt động.');
+        } else {
+            setFlash('admin_service_error', 'Dịch vụ không tồn tại hoặc không ở trạng thái chờ xóa.');
+        }
+        redirectTo('admin-services');
+    }
+    public function cancelPriceChange($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-services');
+        }
+        verify_csrf();
+        try {
+            PriceChangeModel::cancelPendingChange((int)$id);
+            setFlash('admin_service_message', 'Đã hủy lịch thay đổi giá/cách tính.');
+        } catch (Throwable $exception) {
+            setFlash('admin_service_error', $exception->getMessage());
+        }
+        redirectTo('admin-services');
+    }
 
     /**
      * [DEV-QWEN-A] Xac nhan xoa dich vu (huy pending changes + xoa hoac len lich xoa thang sau)
@@ -1170,7 +1182,10 @@ redirectTo('admin-services');
         if ($using > 0) {
             $nextMonth = (int)date('n') + 1;
             $nextYear  = (int)date('Y');
-            if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
+            if ($nextMonth > 12) {
+                $nextMonth = 1;
+                $nextYear++;
+            }
             ServiceModel::scheduleDelete($serviceId, $nextMonth, $nextYear);
             setFlash('admin_service_message', 'Da huy moi thay doi cho. Dich vu se bi xoa vao thang ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '.');
         } else {
@@ -1183,41 +1198,54 @@ redirectTo('admin-services');
         }
         redirectTo('admin-services');
     }
-public function undoDeactivateService($id) {
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('admin-services'); }
-verify_csrf();
-$service = ServiceModel::getById((int)$id);
-if ($service && ServiceModel::isPendingDeactivate($service)) {
-ServiceModel::undoDeactivate((int)$id);
-setFlash('admin_service_message', 'Đã hoàn tác tắt. Dịch vụ "' . ($service['name'] ?? '') . '" tiếp tục hoạt động.');
-} else {
-setFlash('admin_service_error', 'Dịch vụ không tồn tại hoặc không ở trạng thái chờ tắt.');
-}
-redirectTo('admin-services');
-}
-public function deleteService($id)
-{
-$service = ServiceModel::getById((int)$id);
-if ($service) {
-$locked = (int)($service['is_required'] ?? 0) === 1 || ServiceModel::isLockedKind($service['kind'] ?? 'other');
-if ($locked) {
-setFlash('admin_service_error', 'Dịch vụ bắt buộc (điện/nước/rác) không thể xóa.');
-redirectTo('admin-services');
-}
-// Hủy mọi thay đổi chờ trước khi xử lý xóa
-ServiceModel::clearAllPendingChanges((int)$id);
-$using = ServiceModel::countRoomsUsing((int)$id);
-if ($using > 0) {
-$em = (int)($_POST['effective_month'] ?? 0); $ey = (int)($_POST['effective_year'] ?? 0);
-$curOrder = ((int)date('Y')*100)+(int)date('n');
-if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey*100+$em) > $curOrder) { $nextMonth=$em; $nextYear=$ey; }
-else { $nextMonth = (int)date('n') + 1; $nextYear = (int)date('Y'); if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; } }
-ServiceModel::scheduleDelete((int)$id, $nextMonth, $nextYear);
-setFlash('admin_service_message', 'Dịch vụ đang có ' . $using . ' phòng sử dụng. Sẽ bị xóa khi sang tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '. Bạn có thể Hoàn tác trước thời điểm đó.');
-redirectTo('admin-services');
-}
-}
-$redirectParams = [];
+    public function undoDeactivateService($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-services');
+        }
+        verify_csrf();
+        $service = ServiceModel::getById((int)$id);
+        if ($service && ServiceModel::isPendingDeactivate($service)) {
+            ServiceModel::undoDeactivate((int)$id);
+            setFlash('admin_service_message', 'Đã hoàn tác tắt. Dịch vụ "' . ($service['name'] ?? '') . '" tiếp tục hoạt động.');
+        } else {
+            setFlash('admin_service_error', 'Dịch vụ không tồn tại hoặc không ở trạng thái chờ tắt.');
+        }
+        redirectTo('admin-services');
+    }
+    public function deleteService($id)
+    {
+        $service = ServiceModel::getById((int)$id);
+        if ($service) {
+            $locked = (int)($service['is_required'] ?? 0) === 1 || ServiceModel::isLockedKind($service['kind'] ?? 'other');
+            if ($locked) {
+                setFlash('admin_service_error', 'Dịch vụ bắt buộc (điện/nước/rác) không thể xóa.');
+                redirectTo('admin-services');
+            }
+            // Hủy mọi thay đổi chờ trước khi xử lý xóa
+            ServiceModel::clearAllPendingChanges((int)$id);
+            $using = ServiceModel::countRoomsUsing((int)$id);
+            if ($using > 0) {
+                $em = (int)($_POST['effective_month'] ?? 0);
+                $ey = (int)($_POST['effective_year'] ?? 0);
+                $curOrder = ((int)date('Y') * 100) + (int)date('n');
+                if ($em >= 1 && $em <= 12 && $ey >= (int)date('Y') && ($ey * 100 + $em) > $curOrder) {
+                    $nextMonth = $em;
+                    $nextYear = $ey;
+                } else {
+                    $nextMonth = (int)date('n') + 1;
+                    $nextYear = (int)date('Y');
+                    if ($nextMonth > 12) {
+                        $nextMonth = 1;
+                        $nextYear++;
+                    }
+                }
+                ServiceModel::scheduleDelete((int)$id, $nextMonth, $nextYear);
+                setFlash('admin_service_message', 'Dịch vụ đang có ' . $using . ' phòng sử dụng. Sẽ bị xóa khi sang tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '. Bạn có thể Hoàn tác trước thời điểm đó.');
+                redirectTo('admin-services');
+            }
+        }
+        $redirectParams = [];
         if ((int)($_GET['room_id'] ?? 0) > 0) {
             $redirectParams['room_id'] = (int)$_GET['room_id'];
         }
@@ -1306,8 +1334,12 @@ $redirectParams = [];
         $meterOldInput = pullFlash('admin_meter_old', []);
         $invoiceMsg = pullFlash("admin_invoice_message");
         $invoiceErr = pullFlash("admin_invoice_error");
-        if ($invoiceMsg) { $meterMessage = trim(($meterMessage ? $meterMessage . " " : "") . $invoiceMsg); }
-        if ($invoiceErr) { $meterError = trim(($meterError ? $meterError . " " : "") . $invoiceErr); }
+        if ($invoiceMsg) {
+            $meterMessage = trim(($meterMessage ? $meterMessage . " " : "") . $invoiceMsg);
+        }
+        if ($invoiceErr) {
+            $meterError = trim(($meterError ? $meterError . " " : "") . $invoiceErr);
+        }
 
         // Areas & floors for filter dropdowns
         $areas = AreaModel::getAllWithStats();
@@ -1593,7 +1625,7 @@ $redirectParams = [];
         redirectTo('admin-rooms', ['area_id' => $areaId, 'floor_id' => 0]);
     }
 
-/**
+    /**
      * Xóa khu theo schema mới. DB sẽ tự cascade tầng và phòng liên quan.
      */
     public function deleteArea($id)
@@ -1633,7 +1665,7 @@ $redirectParams = [];
 
         redirectTo('admin-areas');
     }
-    
+
     /**
      * [DEV-QWEN-A][NHOM-2][2026-08-13]
      * Đã xóa saveFloor() và deleteFloor() - chuyển toàn bộ logic xóa tầng vào deleteTopFloor().
@@ -2090,16 +2122,16 @@ $redirectParams = [];
             $oldPrice = (float)($editRoom['price'] ?? 0);
             $newPrice = (float)($data['price'] ?? 0);
             $priceChanged = abs($oldPrice - $newPrice) > 0.01;
-            
+
             // Nếu phòng đang rented và giá thay đổi → schedule change
             if ($editRoom['status'] === 'rented' && $priceChanged) {
                 $effectiveMonth = (int)($_POST['price_effective_month'] ?? 0);
                 $effectiveYear = (int)($_POST['price_effective_year'] ?? 0);
-                
+
                 // Validate tháng áp dụng (min = tháng sau)
                 $currentOrder = ((int)date('Y') * 100) + (int)date('n');
                 $minOrder = $currentOrder + 1;
-                
+
                 if ($effectiveYear === 0 || $effectiveMonth === 0) {
                     // Mặc định: tháng sau
                     $effectiveMonth = (int)date('n') + 1;
@@ -2109,14 +2141,14 @@ $redirectParams = [];
                         $effectiveYear++;
                     }
                 }
-                
+
                 $order = ($effectiveYear * 100) + $effectiveMonth;
                 if ($order < $minOrder) {
                     setFlash('admin_room_error', 'Tháng áp dụng giá mới phải từ tháng sau trở đi.');
                     setFlash('admin_room_old', $formState);
                     redirectTo('admin-rooms', $redirectParams);
                 }
-                
+
                 // Schedule price change (ghi đè bản cũ nếu có)
                 $deleted = RoomPriceChangeModel::scheduleChange(
                     $savedRoomId,
@@ -2126,18 +2158,18 @@ $redirectParams = [];
                     $effectiveYear,
                     (int)($_SESSION['user_id'] ?? 0)
                 );
-                
+
                 // Revert price về giá cũ (chưa áp dụng ngay)
                 Database::update('rooms', ['price' => $oldPrice], 'id = :id', ['id' => $savedRoomId]);
-                
-                $msg = 'Giá mới ' . number_format($newPrice, 0, ',', '.') . 'đ sẽ áp dụng từ tháng ' 
-                     . str_pad((string)$effectiveMonth, 2, '0', STR_PAD_LEFT) . '/' . $effectiveYear . '.';
+
+                $msg = 'Giá mới ' . number_format($newPrice, 0, ',', '.') . 'đ sẽ áp dụng từ tháng '
+                    . str_pad((string)$effectiveMonth, 2, '0', STR_PAD_LEFT) . '/' . $effectiveYear . '.';
                 if ($deleted > 0) {
                     $msg .= ' (Đã hủy ' . $deleted . ' lịch thay đổi giá trước đó.)';
                 }
                 $pendingPriceMessage = $msg;
             }
-            
+
             // Nếu status chuyển từ rented → available/draft/maintenance → apply pending price ngay
             if ($editRoom['status'] === 'rented' && $status !== 'rented') {
                 $applied = RoomPriceChangeModel::applyPendingImmediately($savedRoomId);
@@ -3207,7 +3239,6 @@ $redirectParams = [];
     }
 
     /** [DEV-QWEN-A] Stub method to prevent fatal error from missing route */
-
 }
 
 // [QUAN TRỌNG] CẦN FIX LỖI MẤT ẢNH: Khi update, nếu \ rỗng, PHẢI lấy lại ảnh cũ từ DB trước khi chạy câu lệnh UPDATE. Ví dụ: if (empty(\['...'])) { \['images'] = \['images']; }

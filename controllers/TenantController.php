@@ -731,4 +731,48 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         setFlash('maintenance_message', 'Đã từ chối đề xuất bảo trì. Phòng sẽ giữ trạng thái đang thuê.');
         redirectTo('tenant-maintenance');
     }
+
+    /**
+     * Trang gửi Phản ánh cho chủ trọ.
+     */
+    public function feedback() {
+        $user = $this->getAuthenticatedTenant();
+        $rooms = RoomModel::getAll(['status' => 'rented', 'user_id' => (int)$user['id']]);
+        $message = pullFlash('feedback_message', '');
+        $error = pullFlash('feedback_error', '');
+        $pageTitle = 'Gửi Phản ánh - NhaTroA';
+        require_once BASE_PATH . 'views/tenant/feedback.php';
+    }
+
+    /**
+     * Tenant gửi Phản ánh mới.
+     */
+    public function sendFeedback() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('tenant-feedback');
+        }
+        verify_csrf();
+
+        $user = $this->getAuthenticatedTenant();
+        $roomId = (int)($_POST['room_id'] ?? 0);
+        $subject = trim((string)($_POST['subject'] ?? ''));
+        $content = trim((string)($_POST['content'] ?? ''));
+
+        if ($roomId > 0) {
+            $room = RoomModel::getById($roomId);
+            if (!$room || (int)($room['user_id'] ?? 0) !== (int)$user['id']) {
+                setFlash('feedback_error', 'Phòng không hợp lệ hoặc không thuộc quyền sở hữu của bạn.');
+                redirectTo('tenant-feedback');
+            }
+        }
+
+        try {
+            FeedbackModel::create((int)$user['id'], $roomId ?: null, $subject, $content);
+            setFlash('feedback_message', 'Đã gửi phản ánh thành công. Chủ trọ sẽ xem và xử lý sớm nhất.');
+        } catch (Throwable $exception) {
+            setFlash('feedback_error', $exception->getMessage());
+        }
+
+        redirectTo('tenant-feedback');
+    }
 }
