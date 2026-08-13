@@ -551,6 +551,7 @@ class RoomModel
                     COUNT(r.id) AS total_rooms,
                     SUM(CASE WHEN r.status = 'available' THEN 1 ELSE 0 END) AS available_rooms,
                     SUM(CASE WHEN r.status = 'rented' THEN 1 ELSE 0 END) AS rented_rooms,
+                    SUM(CASE WHEN r.status = 'draft' THEN 1 ELSE 0 END) AS draft_rooms,
                     COUNT(DISTINCT f.id) AS total_floors
                 FROM areas a
                 LEFT JOIN floors f ON f.area_id = a.id
@@ -591,6 +592,7 @@ class RoomModel
                 'total_rooms' => count($areaRooms),
                 'available_rooms' => count(array_filter($areaRooms, static fn($room) => (string)($room['status'] ?? '') === 'available')),
                 'rented_rooms' => count(array_filter($areaRooms, static fn($room) => (string)($room['status'] ?? '') === 'rented')),
+                'draft_rooms' => count(array_filter($areaRooms, static fn($room) => (string)($room['status'] ?? '') === 'draft')),
                 'total_floors' => count($areaFloors),
             ]);
         }, Database::getTable('areas'));
@@ -994,10 +996,12 @@ class RoomModel
         $row['total_rooms'] = (int)($row['total_rooms'] ?? 0);
         $row['available_rooms'] = (int)($row['available_rooms'] ?? 0);
         $row['rented_rooms'] = (int)($row['rented_rooms'] ?? 0);
+        $row['draft_rooms'] = (int)($row['draft_rooms'] ?? 0);
         $row['total_floors'] = (int)($row['total_floors'] ?? 0);
-        $row['occupied_rooms'] = max(0, $row['total_rooms'] - $row['available_rooms']);
-        $row['occupancy_rate'] = $row['total_rooms'] > 0
-            ? round(($row['occupied_rooms'] / $row['total_rooms']) * 100, 1)
+        $row['occupied_rooms'] = $row['rented_rooms'];
+        $knownRooms = max(0, $row['total_rooms'] - $row['draft_rooms']);
+        $row['occupancy_rate'] = $knownRooms > 0
+            ? round(($row['rented_rooms'] / $knownRooms) * 100, 1)
             : 0.0;
 
         return $row;

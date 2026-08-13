@@ -27,6 +27,7 @@ class AdminController
             'total_rooms' => RoomModel::count(),
             'available_rooms' => RoomModel::countByStatus('available'),
             'rented_rooms' => RoomModel::countByStatus('rented'),
+            'draft_rooms' => RoomModel::countByStatus('draft'),
             'total_tenants' => UserModel::countByRole(0),
             'total_revenue' => RoomModel::getTotalRevenue(),
         ];
@@ -47,13 +48,15 @@ class AdminController
             'tracked_areas' => count($areaStats),
             'tracked_rooms' => array_sum(array_map(static fn($row) => (int)($row['total_rooms'] ?? 0), $areaStats)),
             'tracked_available_rooms' => array_sum(array_map(static fn($row) => (int)($row['available_rooms'] ?? 0), $areaStats)),
+            'tracked_draft_rooms' => array_sum(array_map(static fn($row) => (int)($row['draft_rooms'] ?? 0), $areaStats)),
             'tracked_occupancy_rate' => 0,
             'year_total' => (float)($revenueStats['year_total'] ?? 0),
             'paid_invoice_count' => (int)($revenueStats['paid_invoice_count'] ?? 0),
         ];
-        if ($statsSummary['tracked_rooms'] > 0) {
+        $knownRooms = $statsSummary['tracked_rooms'] - $statsSummary['tracked_draft_rooms'];
+        if ($knownRooms > 0) {
             $statsSummary['tracked_occupancy_rate'] = round(
-                (($statsSummary['tracked_rooms'] - $statsSummary['tracked_available_rooms']) / $statsSummary['tracked_rooms']) * 100,
+                (($statsSummary['tracked_rooms'] - $statsSummary['tracked_draft_rooms'] - $statsSummary['tracked_available_rooms']) / $knownRooms) * 100,
                 1
             );
         }
@@ -449,6 +452,74 @@ class AdminController
         $redirectPage = trim((string)($_POST["redirect_page"] ?? ""));
         $allowedRedirect = ["admin-invoices", "admin-meter-readings"];
         redirectTo(in_array($redirectPage, $allowedRedirect, true) ? $redirectPage : "admin-invoices", $redirectParams);
+    }
+
+    /**
+     * Tạo hóa đơn cho một phòng cụ thể (từ trang meter_readings).
+     * Chỉ tạo khi đã điền đủ chỉ số cũ và mới cho tất cả dịch vụ meter.
+     */
+    public function generateInvoicePerRoom()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-meter-readings');
+        }
+        verify_csrf();
+
+        $period = PaymentModel::normalizePeriod($_POST['month'] ?? null, $_POST['year'] ?? null);
+        $roomId = (int)($_POST['room_id'] ?? 0);
+        $areaId = (int)($_POST['area_id'] ?? 0);
+        $floorId = (int)($_POST['floor_id'] ?? 0);
+        $search = trim((string)($_POST['search'] ?? ''));
+        $page = max(1, (int)($_POST['page'] ?? 1));
+
+        if ($roomId <= 0) {
+            setFlash('admin_invoice_error', 'Vui lòng chọn phòng cần tạo hóa đơn.');
+            redirectTo('admin-meter-readings', [
+                'month' => $period['month'],
+                'year' => $period['year'],
+                'search' => $search ?: null,
+                'area_id' => $areaId > 0 ? $areaId : null,
+                'floor_id' => $floorId > 0 ? $floorId : null,
+                'page' => $page > 1 ? $page : null,
+            ]);
+            return;
+        }
+
+        $redirectParams = array_filter([
+            'month' => $period['month'],
+            'year' => $period['year'],
+            'search' => $search !== '' ? $search : null,
+            'area_id' => $areaId > 0 ? $areaId : null,
+            'floor_id' => $floorId > 0 ? $floorId : null,
+            'page' => $page > 1 ? $page : null,
+        ], static fn($value) => $value !== null && $value !== '');
+
+        try {
+            $result = PaymentModel::generateInvoices($period['month'], $period['year'], $roomId);
+
+            $messageParts = [];
+            if (!empty($result['created_count'])) {
+                $messageParts[] = 'Đã tạo ' . (int)$result['created_count'] . ' hóa đơn';
+            }
+            if (!empty($result['skipped_existing_count'])) {
+                $messageParts[] = (int)$result['skipped_existing_count'] . ' phòng đã có hóa đơn';
+            }
+            if (!empty($result['blocked_count'])) {
+                $messageParts[] = (int)$result['blocked_count'] . ' phòng bị chặn do thiếu dữ liệu';
+            }
+
+            if (empty($result['created_count'])) {
+                $blockedPreview = !empty($result['blocked']) ? ' ' . implode(' || ', array_slice($result['blocked'], 0, 3)) : '';
+                $existingPreview = !empty($result['skipped_existing']) ? ' ' . implode(', ', array_slice($result['skipped_existing'], 0, 3)) : '';
+                setFlash('admin_invoice_error', 'Không tạo được hóa đơn mới.' . $existingPreview . $blockedPreview);
+            } else {
+                setFlash('admin_invoice_message', implode('. ', $messageParts) . '.');
+            }
+        } catch (Throwable $exception) {
+            setFlash('admin_invoice_error', $exception->getMessage());
+        }
+
+        redirectTo('admin-meter-readings', $redirectParams);
     }
 
     /**
@@ -1202,13 +1273,33 @@ $redirectParams = [];
     }
 
     /**
-     * Trang nhập chỉ số điện/nước theo tháng cho các phòng có dịch vụ tính theo công tơ.
+     * Trang nhập chỉ số điện/nước + tạo hóa đơn thống nhất cho các phòng đang thuê.
+     * Hỗ trợ tìm kiếm, lọc khu/tầng, phân trang.
      */
     public function meterReadings()
     {
         PriceChangeModel::applyDueChanges();
-        $period = MeterReadingModel::normalizePeriod($_GET['month'] ?? null, $_GET['year'] ?? null);
-        $meterData = MeterReadingModel::getAdminMatrix($period['month'], $period['year']);
+
+        // Params
+        $month = (int)($_GET['month'] ?? date('n'));
+        $year = (int)($_GET['year'] ?? date('Y'));
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = 20;
+        $search = trim((string)($_GET['search'] ?? ''));
+        $areaId = (int)($_GET['area_id'] ?? 0);
+        $floorId = (int)($_GET['floor_id'] ?? 0);
+
+        // Normalize period
+        $period = MeterReadingModel::normalizePeriod($month, $year);
+
+        // Get meter data with filters + pagination
+        $meterData = MeterReadingModel::getAdminMatrix($period['month'], $period['year'], [
+            'search' => $search,
+            'area_id' => $areaId,
+            'floor_id' => $floorId,
+        ], $page, $perPage);
+
+        // Flash messages
         $meterMessage = pullFlash('admin_meter_message');
         $meterError = pullFlash('admin_meter_error');
         $meterRowErrors = pullFlash('admin_meter_row_errors', []);
@@ -1217,53 +1308,36 @@ $redirectParams = [];
         $invoiceErr = pullFlash("admin_invoice_error");
         if ($invoiceMsg) { $meterMessage = trim(($meterMessage ? $meterMessage . " " : "") . $invoiceMsg); }
         if ($invoiceErr) { $meterError = trim(($meterError ? $meterError . " " : "") . $invoiceErr); }
-        // [DEV-QWEN-A][NHOM-3] Them invoice history vao meter readings
-        $invoicePeriod = PaymentModel::normalizePeriod($_GET['month'] ?? null, $_GET['year'] ?? null);
-        $invoiceFilters = [
-            'month' => $invoicePeriod['month'],
-            'year' => $invoicePeriod['year'],
-            'status' => trim((string)($_GET['status'] ?? '')),
-            'area_id' => (int)($_GET['area_id'] ?? 0),
-            'floor_id' => (int)($_GET['floor_id'] ?? 0),
-            'room_id' => (int)($_GET['room_id'] ?? 0),
-            'invoice_id' => (int)($_GET['invoice_id'] ?? 0),
-        ];
-        $selectedFloor = $invoiceFilters['floor_id'] > 0 ? FloorModel::getById($invoiceFilters['floor_id']) : null;
-        if ($selectedFloor) {
-            $invoiceFilters['area_id'] = (int)($selectedFloor['area_id'] ?? 0);
-        }
+
+        // Areas & floors for filter dropdowns
         $areas = AreaModel::getAllWithStats();
         $allFloors = FloorModel::getAll();
-        $filterFloors = $invoiceFilters['area_id'] > 0 ? FloorModel::getByAreaId($invoiceFilters['area_id']) : $allFloors;
-        $invoiceRoomRows = PaymentModel::getRoomInvoiceOverview($invoicePeriod['month'], $invoicePeriod['year'], [
-            'area_id' => $invoiceFilters['area_id'],
-            'floor_id' => $invoiceFilters['floor_id'],
-        ]);
-        if ($invoiceFilters['room_id'] <= 0 && !empty($invoiceRoomRows[0]['room_id'])) {
-            $invoiceFilters['room_id'] = (int)$invoiceRoomRows[0]['room_id'];
+        $filterFloors = $areaId > 0 ? FloorModel::getByAreaId($areaId) : $allFloors;
+
+        // If floor selected but area not, sync area from floor
+        $selectedFloor = $floorId > 0 ? FloorModel::getById($floorId) : null;
+        if ($selectedFloor && $areaId <= 0) {
+            $areaId = (int)($selectedFloor['area_id'] ?? 0);
         }
-        $invoicePreview = $invoiceFilters['room_id'] > 0
-            ? PaymentModel::buildInvoicePreview($invoiceFilters['room_id'], $invoicePeriod['month'], $invoicePeriod['year'])
-            : null;
-        $invoiceList = PaymentModel::getInvoices([
-            'month' => $invoicePeriod['month'],
-            'year' => $invoicePeriod['year'],
-            'status' => $invoiceFilters['status'],
-            'area_id' => $invoiceFilters['area_id'],
-            'floor_id' => $invoiceFilters['floor_id'],
-        ]);
-        $selectedInvoice = $invoiceFilters['invoice_id'] > 0 ? PaymentModel::getInvoiceById($invoiceFilters['invoice_id']) : null;
-        $invoiceStatusOptions = [
-            '' => 'Tất cả trạng thái',
-            'unpaid' => 'Chưa trả',
-            'paid' => 'Đã trả',
+
+        // Build redirect params preserving filters
+        $redirectParams = [
+            'month' => $period['month'],
+            'year' => $period['year'],
+            'search' => $search !== '' ? $search : null,
+            'area_id' => $areaId > 0 ? $areaId : null,
+            'floor_id' => $floorId > 0 ? $floorId : null,
+            'page' => $page > 1 ? $page : null,
         ];
+        $redirectParams = array_filter($redirectParams, fn($v) => $v !== null && $v !== '');
+
         $pageTitle = 'Hóa đơn - NhaTroA';
         require_once BASE_PATH . 'views/admin/billing/meter_readings.php';
     }
 
     /**
      * Lưu chỉ số hàng loạt hoặc theo từng dòng phòng nhưng vẫn giữ validate độc lập từng ô.
+     * Hỗ trợ old_index unlock/edit với validation đầy đủ.
      */
     public function saveMeterReadings()
     {
@@ -1305,10 +1379,17 @@ $redirectParams = [];
             setFlash('admin_meter_old', is_array($submittedReadings) ? $submittedReadings : []);
         }
 
-        redirectTo('admin-meter-readings', [
+        // Preserve filter params on redirect
+        $redirectParams = [
             'month' => $period['month'],
             'year' => $period['year'],
-        ]);
+            'search' => trim((string)($_POST['search'] ?? '')) !== '' ? trim((string)$_POST['search']) : null,
+            'area_id' => (int)($_POST['area_id'] ?? 0) > 0 ? (int)$_POST['area_id'] : null,
+            'floor_id' => (int)($_POST['floor_id'] ?? 0) > 0 ? (int)$_POST['floor_id'] : null,
+            'page' => (int)($_POST['page'] ?? 1) > 1 ? (int)$_POST['page'] : null,
+        ];
+        $redirectParams = array_filter($redirectParams, fn($v) => $v !== null && $v !== '');
+        redirectTo('admin-meter-readings', $redirectParams);
     }
 
 
@@ -1424,7 +1505,7 @@ $redirectParams = [];
 
         setFlash(
             'admin_area_message',
-            "Đã tạo khu với {$floorCount} tầng và {$createdRooms} phòng nháp. " .
+            "Đã tạo khu với {$floorCount} tầng và {$createdRooms} phòng chưa có thông tin. " .
                 "Hệ thống đã chuyển sang Quản lý Phòng — hoàn thiện từng phòng để đăng lên website."
         );
         redirectTo('admin-rooms', ['area_id' => $areaId]);
@@ -1508,7 +1589,7 @@ $redirectParams = [];
             'room_limit' => $roomLimit,
         ], null);
         $created = $this->createRoomSlots($floorId, $next, $roomLimit);
-        setFlash('admin_room_message', "Đã thêm Tầng {$next}" . ($created > 0 ? " với {$created} phòng nháp." : '.'));
+        setFlash('admin_room_message', "Đã thêm Tầng {$next}" . ($created > 0 ? " với {$created} phòng chưa có thông tin." : '.'));
         redirectTo('admin-rooms', ['area_id' => $areaId, 'floor_id' => 0]);
     }
 
@@ -2081,7 +2162,7 @@ $redirectParams = [];
 
         setFlash('admin_room_message', $pendingPriceMessage !== ''
             ? $pendingPriceMessage
-            : ($data['status'] === 'draft' ? 'Đã lưu phòng NHÁP — chưa hiển thị web.' : 'Đã lưu phòng và đăng lên website.'));
+            : ($data['status'] === 'draft' ? 'Đã lưu phòng CHƯA CÓ THÔNG TIN — chưa hiển thị web.' : 'Đã lưu phòng và đăng lên website.'));
         redirectTo('admin-rooms', ['area_id' => (int)($floor['area_id'] ?? 0), 'floor_id' => (int)$data['floor_id']]);
     }
 

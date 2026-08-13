@@ -13,7 +13,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
 $panelActive = 'areas';
 $panelTitle = $siteName . ' Admin';
-$panelSubtitle = 'Quản lý khu, thêm khu mới kèm tầng và phòng nháp';
+$panelSubtitle = 'Quản lý khu, thêm khu mới kèm tầng và phòng chưa có thông tin';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
 $expandedAreaId = (int)($expandedAreaId ?? 0);
 $areaMessage = pullFlash('admin_area_message');
@@ -24,7 +24,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-bold">Quản lý Khu</h2>
-            <p class="text-gray-500 mt-2">Thêm khu mới kèm số tầng, tạo phòng nháp tự động, rồi hoàn thiện từng phòng ở trang Quản lý Phòng.</p>
+            <p class="text-gray-500 mt-2">Thêm khu mới kèm số tầng, tạo phòng chưa có thông tin tự động, rồi hoàn thiện từng phòng ở trang Quản lý Phòng.</p>
         </div>
 
         <!-- ===== [NEW] NÚT XEM TẤT CẢ PHÒNG (góc phải) ===== -->
@@ -202,7 +202,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 <label class="block text-sm font-semibold mb-2">Số phòng của <span id="floor-label-display">tầng</span> (giới hạn tối đa)</label>
                                 <input type="number" id="floor-room-input" min="0" max="50" value="0"
                                     class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                                <p class="mt-1 text-xs text-gray-500">Hệ thống tạo sẵn phòng nháp (VD: 01, 02, 03...). Không thể thêm vượt quá.</p>
+                                <p class="mt-1 text-xs text-gray-500">Hệ thống tạo sẵn phòng chưa có thông tin (VD: 01, 02, 03...). Không thể thêm vượt quá.</p>
                             </div>
                             <div id="floor-hidden-inputs"></div>
                         </div>
@@ -210,7 +210,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
                     <p id="area-form-validity" class="text-xs text-rose-600" role="status"></p>
                     <button type="submit" id="area-submit-button" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-gray-300 transition">
-                        <?= $editArea ? 'Cập nhật khu' : 'Tạo khu + tạo phòng nháp' ?>
+                        <?= $editArea ? 'Cập nhật khu' : 'Tạo khu + tạo phòng chưa có thông tin' ?>
                     </button>
                     <?php if ($editArea): ?>
                         <a href="<?= BASE_URL ?>?page=admin-areas" class="block w-full py-3 text-center text-gray-600 hover:text-primary">Hủy chỉnh sửa</a>
