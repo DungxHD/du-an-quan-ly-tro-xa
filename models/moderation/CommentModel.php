@@ -153,6 +153,7 @@ class CommentModel {
                 'title' => 'Đánh giá phòng mới',
                 'content' => "Phòng \"{$roomName}\" được đánh giá từ người thuê \"{$userName}\".",
                 'type' => 'review',
+                'link' => '?page=admin-comments',
             ]);
         }
     }

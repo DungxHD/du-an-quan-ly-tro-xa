@@ -772,6 +772,7 @@ $services = ServiceModel::getAll(['search' => $searchKeyword]);
 
         $payload = [
             'admin_note' => trim((string)($_POST['admin_note'] ?? '')),
+            'admin_reply' => trim((string)($_POST['admin_reply'] ?? '')),
             'status' => (int)($_POST['status'] ?? 1),
         ];
 

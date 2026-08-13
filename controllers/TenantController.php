@@ -737,7 +737,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
      */
     public function feedback() {
         $user = $this->getAuthenticatedTenant();
-        $rooms = RoomModel::getAll(['status' => 'rented', 'user_id' => (int)$user['id']]);
+        $myFeedbacks = FeedbackModel::getForUser((int)$user['id']);
         $message = pullFlash('feedback_message', '');
         $error = pullFlash('feedback_error', '');
         $pageTitle = 'Gửi Phản ánh - NhaTroA';
@@ -745,7 +745,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
     }
 
     /**
-     * Tenant gửi Phản ánh mới.
+     * Tenant gửi Phản ánh mới (không cần điều kiện ở tối thiểu, ảnh tùy chọn).
      */
     public function sendFeedback() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -754,25 +754,70 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         verify_csrf();
 
         $user = $this->getAuthenticatedTenant();
-        $roomId = (int)($_POST['room_id'] ?? 0);
         $subject = trim((string)($_POST['subject'] ?? ''));
         $content = trim((string)($_POST['content'] ?? ''));
 
-        if ($roomId > 0) {
-            $room = RoomModel::getById($roomId);
-            if (!$room || (int)($room['user_id'] ?? 0) !== (int)$user['id']) {
-                setFlash('feedback_error', 'Phòng không hợp lệ hoặc không thuộc quyền sở hữu của bạn.');
+        try {
+            $imageUrl = $this->handleFeedbackImageUpload();
+            if ($imageUrl === false) {
                 redirectTo('tenant-feedback');
             }
-        }
-
-        try {
-            FeedbackModel::create((int)$user['id'], $roomId ?: null, $subject, $content);
+            FeedbackModel::create((int)$user['id'], $subject, $content, $imageUrl);
             setFlash('feedback_message', 'Đã gửi phản ánh thành công. Chủ trọ sẽ xem và xử lý sớm nhất.');
         } catch (Throwable $exception) {
             setFlash('feedback_error', $exception->getMessage());
         }
 
         redirectTo('tenant-feedback');
+    }
+
+    /**
+     * Xử lý upload ảnh minh họa phản ánh (tùy chọn). Trả về URL, null nếu không có file,
+     * false nếu file không hợp lệ.
+     */
+    private function handleFeedbackImageUpload() {
+        $file = $_FILES['feedback_image'] ?? null;
+        if (empty($file)) {
+            return null;
+        }
+        $uploadError = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($uploadError === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            setFlash('feedback_error', 'Tải ảnh lên không thành công. Vui lòng thử lại.');
+            return false;
+        }
+        if ((int)($file['size'] ?? 0) > 5 * 1024 * 1024) {
+            setFlash('feedback_error', 'Ảnh minh họa vượt quá 5MB.');
+            return false;
+        }
+
+        $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
+        $mime = $finfo ? (string)finfo_file($finfo, $file['tmp_name']) : (string)($file['type'] ?? '');
+        if ($finfo) {
+            finfo_close($finfo);
+        }
+
+        $allowedMimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+        if (!isset($allowedMimes[$mime])) {
+            setFlash('feedback_error', 'Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF.');
+            return false;
+        }
+
+        $uploadDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . 'image_feedback';
+        if (!is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0775, true);
+        }
+
+        $fileName = 'feedback-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.' . $allowedMimes[$mime];
+        $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+
+        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+            setFlash('feedback_error', 'Không lưu được tệp ảnh. Kiểm tra thư mục .uploads.');
+            return false;
+        }
+
+        return BASE_URL . '.uploads/image_feedback/' . $fileName;
     }
 }

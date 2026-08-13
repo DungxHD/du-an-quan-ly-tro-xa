@@ -8,6 +8,8 @@ class NotificationModel {
         'price_change' => 'Đổi giá dịch vụ',
         'payment' => 'Thanh toán',
         'general' => 'Chung',
+        'feedback' => 'Phản ánh',
+        'review' => 'Đánh giá',
     ];
 
 
@@ -31,6 +33,7 @@ class NotificationModel {
             'user_id' => isset($row['user_id']) && $row['user_id'] !== null ? (int)$row['user_id'] : null,
             'title' => trim((string)($row['title'] ?? '')),
             'content' => trim((string)($row['content'] ?? '')),
+            'link' => trim((string)($row['link'] ?? '')),
             'type' => $type,
             'type_label' => self::TYPES[$type] ?? self::TYPES['general'],
             'is_read' => !empty($row['is_read']) ? 1 : 0,
@@ -66,6 +69,7 @@ class NotificationModel {
             'user_id' => $userId,
             'title' => $title,
             'content' => $content,
+            'link' => mb_substr(trim((string)($data['link'] ?? '')), 0, 255, 'UTF-8'),
             'type' => $type,
             'is_read' => 0,
         ]);

@@ -1,8 +1,8 @@
 <?php
 /**
  * Quản lý Phản ánh từ người thuê gửi trực tiếp cho chủ trọ.
- * - Tenant gửi phản ánh (khiếu nại, đề xuất, báo sự cố...)
- * - Admin xem, xử lý, thêm ghi chú, đánh dấu đã giải quyết.
+ * - Tenant gửi phản ánh (khiếu nại, đề xuất, báo sự cố...) kèm ảnh minh họa tùy chọn.
+ * - Admin xem, xử lý, trả lời phản ánh; tenant nhận thông báo khi có phản hồi.
  */
 class FeedbackModel {
     /**
@@ -18,13 +18,14 @@ class FeedbackModel {
     }
 
     /**
-     * Tenant gửi phản ánh mới.
+     * Tenant gửi phản ánh mới. Không giới hạn thời gian ở (không liên quan đánh giá),
+     * ảnh minh họa là tùy chọn.
      */
-    public static function create($userId, $roomId, $subject, $content) {
+    public static function create($userId, $subject, $content, $imageUrl = null) {
         $userId = (int)$userId;
-        $roomId = $roomId > 0 ? (int)$roomId : null;
         $subject = trim((string)$subject);
         $content = trim((string)$content);
+        $imageUrl = trim((string)($imageUrl ?? ''));
 
         if ($userId <= 0) {
             throw new RuntimeException('Bạn cần đăng nhập để gửi phản ánh.');
@@ -38,20 +39,14 @@ class FeedbackModel {
             throw new RuntimeException('Vui lòng nhập nội dung phản ánh.');
         }
 
-        if ($roomId !== null) {
-            $room = RoomModel::getById($roomId);
-            if (!$room) {
-                throw new RuntimeException('Phòng không tồn tại.');
-            }
-        }
-
         Database::insert('feedbacks', [
             'user_id' => $userId,
-            'room_id' => $roomId,
             'subject' => mb_substr($subject, 0, 255, 'UTF-8'),
             'content' => mb_substr($content, 0, 2000, 'UTF-8'),
+            'image' => $imageUrl !== '' ? $imageUrl : null,
             'status' => 'pending',
             'admin_note' => '',
+            'admin_reply' => '',
         ]);
 
         // Gửi thông báo cho admin
@@ -75,6 +70,7 @@ class FeedbackModel {
                 'title' => 'Phản ánh mới từ người thuê',
                 'content' => "{$userName} đã gửi phản ánh: {$subject}",
                 'type' => 'feedback',
+                'link' => '?page=admin-feedbacks',
             ]);
         }
     }
@@ -164,26 +160,97 @@ class FeedbackModel {
     }
 
     /**
+     * Lấy danh sách phản ánh của một tenant (cho trang Phản ánh bên tenant).
+     */
+    public static function getForUser($userId) {
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            return [];
+        }
+
+        if (Database::hasConnection()) {
+            $rows = Database::fetchAll(
+                "
+                SELECT
+                    f.*,
+                    u.full_name AS tenant_name,
+                    u.email AS tenant_email
+                FROM feedbacks f
+                INNER JOIN users u ON u.id = f.user_id
+                WHERE f.user_id = ?
+                ORDER BY f.created_at DESC, f.id DESC
+                ",
+                [$userId]
+            );
+            return array_map([self::class, 'normalizeRow'], $rows);
+        }
+
+        $rows = self::buildFallbackRows();
+        $rows = array_values(array_filter($rows, static function ($row) use ($userId) {
+            return (int)($row['user_id'] ?? 0) === $userId;
+        }));
+        usort($rows, [self::class, 'compareRows']);
+        return $rows;
+    }
+
+    /**
      * Lưu hoặc cập nhật phản ánh (admin xử lý).
+     * Khi admin nhập câu trả lời (admin_reply) sẽ gửi thông báo cho tenant.
      */
     public static function save($data, $id = null) {
         $id = $id ? (int)$id : null;
         $adminNote = trim((string)($data['admin_note'] ?? ''));
+        $adminReply = trim((string)($data['admin_reply'] ?? ''));
         $status = in_array((string)($data['status'] ?? ''), ['pending', 'resolved', 'dismissed'], true)
             ? (string)$data['status']
             : 'pending';
 
         if ($id !== null && $id > 0) {
+            $feedback = self::getById($id);
+            if (!$feedback) {
+                throw new RuntimeException('Phản ánh không tồn tại hoặc đã bị xóa.');
+            }
+
             // Cập nhật
             Database::update('feedbacks', [
                 'admin_note' => mb_substr($adminNote, 0, 1000, 'UTF-8'),
+                'admin_reply' => mb_substr($adminReply, 0, 2000, 'UTF-8'),
                 'status' => $status,
             ], 'id = :id', ['id' => $id]);
+
+            // Nếu admin có câu trả lời mới -> thông báo cho tenant
+            if ($adminReply !== '' && trim((string)($feedback['admin_reply'] ?? '')) !== $adminReply) {
+                self::notifyTenantReply($id, $adminReply);
+            }
+
             return $id;
         }
 
         // Không hỗ trợ tạo mới từ admin (chỉ tenant mới tạo)
         throw new RuntimeException('Admin không thể tạo phản ánh mới từ đây.');
+    }
+
+    /**
+     * Gửi thông báo cho tenant khi admin trả lời phản ánh.
+     */
+    private static function notifyTenantReply($feedbackId, $adminReply) {
+        $feedback = self::getById($feedbackId);
+        if (!$feedback) {
+            return;
+        }
+
+        $tenantId = (int)($feedback['user_id'] ?? 0);
+        if ($tenantId <= 0) {
+            return;
+        }
+
+        NotificationModel::create([
+            'user_id' => $tenantId,
+            'title' => 'Chủ trọ đã phản hồi phản ánh của bạn',
+            'content' => 'Phản ánh "' . $feedback['subject'] . '": ' . mb_substr($adminReply, 0, 150, 'UTF-8'),
+            'type' => 'feedback',
+            'link' => '?page=tenant-feedback',
+        ]);
     }
 
     /**
@@ -261,7 +328,9 @@ class FeedbackModel {
         $row['room_id'] = $row['room_id'] !== null ? (int)$row['room_id'] : null;
         $row['subject'] = trim((string)($row['subject'] ?? ''));
         $row['content'] = trim((string)($row['content'] ?? ''));
+        $row['image'] = trim((string)($row['image'] ?? ''));
         $row['admin_note'] = trim((string)($row['admin_note'] ?? ''));
+        $row['admin_reply'] = trim((string)($row['admin_reply'] ?? ''));
         $row['status'] = in_array((string)($row['status'] ?? ''), ['pending', 'resolved', 'dismissed'], true)
             ? (string)$row['status']
             : 'pending';

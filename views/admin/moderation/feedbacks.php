@@ -47,7 +47,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
             <div class="flex-1 min-w-[200px]">
                 <label class="block text-sm font-semibold mb-1">Tìm kiếm</label>
-                <input type="text" name="keyword" value="<?= e($filters['keyword'] ?? '') ?>" placeholder="Tên người thuê, email, tiêu đề, nội dung, phòng..." class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+                <input type="text" name="keyword" value="<?= e($filters['keyword'] ?? '') ?>" placeholder="Tên người thuê, email, tiêu đề, nội dung..." class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
             </div>
             <div class="flex items-end gap-2">
                 <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition"><span class="material-symbols-outlined text-sm">search</span> Lọc</button>
@@ -67,9 +67,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600">#</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600">Người thuê</th>
-                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Phòng</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600">Tiêu đề</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600">Nội dung</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Ảnh</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600">Trạng thái</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600">Thời gian</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600">Thao tác</th>
@@ -83,15 +83,17 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                     <div class="font-medium"><?= e($fb['tenant_name']) ?></div>
                                     <div class="text-xs text-gray-500"><?= e($fb['tenant_email']) ?></div>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <?php if ($fb['room_name']): ?>
-                                        <span class="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded"><?= e($fb['room_name']) ?></span>
-                                    <?php else: ?>
-                                        <span class="text-xs text-gray-400">— Không gắn phòng —</span>
-                                    <?php endif; ?>
-                                </td>
                                 <td class="px-4 py-3 font-medium text-gray-800 max-w-xs truncate"><?= e($fb['subject']) ?></td>
                                 <td class="px-4 py-3 text-gray-600 max-w-md truncate"><?= e($fb['content']) ?></td>
+                                <td class="px-4 py-3">
+                                    <?php if (!empty($fb['image'])): ?>
+                                        <a href="<?= e($fb['image']) ?>" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">
+                                            <span class="material-symbols-outlined text-sm">image</span> Xem ảnh
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-xs text-gray-400">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
                                         <?= $fb['status'] === 'pending' ? 'bg-amber-100 text-amber-800' : ($fb['status'] === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700') ?>">
@@ -135,10 +137,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <label class="block text-sm font-semibold mb-1">Người thuê</label>
                             <input type="text" value="<?= e($editFeedback['tenant_name']) ?> (<?= e($editFeedback['tenant_email']) ?>)" class="w-full px-4 py-2 border border-gray-200 rounded-xl bg-gray-50" readonly>
                         </div>
-                        <div>
-                            <label class="block text-sm font-semibold mb-1">Phòng</label>
-                            <input type="text" value="<?= $editFeedback['room_name'] ? e($editFeedback['room_name']) : '— Không gắn phòng —' ?>" class="w-full px-4 py-2 border border-gray-200 rounded-xl bg-gray-50" readonly>
-                        </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-semibold mb-1">Tiêu đề</label>
                             <input type="text" value="<?= e($editFeedback['subject']) ?>" class="w-full px-4 py-2 border border-gray-200 rounded-xl bg-gray-50" readonly>
@@ -147,11 +145,24 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <label class="block text-sm font-semibold mb-1">Nội dung phản ánh</label>
                             <textarea class="w-full px-4 py-2 border border-gray-200 rounded-xl bg-gray-50 h-32" readonly><?= e($editFeedback['content']) ?></textarea>
                         </div>
+                        <?php if (!empty($editFeedback['image'])): ?>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold mb-1">Ảnh minh họa</label>
+                            <a href="<?= e($editFeedback['image']) ?>" target="_blank" rel="noopener">
+                                <img src="<?= e($editFeedback['image']) ?>" alt="Ảnh phản ánh" class="max-h-52 rounded-xl border border-gray-200 object-cover">
+                            </a>
+                        </div>
+                        <?php endif; ?>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold mb-1">Ghi chú của admin</label>
-                        <textarea name="admin_note" rows="3" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" placeholder="Nhập ghi chú, phản hồi, hướng dẫn xử lý..."><?= e($editFeedback['admin_note']) ?></textarea>
+                        <label class="block text-sm font-semibold mb-1">Trả lời người thuê</label>
+                        <textarea name="admin_reply" rows="3" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" placeholder="Nhập câu trả lời... Người thuê sẽ nhận được thông báo khi bạn gửi phản hồi."><?= e($editFeedback['admin_reply']) ?></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Ghi chú nội bộ của admin</label>
+                        <textarea name="admin_note" rows="2" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" placeholder="Ghi chú chỉ admin xem, không gửi cho người thuê."><?= e($editFeedback['admin_note']) ?></textarea>
                     </div>
 
                     <div>

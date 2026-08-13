@@ -145,10 +145,19 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                         <div>
                             <div class="flex flex-wrap items-center gap-2">
+                                <?php if (!empty($notification['link'])): ?>
+                                <a href="<?= BASE_URL . ltrim(e($notification['link']), '/') ?>" class="font-bold text-gray-900 hover:text-primary transition"><?= e($notification['title'] ?? '') ?></a>
+                                <?php else: ?>
                                 <h4 class="font-bold text-gray-900"><?= e($notification['title'] ?? '') ?></h4>
+                                <?php endif; ?>
                                 <span class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary"><?= e($notification['type_label'] ?? '') ?></span>
                                 <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700"><?= e($notification['recipient_label'] ?? '') ?></span>
                             </div>
+                            <?php if (!empty($notification['link'])): ?>
+                            <a href="<?= BASE_URL . ltrim(e($notification['link']), '/') ?>" class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline mt-1">
+                                <span class="material-symbols-outlined text-sm">open_in_new</span> Xem chi tiết
+                            </a>
+                            <?php endif; ?>
                             <p class="text-sm text-gray-600 mt-2"><?= e($notification['content'] ?? '') ?></p>
                         </div>
                         <div class="text-right">
