@@ -7,7 +7,7 @@ $panelSubtitle = 'Quản lý phòng trọ theo khu - tầng';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
 
 $statusMap = [
-    'draft'       => ['label' => 'Nháp (chưa đăng web)', 'badge' => 'bg-slate-100 text-slate-600 border-slate-200'],
+    'draft'       => ['label' => 'Chưa có thông tin', 'badge' => 'bg-slate-100 text-slate-600 border-slate-200'],
     'available'   => ['label' => 'Còn trống', 'badge' => 'bg-green-100 text-green-700 border-green-200'],
     'rented'      => ['label' => 'Đã thuê', 'badge' => 'bg-rose-100 text-rose-700 border-rose-200'],
     'maintenance' => ['label' => 'Bảo trì', 'badge' => 'bg-amber-100 text-amber-700 border-amber-200'],
@@ -739,7 +739,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?= csrf_field() ?>
             <input type="hidden" name="area_id" value="<?= (int)$selectedAreaId ?>">
             <div class="mb-4">
-                <label class="block text-sm font-semibold mb-2">Số phòng nháp cần tạo</label>
+                <label class="block text-sm font-semibold mb-2">Số phòng chưa có thông tin cần tạo</label>
                 <input type="number" name="room_count" min="0" max="50" value="0" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                 <p class="text-xs text-gray-500 mt-1">Hệ thống tự đặt tên tầng. Nhập 0 nếu chỉ tạo tầng trống.</p>
             </div>

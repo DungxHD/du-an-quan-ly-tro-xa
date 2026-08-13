@@ -29,14 +29,35 @@ class MeterReadingModel {
 
     /**
      * [TEAM-FIX][NHOM3] Trả dữ liệu bảng nhập chỉ số cho admin theo kỳ được chọn.
-     * Bổ sung cờ allow_manual_old_index để mở ô nhập chỉ số cũ khi không có mốc tự động.
+     * Hỗ trợ tìm kiếm theo tên phòng, lọc khu/tầng, phân trang, chỉ lấy phòng đang thuê (status=rented).
+     * Trả về thêm thông tin invoice preview cho mỗi phòng để gộp 2 chức năng nhập chỉ số + tạo hóa đơn.
      */
-    public static function getAdminMatrix($month, $year) {
+    public static function getAdminMatrix($month, $year, array $filters = [], int $page = 1, int $perPage = 20) {
         $period = self::normalizePeriod($month, $year);
-        $rows = [];
+        $searchKeyword = trim((string)($filters['search'] ?? ''));
+        $areaId = (int)($filters['area_id'] ?? 0);
+        $floorId = (int)($filters['floor_id'] ?? 0);
+
+        // Lấy tất cả phòng đang thuê có dịch vụ meter
+        $allRows = [];
         $serviceCatalog = [];
-        foreach (RoomModel::getAll() as $room) {
+
+        foreach (RoomModel::getAll(['status' => 'rented']) as $room) {
             $roomId = (int)($room['id'] ?? 0);
+
+            // Filter by area
+            if ($areaId > 0 && (int)($room['area_id'] ?? 0) !== $areaId) {
+                continue;
+            }
+            // Filter by floor
+            if ($floorId > 0 && (int)($room['floor_id'] ?? 0) !== $floorId) {
+                continue;
+            }
+            // Filter by search keyword (room name)
+            if ($searchKeyword !== '' && mb_stripos((string)($room['name'] ?? ''), $searchKeyword) === false) {
+                continue;
+            }
+
             $contract = self::getApplicableContractForRoom($roomId, $period['month'], $period['year']);
             if (!$contract) {
                 continue;
@@ -81,24 +102,41 @@ class MeterReadingModel {
                     'allow_manual_old_index' => (bool)($baseline['allow_manual_old_index'] ?? false),
                     'can_save' => $baseline['error'] === null,
                     'has_reading' => $reading !== null,
+                    // New: old_index is locked by default, can be unlocked via edit button
+                    'old_index_editable' => false,
                 ];
             }
             if (empty($cells)) {
                 continue;
             }
-            $rows[] = [
+
+            // Build invoice preview for this room to show total & enable/disable create invoice button
+            $invoicePreview = PaymentModel::buildInvoicePreview($roomId, $period['month'], $period['year']);
+
+            $allRows[] = [
                 'room_id' => $roomId,
                 'room_name' => $room['name'] ?? 'Phòng',
                 'area_name' => $room['area_name'] ?? ($room['building_name'] ?? 'Chưa có khu'),
                 'floor_name' => $room['floor_name'] ?? 'Chưa có tầng',
                 'floor_number' => (int)($room['floor_number'] ?? 0),
+                'area_id' => (int)($room['area_id'] ?? 0),
+                'floor_id' => (int)($room['floor_id'] ?? 0),
                 'occupant_count' => RoomModel::countOccupants($roomId),
                 'contract_id' => (int)($contract['id'] ?? 0),
                 'contract_move_in_date' => $contract['move_in_date'] ?? null,
                 'cells' => $cells,
+                // Invoice preview data
+                'invoice_preview' => $invoicePreview,
+                'invoice_total' => (float)($invoicePreview['total_amount'] ?? 0),
+                'can_generate_invoice' => (bool)($invoicePreview['can_generate'] ?? false),
+                'invoice_errors' => $invoicePreview['errors'] ?? [],
+                'existing_payment_id' => (int)($invoicePreview['existing_payment']['id'] ?? 0),
+                'existing_payment_status' => $invoicePreview['existing_payment']['status'] ?? 'unpaid',
             ];
         }
-        usort($rows, static function ($left, $right) {
+
+        // Sort: area -> floor -> room name
+        usort($allRows, static function ($left, $right) {
             $areaCompare = strcmp((string)($left['area_name'] ?? ''), (string)($right['area_name'] ?? ''));
             if ($areaCompare !== 0) {
                 return $areaCompare;
@@ -109,28 +147,80 @@ class MeterReadingModel {
             }
             return strcmp((string)($left['room_name'] ?? ''), (string)($right['room_name'] ?? ''));
         });
+
         uasort($serviceCatalog, static fn($left, $right) => strcmp((string)($left['name'] ?? ''), (string)($right['name'] ?? '')));
+        $serviceCatalog = array_values($serviceCatalog);
+
+        // Pagination
+        $totalRooms = count($allRows);
+        $totalPages = max(1, (int)ceil($totalRooms / $perPage));
+        $page = max(1, min($page, $totalPages));
+        $offset = ($page - 1) * $perPage;
+        $rows = array_slice($allRows, $offset, $perPage);
+
+        // Stats
         $lineCount = 0;
-        foreach ($rows as $row) {
+        $completedLineCount = 0;
+        $roomsWithDataCount = 0;
+        $roomsReadyForInvoice = 0;
+
+        foreach ($allRows as $row) {
             $lineCount += count($row['cells'] ?? []);
+            $roomHasAnyNewIndex = false;
+            $roomAllFilled = true;
+
+            foreach ($row['cells'] as $cell) {
+                if ($cell['has_reading'] || ($cell['new_index'] !== null && $cell['new_index'] !== '')) {
+                    $completedLineCount++;
+                    $roomHasAnyNewIndex = true;
+                }
+                // Check if this meter service has both old and new index
+                $hasOld = $cell['old_index'] !== null && $cell['old_index'] !== '';
+                $hasNew = $cell['new_index'] !== null && $cell['new_index'] !== '';
+                if (!($hasOld && $hasNew)) {
+                    $roomAllFilled = false;
+                }
+            }
+            if ($roomHasAnyNewIndex) {
+                $roomsWithDataCount++;
+            }
+            if ($roomAllFilled && $row['can_generate_invoice']) {
+                $roomsReadyForInvoice++;
+            }
         }
+
         return [
             'period' => $period,
             'rows' => $rows,
-            'service_catalog' => array_values($serviceCatalog),
-            'room_count' => count($rows),
+            'service_catalog' => $serviceCatalog,
+            'room_count' => $totalRooms,
             'line_count' => $lineCount,
-            'completed_count' => self::countPeriodReadings($period['month'], $period['year']),
+            'completed_count' => $completedLineCount,
+            'rooms_with_data_count' => $roomsWithDataCount,
+            'rooms_ready_for_invoice' => $roomsReadyForInvoice,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total_rooms' => $totalRooms,
+                'total_pages' => $totalPages,
+            ],
+            'filters' => [
+                'search' => $searchKeyword,
+                'area_id' => $areaId,
+                'floor_id' => $floorId,
+            ],
         ];
     }
     /**
      * [TEAM-FIX][NHOM3] Lưu nhiều chỉ số cùng lúc hoặc chỉ riêng một dòng phòng.
      * Hỗ trợ old_index nhập tay khi baseline không tự resolve được.
+     * Validation: old_index >= 0, new_index >= old_index, bắt buộc khi unlock.
+     * Hỗ trợ old_index_editable flag để unlock chỉnh sửa chỉ số cũ.
      */
     public static function saveReadings($month, $year, array $submittedReadings, array $options = []) {
         $period = self::normalizePeriod($month, $year);
         $targetRoomId = (int)($options['room_id'] ?? 0);
-        $matrix = self::getAdminMatrix($period['month'], $period['year']);
+        $matrix = self::getAdminMatrix($period['month'], $period['year'], [], 1, PHP_INT_MAX); // Get all without pagination for save
         $rowsByRoomId = [];
         foreach ($matrix['rows'] as $row) {
             $roomId = (int)($row['room_id'] ?? 0);
@@ -163,30 +253,64 @@ class MeterReadingModel {
             foreach (($row['cells'] ?? []) as $serviceId => $cell) {
                 $cellInput = $roomInput[$serviceId] ?? [];
                 $rawNewValue = trim((string)($cellInput['new_index'] ?? ''));
-                if ($rawNewValue === '') {
+                $rawOldValue = trim((string)($cellInput['old_index'] ?? ''));
+                $isOldIndexEditable = !empty($cellInput['old_index_editable']) || !empty($cell['old_index_editable']);
+
+                // Check if there's any input for this cell
+                $hasNewInput = $rawNewValue !== '';
+                $hasOldInput = $rawOldValue !== '';
+
+                if (!$hasNewInput && !$hasOldInput) {
                     continue;
                 }
                 $hasAnyInput = true;
+
+                // Validate old_index if provided (when unlocked/editable)
+                $oldIndex = (float)($cell['old_index'] ?? 0);
+                if ($hasOldInput) {
+                    if (!is_numeric($rawOldValue)) {
+                        $errors[$roomId][$serviceId] = 'Chỉ số cũ phải là số hợp lệ.';
+                        continue;
+                    }
+                    $oldIndex = (float)$rawOldValue;
+                    if ($oldIndex < 0) {
+                        $errors[$roomId][$serviceId] = 'Chỉ số cũ không được nhỏ hơn 0.';
+                        continue;
+                    }
+                } elseif ($isOldIndexEditable && !$hasOldInput && empty($cell['has_reading'])) {
+                    // If old_index is unlocked but not provided, use baseline (could be 0 or contract initial)
+                    // This is OK - we keep the existing old_index
+                } elseif (!$isOldIndexEditable && !$hasOldInput && empty($cell['has_reading']) && !empty($cell['allow_manual_old_index'])) {
+                    // Manual fallback case but not unlocked - require old_index
+                    $errors[$roomId][$serviceId] = 'Vui lòng nhập chỉ số cũ (nhấn nút chỉnh sửa để mở khóa).';
+                    continue;
+                }
+
+                // Validate new_index (required if any input)
+                if (!$hasNewInput) {
+                    $errors[$roomId][$serviceId] = 'Chỉ số mới là bắt buộc khi bạn nhập chỉ số cũ hoặc muốn lưu.';
+                    continue;
+                }
                 if (!is_numeric($rawNewValue)) {
                     $errors[$roomId][$serviceId] = 'Chỉ số mới phải là số hợp lệ.';
                     continue;
                 }
-                if (!(bool)($cell['can_save'] ?? false)) {
+                $newIndex = (float)$rawNewValue;
+                if ($newIndex < 0) {
+                    $errors[$roomId][$serviceId] = 'Chỉ số mới không được nhỏ hơn 0.';
+                    continue;
+                }
+                if ($newIndex < $oldIndex) {
+                    $errors[$roomId][$serviceId] = 'Chỉ số mới (' . self::formatNumber($newIndex) . ') phải lớn hơn hoặc bằng chỉ số cũ (' . self::formatNumber($oldIndex) . ').';
+                    continue;
+                }
+
+                // Can save check (baseline error)
+                if (!(bool)($cell['can_save'] ?? false) && !$hasOldInput && !$isOldIndexEditable) {
                     $errors[$roomId][$serviceId] = $cell['baseline_error'] ?? 'Dòng này chưa có mốc chỉ số cũ hợp lệ.';
                     continue;
                 }
-                $oldIndex = (float)($cell['old_index'] ?? 0);
-                if (!empty($cell['allow_manual_old_index']) && empty($cell['has_reading'])) {
-                    $rawOldValue = trim((string)($cellInput['old_index'] ?? ''));
-                    if ($rawOldValue !== '' && is_numeric($rawOldValue)) {
-                        $oldIndex = (float)$rawOldValue;
-                    }
-                }
-                $newIndex = (float)$rawNewValue;
-                if ($newIndex < $oldIndex) {
-                    $errors[$roomId][$serviceId] = 'Chỉ số mới (' . $newIndex . ') phải lớn hơn hoặc bằng chỉ số cũ (' . $oldIndex . ').';
-                    continue;
-                }
+
                 $result = self::upsertReading(
                     $roomId,
                     (int)$serviceId,

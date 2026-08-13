@@ -70,7 +70,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <p class="text-gray-500 mt-1">Theo dõi nhanh toàn bộ khu, phòng, người thuê và doanh thu dự kiến trước khi đi vào từng module chi tiết.</p>
     </div>
 
-    <div class="grid grid-cols-2 xl:grid-cols-6 gap-4">
+    <div class="grid grid-cols-2 xl:grid-cols-7 gap-4">
         <div class="bg-white rounded-2xl border p-5">
             <p class="text-sm text-gray-500 mb-1">Tổng khu</p>
             <p class="text-2xl font-bold"><?= (int)($stats['total_areas'] ?? 0) ?></p>
@@ -86,6 +86,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <div class="bg-white rounded-2xl border p-5">
             <p class="text-sm text-gray-500 mb-1">Phòng đã thuê</p>
             <p class="text-2xl font-bold text-gray-800"><?= (int)($stats['rented_rooms'] ?? 0) ?></p>
+        </div>
+        <div class="bg-white rounded-2xl border p-5">
+            <p class="text-sm text-gray-500 mb-1">Chưa có thông tin</p>
+            <p class="text-2xl font-bold text-amber-600"><?= (int)($stats['draft_rooms'] ?? 0) ?></p>
         </div>
         <div class="bg-white rounded-2xl border p-5">
             <p class="text-sm text-gray-500 mb-1">Người thuê</p>
@@ -178,10 +182,11 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 </select>
 </form>
 </div>
-<div class="grid grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
+<div class="grid grid-cols-2 xl:grid-cols-7 gap-4 mb-6">
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Khu</p><p class="text-xl font-bold"><?= (int)($statsSummary['tracked_areas'] ?? 0) ?></p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Tổng phòng</p><p class="text-xl font-bold"><?= (int)($statsSummary['tracked_rooms'] ?? 0) ?></p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Phòng trống</p><p class="text-xl font-bold text-green-600"><?= (int)($statsSummary['tracked_available_rooms'] ?? 0) ?></p></div>
+<div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Chưa có thông tin</p><p class="text-xl font-bold text-amber-600"><?= (int)($statsSummary['tracked_draft_rooms'] ?? 0) ?></p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Lấp đầy</p><p class="text-xl font-bold text-primary"><?= number_format((float)($statsSummary['tracked_occupancy_rate'] ?? 0), 1) ?>%</p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Doanh thu năm</p><p class="text-xl font-bold text-emerald-600"><?= number_format((float)($statsSummary['year_total'] ?? 0)) ?> ₫</p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">HĐ đã trả</p><p class="text-xl font-bold text-secondary"><?= (int)($statsSummary['paid_invoice_count'] ?? 0) ?></p></div>
@@ -194,6 +199,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tổng phòng</th>
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trống</th>
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Đã thuê</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Chưa có thông tin</th>
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lấp đầy</th>
 </tr></thead>
 <tbody class="divide-y divide-gray-100">
@@ -203,6 +209,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <td class="px-4 py-3"><?= (int)($row['total_rooms'] ?? 0) ?></td>
 <td class="px-4 py-3 text-green-600 font-semibold"><?= (int)($row['available_rooms'] ?? 0) ?></td>
 <td class="px-4 py-3"><?= (int)($row['rented_rooms'] ?? 0) ?></td>
+<td class="px-4 py-3 text-amber-600 font-semibold"><?= (int)($row['draft_rooms'] ?? 0) ?></td>
 <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="w-24 bg-gray-200 rounded-full h-2"><div class="bg-primary h-2 rounded-full" style="width:<?= max(0,min(100,(float)($row['occupancy_rate'] ?? 0))) ?>%"></div></div><span class="text-sm font-semibold"><?= number_format((float)($row['occupancy_rate'] ?? 0),1) ?>%</span></div></td>
 </tr>
 <?php endforeach; ?>
