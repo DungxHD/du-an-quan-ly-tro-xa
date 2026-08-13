@@ -13,6 +13,7 @@ class AreaModel {
                 SELECT
                     a.*,
                     COUNT(DISTINCT f.id) AS floor_count,
+                    COALESCE(MAX(f.floor_number), 0) AS max_floor_number,
                     COUNT(r.id) AS room_count,
                     SUM(CASE WHEN r.status = 'available' THEN 1 ELSE 0 END) AS available_count,
                     SUM(CASE WHEN r.status = 'rented' THEN 1 ELSE 0 END) AS rented_count,
@@ -36,7 +37,14 @@ class AreaModel {
             $floorIds = array_map(static fn($floor) => (int)($floor['id'] ?? 0), $areaFloors);
             $areaRooms = array_values(array_filter($rooms, static fn($room) => in_array((int)($room['floor_id'] ?? 0), $floorIds, true)));
 
+            $maxFloorNumber = 0;
+            foreach ($areaFloors as $floor) {
+                $fn = (int)($floor['floor_number'] ?? 0);
+                if ($fn > $maxFloorNumber) $maxFloorNumber = $fn;
+            }
+
             $area['floor_count'] = count($areaFloors);
+            $area['max_floor_number'] = $maxFloorNumber;
             $area['room_count'] = count($areaRooms);
             $area['available_count'] = count(array_filter($areaRooms, static fn($room) => ($room['status'] ?? '') === 'available'));
             $area['rented_count'] = count(array_filter($areaRooms, static fn($room) => ($room['status'] ?? '') === 'rented'));

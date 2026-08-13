@@ -247,9 +247,9 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->deleteArea((int)($_POST['id'] ?? 0));
         break;
-    case 'admin-delete-floor-bottom':
+    case 'admin-delete-floor-top':
         requireAdmin();
-        (new AdminController())->deleteBottomFloor((int)($_POST['id'] ?? 0));
+        (new AdminController())->deleteHighestFloor((int)($_POST['id'] ?? 0));
         break;
     case 'admin-rooms':
         requireAdmin();

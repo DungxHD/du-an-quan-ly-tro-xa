@@ -140,10 +140,11 @@ class AdminController
     }
 
     /**
-     * [DEV-QWEN-A][NHOM-2][2026-08-13]
-     * Xóa tầng DƯỚI CÙNG (Tầng 1) của một khu trực tiếp từ trang Quản lý khu.
+     * [DEV-QWEN-A][NHOM-2][2026-08-14]
+     * Xóa tầng CAO NHẤT (floor_number lớn nhất) của một khu.
+     * Hiển thị số tầng cụ thể trong thông báo.
      */
-    public function deleteBottomFloor($areaId)
+    public function deleteHighestFloor($areaId)
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('admin-areas');
@@ -163,37 +164,27 @@ class AdminController
             redirectTo('admin-areas', ['area' => $areaId]);
         }
 
-        // Tìm tầng có floor_number = 1 (tầng dưới cùng)
-        $bottomFloor = null;
+        // Tìm tầng có floor_number LỚN NHẤT (tầng cao nhất)
+        $highestFloor = null;
+        $maxFloorNumber = 0;
         foreach ($floors as $floor) {
-            if ((int)($floor['floor_number'] ?? 0) === 1) {
-                $bottomFloor = $floor;
-                break;
+            $floorNumber = (int)($floor['floor_number'] ?? 0);
+            if ($floorNumber > $maxFloorNumber) {
+                $maxFloorNumber = $floorNumber;
+                $highestFloor = $floor;
             }
         }
 
-        if (!$bottomFloor) {
-            // Fallback: nếu không có tầng 1, lấy tầng có floor_number nhỏ nhất
-            $minFloorNumber = PHP_INT_MAX;
-            foreach ($floors as $floor) {
-                $floorNumber = (int)($floor['floor_number'] ?? 0);
-                if ($floorNumber < $minFloorNumber) {
-                    $minFloorNumber = $floorNumber;
-                    $bottomFloor = $floor;
-                }
-            }
-        }
-
-        if (!$bottomFloor) {
-            setFlash('admin_area_error', 'Không tìm thấy tầng dưới cùng để xóa.');
+        if (!$highestFloor) {
+            setFlash('admin_area_error', 'Không tìm thấy tầng cao nhất để xóa.');
             redirectTo('admin-areas', ['area' => $areaId]);
         }
 
-        $bottomFloorId = (int)($bottomFloor['id'] ?? 0);
-        $bottomFloorNumber = (int)($bottomFloor['floor_number'] ?? 0);
+        $highestFloorId = (int)($highestFloor['id'] ?? 0);
+        $highestFloorNumber = (int)($highestFloor['floor_number'] ?? 0);
         $rentedCount = 0;
         foreach ($floors as $floor) {
-            if ((int)($floor['id'] ?? 0) === $bottomFloorId) {
+            if ((int)($floor['id'] ?? 0) === $highestFloorId) {
                 $rentedCount = (int)($floor['rented_count'] ?? 0);
                 break;
             }
@@ -201,19 +192,19 @@ class AdminController
 
         if ($rentedCount > 0) {
             setFlash('admin_delete_blocked', [
-                'type' => 'bottom_floor',
+                'type' => 'highest_floor',
                 'area_name' => $area['name'] ?? '',
-                'floor_name' => $bottomFloor['name'] ?? '',
-                'floor_number' => $bottomFloorNumber,
+                'floor_name' => $highestFloor['name'] ?? '',
+                'floor_number' => $highestFloorNumber,
                 'rented_count' => $rentedCount,
                 'return_url' => BASE_URL . '?page=admin-areas&area=' . $areaId,
-                'message' => 'Tầng "' . ($bottomFloor['name'] ?? '') . '" (tầng ' . $bottomFloorNumber . ') của khu "' . ($area['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa tầng này khi còn phòng đang thuê.',
+                'message' => 'Tầng "' . ($highestFloor['name'] ?? '') . '" (Tầng ' . $highestFloorNumber . ') của khu "' . ($area['name'] ?? '') . '" đang có ' . $rentedCount . ' phòng đang thuê. Không thể xóa tầng này khi còn phòng đang thuê.',
             ]);
             redirectTo('admin-areas', ['area' => $areaId]);
         }
 
-        FloorModel::delete($bottomFloorId);
-        setFlash('admin_area_message', 'Đã xóa Tầng ' . $bottomFloorNumber . ' (tầng dưới cùng) của khu "' . ($area['name'] ?? '') . '".');
+        FloorModel::delete($highestFloorId);
+        setFlash('admin_area_message', 'Đã xóa Tầng ' . $highestFloorNumber . ' (tầng cao nhất) của khu "' . ($area['name'] ?? '') . '".');
         redirectTo('admin-areas', ['area' => $areaId]);
     }
 

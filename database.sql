@@ -22,9 +22,9 @@ USE `manage`;
 -- Dumping structure for table manage.amenities
 CREATE TABLE IF NOT EXISTS `amenities` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `icon` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `title` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `icon` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sort_order` int DEFAULT '0',
   `is_active` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`id`)
@@ -44,10 +44,10 @@ INSERT INTO `amenities` (`id`, `icon`, `title`, `description`, `sort_order`, `is
 -- Dumping structure for table manage.areas
 CREATE TABLE IF NOT EXISTS `areas` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã khu',
-  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Tên khu',
-  `address` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Địa chỉ khu',
-  `description` text COLLATE utf8mb4_unicode_ci COMMENT 'Mô tả khu',
-  `image` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Đường dẫn ảnh khu',
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Tên khu',
+  `address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Địa chỉ khu',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Mô tả khu',
+  `image` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Đường dẫn ảnh khu',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -55,15 +55,14 @@ CREATE TABLE IF NOT EXISTS `areas` (
 -- Dumping data for table manage.areas: ~2 rows (approximately)
 INSERT INTO `areas` (`id`, `name`, `address`, `description`, `image`, `created_at`) VALUES
 	(1, 'Khu A - Sinh viên', '123 Đường ABC, Quận 9', 'Khu gần FPT, an ninh tốt, có 2 tầng.', 'uploads/areas/khu-a.jpg', '2026-08-04 00:34:48'),
-	(2, 'Khu B - Tiết kiệm', '125 Đường ABC, Quận 9', 'Khu nhà trệt, giá mềm, phòng nằm ngang.', 'uploads/areas/khu-b.jpg', '2026-08-04 00:34:48'),
-	(3, 'Realme GT Neo2 5G', 'Phòng trọ của Hà, Phan Đình Phùng, Thái Nguyên', 'wesfgse', '/.uploads/image_khu_3/khu-20260811-172301-350e0457.png', '2026-08-08 07:56:03');
+	(2, 'Khu B - Tiết kiệm', '125 Đường ABC, Quận 9', 'Khu nhà trệt, giá mềm, phòng nằm ngang.', 'uploads/areas/khu-b.jpg', '2026-08-04 00:34:48');
 
 -- Dumping structure for table manage.banned_words
 CREATE TABLE IF NOT EXISTS `banned_words` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `word` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Từ/cụm từ cấm (ĐÃ CHUẨN HÓA)',
-  `type` enum('word','phrase','abbreviation') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'word',
-  `replacement` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '***',
+  `word` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Từ/cụm từ cấm (ĐÃ CHUẨN HÓA)',
+  `type` enum('word','phrase','abbreviation') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'word',
+  `replacement` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '***',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -152,11 +151,11 @@ CREATE TABLE IF NOT EXISTS `comments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
   `user_id` int unsigned NOT NULL,
-  `content` text COLLATE utf8mb4_unicode_ci,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `rating` tinyint NOT NULL DEFAULT '5',
   `toxicity_score` decimal(3,2) NOT NULL DEFAULT '0.00',
   `is_spam` tinyint(1) NOT NULL DEFAULT '0',
-  `flagged_words` text COLLATE utf8mb4_unicode_ci,
+  `flagged_words` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `status` tinyint NOT NULL DEFAULT '1',
   `edited_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -194,8 +193,8 @@ CREATE TABLE IF NOT EXISTS `comment_reports` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `comment_id` int unsigned NOT NULL,
   `user_id` int unsigned NOT NULL,
-  `reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('pending','resolved','dismissed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','resolved','dismissed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_comment_user` (`comment_id`,`user_id`),
@@ -206,28 +205,6 @@ CREATE TABLE IF NOT EXISTS `comment_reports` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.comment_reports: ~0 rows (approximately)
-
--- Dumping structure for table manage.feedbacks
-CREATE TABLE IF NOT EXISTS `feedbacks` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` int unsigned NOT NULL,
-  `room_id` int unsigned DEFAULT NULL,
-  `subject` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `image` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `admin_note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `admin_reply` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('pending','resolved','dismissed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`),
-  KEY `idx_room` (`room_id`),
-  KEY `idx_status` (`status`),
-  CONSTRAINT `fk_fb_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_fb_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Dumping data for table manage.feedbacks: ~0 rows (approximately)
 
 -- Dumping structure for table manage.contracts
 CREATE TABLE IF NOT EXISTS `contracts` (
@@ -240,7 +217,7 @@ CREATE TABLE IF NOT EXISTS `contracts` (
   `deposit_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
   `initial_electricity_index` decimal(10,2) DEFAULT NULL,
   `initial_water_index` decimal(10,2) DEFAULT NULL,
-  `status` enum('active','terminated') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `status` enum('active','terminated') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `contract_date` date DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -256,11 +233,37 @@ INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_d
 	(1, 2, 1, '2026-01-01', NULL, 1750000.00, 500000.00, 1000.00, 48.00, 'active', '2026-01-01', '2026-08-04 00:34:48'),
 	(2, 3, 1, '2026-02-01', NULL, 1750000.00, 500000.00, 1000.00, 48.00, 'active', '2026-02-01', '2026-08-04 00:34:48');
 
+-- Dumping structure for table manage.feedbacks
+CREATE TABLE IF NOT EXISTS `feedbacks` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `room_id` int unsigned DEFAULT NULL,
+  `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `image` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `admin_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `admin_reply` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','resolved','dismissed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_room` (`room_id`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `fk_fb_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_fb_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table manage.feedbacks: ~0 rows (approximately)
+INSERT INTO `feedbacks` (`id`, `user_id`, `room_id`, `subject`, `content`, `image`, `admin_note`, `admin_reply`, `status`, `created_at`) VALUES
+	(2, 2, NULL, 'Điều hòa', 'text', NULL, '', '', 'pending', '2026-08-13 01:15:31'),
+	(3, 2, NULL, 'fsdf', 'AgadgaG', '/.uploads/image_feedback/feedback-20260813-012022-eed90a7d.png', '', '', 'pending', '2026-08-13 01:20:22'),
+	(4, 2, NULL, 'Đây', 'Nhé', '/.uploads/image_feedback/feedback-20260813-013747-8bcf97e9.png', 'Chưaaaaaaaaaaaaaa', 'Oke', 'resolved', '2026-08-13 01:37:47');
+
 -- Dumping structure for table manage.floors
 CREATE TABLE IF NOT EXISTS `floors` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã tầng',
   `area_id` int unsigned NOT NULL COMMENT 'FK → areas',
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `floor_number` int NOT NULL DEFAULT '1' COMMENT '0 = tầng trệt',
   `room_limit` int NOT NULL DEFAULT '0' COMMENT 'Giới hạn số phòng (0 = không giới hạn)',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -269,19 +272,14 @@ CREATE TABLE IF NOT EXISTS `floors` (
   CONSTRAINT `fk_floor_area` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.floors: ~14 rows (approximately)
+-- Dumping data for table manage.floors: ~10 rows (approximately)
 INSERT INTO `floors` (`id`, `area_id`, `name`, `floor_number`, `room_limit`, `created_at`) VALUES
 	(1, 1, 'Tầng 1', 1, 0, '2026-08-04 00:34:48'),
 	(2, 1, 'Tầng 2', 2, 0, '2026-08-04 00:34:48'),
 	(3, 2, 'Tầng trệt', 0, 0, '2026-08-04 00:34:48'),
-	(4, 3, 'Tầng 1', 1, 0, '2026-08-08 07:56:03'),
-	(5, 3, 'Tầng 2', 2, 0, '2026-08-08 07:56:03'),
-	(6, 3, 'Tầng 3', 3, 0, '2026-08-08 07:56:03'),
-	(7, 3, 'Tầng 4', 4, 0, '2026-08-11 17:41:00'),
 	(8, 1, 'Tầng 3', 3, 2, '2026-08-11 18:37:57'),
 	(9, 1, 'Tầng 4', 4, 1, '2026-08-11 18:38:28'),
 	(10, 1, 'Tầng 5', 5, 6, '2026-08-11 18:38:41'),
-	(11, 2, 'Tầng 1', 1, 4, '2026-08-11 18:38:54'),
 	(12, 2, 'Tầng 2', 2, 4, '2026-08-11 18:47:49'),
 	(13, 2, 'Tầng 3', 3, 5, '2026-08-11 18:48:30'),
 	(14, 2, 'Tầng 4', 4, 1, '2026-08-11 18:51:13'),
@@ -292,10 +290,10 @@ CREATE TABLE IF NOT EXISTS `maintenance_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
   `admin_id` int unsigned NOT NULL,
-  `reason` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `duration_days` int unsigned NOT NULL DEFAULT '1',
   `start_date` date NOT NULL,
-  `status` enum('pending','active','rejected','completed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `status` enum('pending','active','rejected','completed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `rejected_by_user_id` int unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -339,8 +337,8 @@ INSERT INTO `meter_readings` (`id`, `room_id`, `service_id`, `month`, `year`, `o
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL COMMENT 'NULL = broadcast tất cả',
-  `title` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `content` text COLLATE utf8mb4_unicode_ci,
+  `title` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `link` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `type` enum('price_change','payment','general','feedback','review') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'general',
   `is_read` tinyint(1) NOT NULL DEFAULT '0',
@@ -348,30 +346,43 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   PRIMARY KEY (`id`),
   KEY `fk_noti_user` (`user_id`),
   CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.notifications: ~20 rows (approximately)
-INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `type`, `is_read`, `created_at`) VALUES
-	(1, NULL, 'Thay đổi giá dịch vụ', 'Sạc xe điện: 100.000đ → 150.000đ/xe, áp dụng từ tháng 08/2026.', 'price_change', 0, '2026-08-04 00:34:48'),
-	(2, NULL, 'Thay đổi giá điện', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-04 00:34:48'),
-	(3, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 10/2026.', 'price_change', 0, '2026-08-09 04:08:40'),
-	(4, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 50.000đ → 30.000đ/người, áp dụng từ tháng 10/2026.', 'price_change', 0, '2026-08-09 04:09:09'),
-	(5, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 4.000đ → 9.000đ/kwh, áp dụng từ tháng 11/2026.', 'price_change', 0, '2026-08-09 04:18:18'),
-	(6, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-09 09:28:46'),
-	(7, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-09 09:59:17'),
-	(8, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 30.000đ/người, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-09 10:00:45'),
-	(9, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-09 10:32:51'),
-	(10, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 06:44:51'),
-	(11, NULL, 'Thay đổi giá dịch vụ', 'Sạc xe điện: 100.000đ → 10.000đ/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 06:46:30'),
-	(12, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 10.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 08:17:18'),
-	(13, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 10.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:18:38'),
-	(14, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:23:29'),
-	(15, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:54:21'),
-	(16, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 51.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 10:54:49'),
-	(17, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 51.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-10 13:35:28'),
-	(18, NULL, 'Thay đổi giá dịch vụ', 'Lương Văn Dũng: 0đ → 1.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-11 15:45:57'),
-	(19, NULL, 'Thay đổi giá dịch vụ', 'Tiền rác: 20.000đ → 30.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-11 15:46:52'),
-	(20, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 35.000đ/người/tháng, áp dụng từ tháng 09/2026.', 'price_change', 0, '2026-08-11 16:11:37');
+INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`, `is_read`, `created_at`) VALUES
+	(1, NULL, 'Thay đổi giá dịch vụ', 'Sạc xe điện: 100.000đ → 150.000đ/xe, áp dụng từ tháng 08/2026.', NULL, 'price_change', 0, '2026-08-04 00:34:48'),
+	(2, NULL, 'Thay đổi giá điện', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-04 00:34:48'),
+	(3, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 10/2026.', NULL, 'price_change', 0, '2026-08-09 04:08:40'),
+	(4, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 50.000đ → 30.000đ/người, áp dụng từ tháng 10/2026.', NULL, 'price_change', 0, '2026-08-09 04:09:09'),
+	(5, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 4.000đ → 9.000đ/kwh, áp dụng từ tháng 11/2026.', NULL, 'price_change', 0, '2026-08-09 04:18:18'),
+	(6, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-09 09:28:46'),
+	(7, NULL, 'Thay đổi giá dịch vụ', 'Tiền điện: 3.500đ → 4.000đ/kwh, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-09 09:59:17'),
+	(8, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 30.000đ/người, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-09 10:00:45'),
+	(9, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-09 10:32:51'),
+	(10, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 06:44:51'),
+	(11, NULL, 'Thay đổi giá dịch vụ', 'Sạc xe điện: 100.000đ → 10.000đ/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 06:46:30'),
+	(12, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 10.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 08:17:18'),
+	(13, NULL, 'Thay đổi giá dịch vụ', 'Tiền nước: 30.000đ → 10.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 10:18:38'),
+	(14, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 10:23:29'),
+	(15, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 50.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 10:54:21'),
+	(16, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 51.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 10:54:49'),
+	(17, NULL, 'Thay đổi giá dịch vụ', 'Wifi: 51.000đ → 51.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-10 13:35:28'),
+	(18, NULL, 'Thay đổi giá dịch vụ', 'Lương Văn Dũng: 0đ → 1.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-11 15:45:57'),
+	(19, NULL, 'Thay đổi giá dịch vụ', 'Tiền rác: 20.000đ → 30.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-11 15:46:52'),
+	(20, NULL, 'Thay đổi giá dịch vụ', 'Máy giặt: 50.000đ → 35.000đ/người/tháng, áp dụng từ tháng 09/2026.', NULL, 'price_change', 0, '2026-08-11 16:11:37'),
+	(21, 1, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Điều hòa', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:15:31'),
+	(22, 2, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Điều hòa', '?page=admin-feedbacks', 'feedback', 1, '2026-08-13 01:15:31'),
+	(23, 3, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Điều hòa', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:15:31'),
+	(24, 4, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Điều hòa', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:15:31'),
+	(25, 1, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: fsdf', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:20:22'),
+	(26, 2, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: fsdf', '?page=admin-feedbacks', 'feedback', 1, '2026-08-13 01:20:22'),
+	(27, 3, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: fsdf', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:20:22'),
+	(28, 4, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: fsdf', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:20:22'),
+	(29, 1, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Đây', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:37:47'),
+	(30, 2, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Đây', '?page=admin-feedbacks', 'feedback', 1, '2026-08-13 01:37:47'),
+	(31, 3, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Đây', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:37:47'),
+	(32, 4, 'Phản ánh mới từ người thuê', 'Trần Văn Bình đã gửi phản ánh: Đây', '?page=admin-feedbacks', 'feedback', 0, '2026-08-13 01:37:47'),
+	(33, 2, 'Chủ trọ đã phản hồi phản ánh của bạn', 'Phản ánh "Đây": Oke', '?page=tenant-feedback', 'feedback', 1, '2026-08-13 01:39:13');
 
 -- Dumping structure for table manage.notification_reads
 CREATE TABLE IF NOT EXISTS `notification_reads` (
@@ -384,9 +395,34 @@ CREATE TABLE IF NOT EXISTS `notification_reads` (
   KEY `fk_nr_user` (`user_id`),
   CONSTRAINT `fk_nr_notification` FOREIGN KEY (`notification_id`) REFERENCES `notifications` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_nr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.notification_reads: ~0 rows (approximately)
+INSERT INTO `notification_reads` (`id`, `notification_id`, `user_id`, `read_at`) VALUES
+	(1, 22, 2, '2026-08-13 01:15:39'),
+	(2, 26, 2, '2026-08-13 01:30:37'),
+	(3, 20, 2, '2026-08-13 01:30:44'),
+	(4, 19, 2, '2026-08-13 01:30:44'),
+	(5, 18, 2, '2026-08-13 01:30:44'),
+	(6, 17, 2, '2026-08-13 01:30:44'),
+	(7, 16, 2, '2026-08-13 01:30:44'),
+	(8, 15, 2, '2026-08-13 01:30:44'),
+	(9, 14, 2, '2026-08-13 01:30:44'),
+	(10, 13, 2, '2026-08-13 01:30:44'),
+	(11, 12, 2, '2026-08-13 01:30:44'),
+	(12, 11, 2, '2026-08-13 01:30:44'),
+	(13, 10, 2, '2026-08-13 01:30:44'),
+	(14, 9, 2, '2026-08-13 01:30:44'),
+	(15, 8, 2, '2026-08-13 01:30:44'),
+	(16, 7, 2, '2026-08-13 01:30:44'),
+	(17, 6, 2, '2026-08-13 01:30:44'),
+	(18, 5, 2, '2026-08-13 01:30:44'),
+	(19, 4, 2, '2026-08-13 01:30:44'),
+	(20, 3, 2, '2026-08-13 01:30:44'),
+	(21, 2, 2, '2026-08-13 01:30:44'),
+	(22, 1, 2, '2026-08-13 01:30:44'),
+	(23, 30, 2, '2026-08-13 01:39:31'),
+	(24, 33, 2, '2026-08-13 01:39:38');
 
 -- Dumping structure for table manage.payments
 CREATE TABLE IF NOT EXISTS `payments` (
@@ -397,7 +433,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `month` tinyint NOT NULL,
   `year` smallint NOT NULL,
   `amount` decimal(12,2) NOT NULL DEFAULT '0.00',
-  `status` enum('unpaid','paid') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unpaid',
+  `status` enum('unpaid','paid') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unpaid',
   `paid_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -409,22 +445,22 @@ CREATE TABLE IF NOT EXISTS `payments` (
   CONSTRAINT `fk_pay_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.payments: ~2 rows (approximately)
+-- Dumping data for table manage.payments: ~3 rows (approximately)
 INSERT INTO `payments` (`id`, `room_id`, `contract_id`, `user_id`, `month`, `year`, `amount`, `status`, `paid_at`, `created_at`) VALUES
 	(1, 1, 1, 2, 7, 2026, 4290000.00, 'paid', '2026-07-05 03:30:00', '2026-08-04 00:34:48'),
 	(2, 4, NULL, NULL, 7, 2026, 2300000.00, 'unpaid', NULL, '2026-08-04 00:34:48'),
-	(3, 1, NULL, NULL, 8, 2026, 6002000.00, 'unpaid', NULL, '2026-08-09 09:32:07');
+	(3, 1, NULL, 2, 8, 2026, 6002000.00, 'paid', '2026-08-12 16:56:13', '2026-08-09 09:32:07');
 
 -- Dumping structure for table manage.payment_items
 CREATE TABLE IF NOT EXISTS `payment_items` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `payment_id` int unsigned NOT NULL,
   `service_id` int unsigned DEFAULT NULL,
-  `item_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `item_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `unit_price` decimal(10,2) NOT NULL DEFAULT '0.00',
   `quantity` decimal(10,2) NOT NULL DEFAULT '1.00',
   `amount` decimal(12,2) NOT NULL DEFAULT '0.00',
-  `billing_mode` enum('fixed','meter','per_person','per_unit') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `billing_mode` enum('fixed','meter','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_pi_payment` (`payment_id`),
@@ -457,8 +493,8 @@ CREATE TABLE IF NOT EXISTS `price_changes` (
   `service_id` int unsigned NOT NULL,
   `old_price` decimal(10,2) NOT NULL,
   `new_price` decimal(10,2) NOT NULL,
-  `old_billing_mode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `new_billing_mode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `old_billing_mode` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `new_billing_mode` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `effective_month` tinyint NOT NULL,
   `effective_year` smallint NOT NULL,
   `applied` tinyint(1) NOT NULL DEFAULT '0',
@@ -482,10 +518,10 @@ CREATE TABLE IF NOT EXISTS `rental_requests` (
   `user_id` int unsigned NOT NULL,
   `room_id` int unsigned NOT NULL,
   `move_in_date` date NOT NULL,
-  `gender` enum('male','female','other') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `gender` enum('male','female','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `occupant_count` tinyint NOT NULL DEFAULT '1',
-  `status` enum('pending','approved','rejected','cancelled') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
-  `admin_note` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','approved','rejected','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `admin_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -504,9 +540,9 @@ CREATE TABLE IF NOT EXISTS `roommate_requests` (
   `requester_id` int unsigned NOT NULL COMMENT 'Người B — gửi yêu cầu',
   `host_user_id` int unsigned NOT NULL COMMENT 'Người A — đang ở phòng',
   `room_id` int unsigned NOT NULL,
-  `gender` enum('male','female','other') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `relationship` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('pending','approved','rejected','admin_rejected') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `gender` enum('male','female','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `relationship` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','approved','rejected','admin_rejected') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -524,15 +560,15 @@ CREATE TABLE IF NOT EXISTS `roommate_requests` (
 CREATE TABLE IF NOT EXISTS `rooms` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã phòng',
   `floor_id` int unsigned NOT NULL COMMENT 'FK → floors',
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `position` int NOT NULL DEFAULT '0' COMMENT 'Số thứ tự phòng trong tầng',
   `price` decimal(10,2) NOT NULL DEFAULT '0.00',
   `area` decimal(5,2) DEFAULT '0.00' COMMENT 'Diện tích m²',
   `max_occupancy` tinyint DEFAULT '2',
-  `description` text COLLATE utf8mb4_unicode_ci,
-  `amenities` text COLLATE utf8mb4_unicode_ci COMMENT 'Tiện nghi phòng (JSON array)',
-  `thumbnail` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('draft','available','rented','maintenance') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `amenities` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT 'Tiện nghi phòng (JSON array)',
+  `thumbnail` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('draft','available','rented','maintenance') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
   `notice_given` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1 = tenant da bao chuyen di',
   `expected_vacant_date` date DEFAULT NULL,
   `views` int DEFAULT '0',
@@ -541,20 +577,16 @@ CREATE TABLE IF NOT EXISTS `rooms` (
   KEY `idx_room_floor` (`floor_id`),
   KEY `idx_room_status` (`status`),
   CONSTRAINT `fk_room_floor` FOREIGN KEY (`floor_id`) REFERENCES `floors` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.rooms: ~32 rows (approximately)
+-- Dumping data for table manage.rooms: ~28 rows (approximately)
 INSERT INTO `rooms` (`id`, `floor_id`, `name`, `position`, `price`, `area`, `max_occupancy`, `description`, `amenities`, `thumbnail`, `status`, `notice_given`, `expected_vacant_date`, `views`, `created_at`) VALUES
 	(1, 1, 'Phòng A1', 1, 3600000.00, 25.00, 2, 'Phòng có ban công, đầy đủ nội thất.', '', '/.uploads/image_phong_1/phong-1-20260811-134742-e9f0458e.png', 'rented', 0, NULL, 150, '2026-08-04 00:34:48'),
-	(2, 1, 'Phòng A2', 2, 3200000.00, 22.00, 2, 'Phòng thoáng mát, cửa sổ lớn.', NULL, 'uploads/rooms/a2.jpg', 'available', 0, NULL, 122, '2026-08-04 00:34:48'),
-	(3, 2, 'Phòng A3', 1, 4000000.00, 28.00, 3, 'Phòng rộng tầng 2, view công viên.', NULL, 'uploads/rooms/a3.jpg', 'available', 0, NULL, 96, '2026-08-04 00:34:48'),
+	(2, 1, 'Phòng A2', 2, 3200000.00, 22.00, 2, 'Phòng thoáng mát, cửa sổ lớn.', NULL, 'uploads/rooms/a2.jpg', 'available', 0, NULL, 123, '2026-08-04 00:34:48'),
+	(3, 2, 'Phòng A3', 1, 4000000.00, 28.00, 3, 'Phòng rộng tầng 2, view công viên.', NULL, 'uploads/rooms/a3.jpg', 'available', 0, NULL, 97, '2026-08-04 00:34:48'),
 	(4, 3, 'Phòng B1', 1, 2000000.00, 15.00, 1, 'Phòng giá mềm, tiện nghi cơ bản.', NULL, 'uploads/rooms/b1.jpg', 'rented', 0, NULL, 88, '2026-08-04 00:34:48'),
 	(5, 3, 'Phòng B2', 2, 2200000.00, 16.00, 2, 'Phòng có gác lửng.', NULL, 'uploads/rooms/b2.jpg', 'available', 0, NULL, 61, '2026-08-04 00:34:48'),
 	(6, 2, 'Phòng NB', 2, 3000000.00, 23.00, 2, 'àdasf', '', '/.uploads/image_phong_6/phong-new-20260811-133251-5b1e42fa.png', 'available', 0, NULL, 0, '2026-08-11 13:33:42'),
-	(7, 7, '01', 1, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 17:41:00'),
-	(8, 7, '02', 2, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 17:41:00'),
-	(9, 7, '03', 3, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 17:41:00'),
-	(10, 7, '04', 4, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 17:41:00'),
 	(11, 8, '01', 1, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:37:57'),
 	(12, 8, '02', 2, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:37:57'),
 	(13, 8, '03', 3, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:37:57'),
@@ -567,7 +599,6 @@ INSERT INTO `rooms` (`id`, `floor_id`, `name`, `position`, `price`, `area`, `max
 	(20, 10, '03', 3, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:38:41'),
 	(21, 10, '04', 4, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:38:41'),
 	(22, 10, '05', 5, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:38:41'),
-	(23, 11, '01', 1, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:38:54'),
 	(24, 12, '01', 1, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:47:49'),
 	(25, 12, '02', 2, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:47:49'),
 	(26, 13, '01', 1, 0.00, 0.00, 2, '', '', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900', 'draft', 0, NULL, 0, '2026-08-11 18:48:30'),
@@ -583,14 +614,14 @@ INSERT INTO `rooms` (`id`, `floor_id`, `name`, `position`, `price`, `area`, `max
 CREATE TABLE IF NOT EXISTS `room_images` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
-  `image_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `image_url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_primary` tinyint NOT NULL DEFAULT '0',
   `sort_order` int NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_ri_room` (`room_id`),
   CONSTRAINT `fk_ri_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.room_images: ~8 rows (approximately)
 INSERT INTO `room_images` (`id`, `room_id`, `image_url`, `is_primary`, `sort_order`, `created_at`) VALUES
@@ -644,15 +675,15 @@ INSERT INTO `room_services` (`id`, `room_id`, `service_id`, `quantity`, `registe
 -- Dumping structure for table manage.services
 CREATE TABLE IF NOT EXISTS `services` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `price` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `unit` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT 'tháng',
-  `icon` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'settings',
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `unit` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'tháng',
+  `icon` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'settings',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `is_required` tinyint(1) NOT NULL DEFAULT '0',
-  `billing_mode` enum('fixed','meter','per_person','per_unit') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'fixed',
-  `kind` enum('other','electricity','water','trash') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other',
-  `applies_to` enum('room','person') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'room',
+  `billing_mode` enum('fixed','meter','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'fixed',
+  `kind` enum('other','electricity','water','trash') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other',
+  `applies_to` enum('room','person') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'room',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `delete_year` smallint DEFAULT NULL,
   `delete_month` tinyint DEFAULT NULL,
@@ -675,9 +706,9 @@ INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `i
 
 -- Dumping structure for table manage.settings
 CREATE TABLE IF NOT EXISTS `settings` (
-  `setting_key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `setting_value` text COLLATE utf8mb4_unicode_ci,
-  `setting_group` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'general',
+  `setting_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `setting_value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `setting_group` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'general',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -691,8 +722,8 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('contact_phone', '0901 234 567', 'contact', '2026-08-04 00:34:48'),
 	('contact_zalo', '0901234567', 'contact', '2026-08-04 00:34:48'),
 	('enable_comment_moderation', '0', 'moderation', '2026-08-04 00:34:48'),
-('enable_gemini_moderation', '1', 'moderation', '2026-08-04 00:34:48'),
-('gemini_api_key', 'AQ.Ab8RN6I57CAEvBm6qLDeWPf3a5u8r4IFP5rfvutOfY43JLDfTw', 'moderation', '2026-08-04 00:34:48'),
+	('enable_gemini_moderation', '1', 'moderation', '2026-08-04 00:34:48'),
+	('gemini_api_key', 'AQ.Ab8RN6I57CAEvBm6qLDeWPf3a5u8r4IFP5rfvutOfY43JLDfTw', 'moderation', '2026-08-04 00:34:48'),
 	('hero_headline_1', 'Không Gian Sống', 'hero', '2026-08-04 00:34:48'),
 	('hero_headline_2', 'Chuẩn Mực', 'hero', '2026-08-04 00:34:48'),
 	('hero_image', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600', 'hero', '2026-08-04 00:34:48'),
@@ -713,18 +744,18 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 -- Dumping structure for table manage.users
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `full_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'HASH bcrypt',
-  `avatar` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT 'default.png',
+  `full_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'HASH bcrypt',
+  `avatar` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'default.png',
   `role` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1=Admin, 0=Tenant',
   `room_id` int unsigned DEFAULT NULL COMMENT 'Phòng đang ở',
-  `date_of_birth` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `permanent_address` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_number` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_issue_date` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_issue_place` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
+  `date_of_birth` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
+  `permanent_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
+  `identity_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
+  `identity_issue_date` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
+  `identity_issue_place` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_email` (`email`),
@@ -754,7 +785,7 @@ CREATE TABLE IF NOT EXISTS `user_services` (
   CONSTRAINT `fk_us_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.user_services: ~2 rows (approximately)
+-- Dumping data for table manage.user_services: ~0 rows (approximately)
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

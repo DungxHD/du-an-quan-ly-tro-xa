@@ -104,7 +104,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     <?php endif; ?>
 
-    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Popup xác nhận xóa tầng dưới cùng -->
+<!-- [DEV-QWEN-A][NHOM-2][2026-08-14] Popup xác nhận xóa tầng cao nhất -->
     <div id="delete-floor-confirm-popup" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50">
         <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onclick="document.getElementById('delete-floor-confirm-popup').classList.add('hidden')">
             <div class="flex items-start gap-4" onclick="event.stopPropagation()">
@@ -112,11 +112,11 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <span class="material-symbols-outlined text-4xl text-orange-500">warning</span>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-lg font-bold text-gray-800 mb-2">Xác nhận xóa tầng dưới cùng</h3>
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Xác nhận xóa tầng cao nhất</h3>
                     <p class="text-sm text-gray-600 mb-4">
-                        Bạn có chắc chắn muốn xóa <strong>tầng dưới cùng (Tầng 1)</strong> của khu này không?
+                        Bạn có chắc chắn muốn xóa <strong id="delete-floor-display">tầng cao nhất</strong> của khu này không?
                         <br><br>
-                        <span class="font-semibold">Lưu ý:</span> Tầng dưới cùng sẽ được xóa cùng với toàn bộ phòng chưa thuê thuộc tầng đó.
+                        <span class="font-semibold">Lưu ý:</span> Tầng cao nhất sẽ được xóa cùng với toàn bộ phòng chưa thuê thuộc tầng đó.
                         Nếu tầng này đang có phòng đang thuê, hệ thống sẽ thông báo và không thể xóa.
                     </p>
                 </div>
@@ -126,7 +126,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
                     Hủy bỏ
                 </button>
-                <form method="POST" id="confirm-delete-floor-form" action="<?= BASE_URL ?>?page=admin-delete-floor-bottom" class="inline" onclick="event.stopPropagation()">
+                <form method="POST" id="confirm-delete-floor-form" action="<?= BASE_URL ?>?page=admin-delete-floor-top" class="inline" onclick="event.stopPropagation()">
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" value="">
                     <button type="submit"
@@ -137,7 +137,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 </form>
             </div>
         </div>
-</div>
+    </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <!-- ============ FORM KHU ============ -->
@@ -263,11 +263,11 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                              <a href="<?= BASE_URL ?>?page=admin-rooms&area_id=<?= $areaIdNow ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 transition">
                                  <span class="material-symbols-outlined text-base">meeting_room</span> Quản lý phòng
                              </a>
-<!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Xóa tầng dưới cùng -->
+<!-- [DEV-QWEN-A][NHOM-2][2026-08-14] Xóa tầng cao nhất -->
                               <?php if ((int)($area['floor_count'] ?? 0) > 0): ?>
-                              <button type="button" data-delete-floor-bottom="<?= $areaIdNow ?>"
+                              <button type="button" data-delete-floor-top="<?= $areaIdNow ?>" data-floor-number="<?= (int)($area['max_floor_number'] ?? 0) ?>"
                                   class="inline-flex items-center gap-2 rounded-xl bg-orange-50 px-4 py-2 font-semibold text-orange-700 hover:bg-orange-100 transition">
-                                  <span class="material-symbols-outlined text-base">remove_layers</span> Xóa tầng dưới cùng
+                                  <span class="material-symbols-outlined text-base">remove_layers</span> Xóa tầng cao nhất (Tầng <?= (int)($area['max_floor_number'] ?? 0) ?>)
                               </button>
                               <?php endif; ?>
                              <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-area" class="inline">
@@ -427,21 +427,26 @@ updateSubmitState();
     })();
 </script>
 
-    <!-- [DEV-QWEN-A][NHOM-2][2026-08-13] Xử lý popup xác nhận xóa tầng dưới cùng (đặt cuối file để DOM sẵn sàng) -->
+    <!-- [DEV-QWEN-A][NHOM-2][2026-08-14] Xử lý popup xác nhận xóa tầng cao nhất (đặt cuối file để DOM sẵn sàng) -->
     <script>
         (function() {
-            var deleteFloorButtons = document.querySelectorAll('[data-delete-floor-bottom]');
+            var deleteFloorButtons = document.querySelectorAll('[data-delete-floor-top]');
             var confirmPopup = document.getElementById('delete-floor-confirm-popup');
             var confirmForm = document.getElementById('confirm-delete-floor-form');
             var formHiddenInput = confirmForm ? confirmForm.querySelector('input[name="id"]') : null;
             var cancelBtn = document.getElementById('cancel-delete-floor');
+            var floorDisplay = document.getElementById('delete-floor-display');
 
             deleteFloorButtons.forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    var areaId = this.getAttribute('data-delete-floor-bottom');
+                    var areaId = this.getAttribute('data-delete-floor-top');
+                    var floorNumber = this.getAttribute('data-floor-number');
                     if (formHiddenInput && confirmPopup) {
                         formHiddenInput.value = areaId;
+                        if (floorDisplay && floorNumber) {
+                            floorDisplay.innerHTML = 'Tầng ' + floorNumber;
+                        }
                         confirmPopup.classList.remove('hidden');
                     }
                 });
