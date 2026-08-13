@@ -12,7 +12,6 @@ require_once BASE_PATH . 'controllers/AdminTraits/AdminModerationTrait.php';
 
 class AdminController
 {
-<<<<<<< HEAD
     /**
      * Trang tổng quan admin.
      */
@@ -3238,7 +3237,6 @@ class AdminController
     }
 
     /** [DEV-QWEN-A] Stub method to prevent fatal error from missing route */
-=======
     use AdminHelperTrait,
         AdminSystemTrait,
         AdminRoomTrait,
@@ -3246,5 +3244,4 @@ class AdminController
         AdminBillingTrait,
         AdminTenantTrait,
         AdminModerationTrait;
->>>>>>> 821bf3faed7eb1f95347a7ebe7ad37758db1d69f
 }
