@@ -15,14 +15,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 Admin xem toàn bộ đánh giá, kể cả comment bị đánh dấu spam hoặc đang bị ẩn, sau đó quyết định ẩn hoặc hiện lại.
             </p>
         </div>
-        <div class="flex flex-wrap gap-3">
-            <a href="<?= BASE_URL ?>?page=admin-banned-words" class="px-4 py-3 rounded-xl border border-gray-200 font-semibold text-gray-700 hover:bg-gray-50 transition">
-                Quản lý từ cấm
-            </a>
-            <a href="<?= BASE_URL ?>?page=admin-comment-reports" class="px-4 py-3 rounded-xl border border-gray-200 font-semibold text-gray-700 hover:bg-gray-50 transition">
-                Xem báo cáo cộng đồng
-            </a>
-        </div>
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
                 <p class="text-xs text-gray-500">Tổng đánh giá</p>

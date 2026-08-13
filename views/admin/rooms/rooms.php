@@ -121,9 +121,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     </div>
                     <div class="flex-1">
                         <h3 class="text-lg font-bold text-gray-800 mb-2">
-                            <?php if ($deleteBlocked['type'] === 'area'): ?>
+                            <?php $deleteBlockedType = (string)($deleteBlocked['type'] ?? ''); ?>
+                            <?php if ($deleteBlockedType === 'area'): ?>
                                 Không thể xóa khu
-                            <?php elseif ($deleteBlocked['type'] === 'top_floor'): ?>
+                            <?php elseif ($deleteBlockedType === 'top_floor' || $deleteBlockedType === 'highest_floor'): ?>
                                 Không thể xóa tầng
                             <?php else: ?>
                                 Không thể xóa
@@ -133,14 +134,14 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <?= e($deleteBlocked['message']) ?>
                         </p>
                         <p class="text-sm text-gray-500">
-                            <?php if ($deleteBlocked['type'] === 'top_floor'): ?>
-                                <span class="font-semibold">Khu:</span> <?= e($deleteBlocked['area_name']) ?>
+                            <?php if ($deleteBlockedType === 'top_floor' || $deleteBlockedType === 'highest_floor'): ?>
+                                <span class="font-semibold">Khu:</span> <?= e($deleteBlocked['area_name'] ?? '') ?>
                                 <br>
-                                <span class="font-semibold">Tầng:</span> <?= e($deleteBlocked['floor_name']) ?> (tầng <?= (int)($deleteBlocked['floor_number'] ?? 0) ?>)
+                                <span class="font-semibold">Tầng:</span> <?= e($deleteBlocked['floor_name'] ?? '') ?> (tầng <?= (int)($deleteBlocked['floor_number'] ?? 0) ?>)
                                 <br>
                                 <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
                             <?php else: ?>
-                                <span class="font-semibold">Tên:</span> <?= e($deleteBlocked['name']) ?>
+                                <span class="font-semibold">Tên:</span> <?= e($deleteBlocked['name'] ?? ($deleteBlocked['floor_name'] ?? $deleteBlocked['area_name'] ?? '')) ?>
                                 <br>
                                 <span class="font-semibold">Số phòng đang thuê:</span> <?= (int)($deleteBlocked['rented_count'] ?? 0) ?>
                             <?php endif; ?>

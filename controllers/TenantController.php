@@ -574,7 +574,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
             redirectTo('tenant-roommate');
         }
 
-        $hostId = (int)($_POST['target_user_id'] ?? 0);
+        $hostId = (int)($_POST['host_user_id'] ?? 0);
         $host = UserModel::getById($hostId);
         if (!$host || (int)($host['role'] ?? 1) !== 0 || empty($host['room_id'])) {
             setFlash('roommate_error', 'Người ở ghép không hợp lệ.');
@@ -592,7 +592,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
 
         RoommateRequestModel::create([
             'requester_id' => (int)$user['id'],
-            'target_user_id' => $hostId,
+            'host_user_id' => $hostId,
             'room_id' => (int)$room['id'],
             'gender' => trim((string)($_POST['gender'] ?? 'other')),
             'relationship' => trim((string)($_POST['relationship'] ?? '')),
@@ -614,7 +614,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $requestId = (int)($_POST['request_id'] ?? 0);
         $request = RoommateRequestModel::getById($requestId);
 
-        if (!$request || (int)$request['target_user_id'] !== (int)$user['id'] || (string)$request['status'] !== 'pending') {
+        if (!$request || (int)$request['host_user_id'] !== (int)$user['id'] || (string)$request['status'] !== 'pending') {
             setFlash('roommate_error', 'Yêu cầu không hợp lệ hoặc đã xử lý.');
             redirectTo('tenant-roommate');
         }
@@ -669,7 +669,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $user = $this->getAuthenticatedTenant();
         $requestId = (int)($_POST['request_id'] ?? 0);
         $request = RoommateRequestModel::getById($requestId);
-        if (!$request || (int)$request['target_user_id'] !== (int)$user['id'] || (string)$request['status'] !== 'pending') {
+        if (!$request || (int)$request['host_user_id'] !== (int)$user['id'] || (string)$request['status'] !== 'pending') {
             setFlash('roommate_error', 'Yêu cầu không hợp lệ hoặc đã xử lý.');
             redirectTo('tenant-roommate');
         }

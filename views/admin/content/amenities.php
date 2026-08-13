@@ -239,13 +239,13 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                         <a href="<?= BASE_URL ?>?page=admin-amenities&edit=<?= (int)($item['id'] ?? 0) ?>" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">
                                             Sửa
                                         </a>
-                                        <a
-                                            href="<?= BASE_URL ?>?page=admin-delete-amenity&id=<?= (int)($item['id'] ?? 0) ?>"
-                                            data-confirm="Bạn chắc chắn muốn xóa tiện ích này khỏi hệ thống?"
-                                            class="text-red-600 hover:text-red-800 font-semibold text-sm"
-                                        >
-                                            Xóa
-                                        </a>
+                                        <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-amenity" class="inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa tiện ích này khỏi hệ thống?');">
+<?= csrf_field() ?>
+                                            <input type="hidden" name="id" value="<?= (int)($item['id'] ?? 0) ?>">
+                                            <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm">
+                                                Xóa
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>

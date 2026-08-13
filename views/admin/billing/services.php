@@ -127,7 +127,7 @@ $hasAnyPending = $hasPendingPrice || $hasPendingMode || $pendDeac;
 <?php elseif ($hasAnyPending): ?>
 <button type="button" data-open-delete="delete-modal-<?= $itemId ?>" class="text-red-600 hover:text-red-800 font-semibold text-sm">Xóa</button>
 <?php else: ?>
-<a href="<?= BASE_URL ?>?page=admin-delete-service&id=<?= $itemId ?>" data-confirm="Bạn chắc chắn muốn xóa dịch vụ này?" class="text-red-600 hover:text-red-800 font-semibold text-sm">Xóa</a>
+<form method="POST" action="<?= BASE_URL ?>?page=admin-delete-service" class="inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa dịch vụ này?');"><?= csrf_field() ?><input type="hidden" name="id" value="<?= $itemId ?>"><button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm">Xóa</button></form>
 <?php endif; ?>
 <?php endif; ?>
 </div></td>

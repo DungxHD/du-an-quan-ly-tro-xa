@@ -2,6 +2,7 @@
 // Trang chi tiết dùng dữ liệu đã được controller/model chuẩn hoá để view chỉ tập trung render.
 $galleryImages = $room['gallery_images'] ?? [];
 $primaryImage = $galleryImages[0] ?? ($room['thumbnail'] ?? '');
+$fallbackImage = RoomModel::getDefaultRoomImageUrl();
 $services = $room['services'] ?? [];
 $commentBundle = $commentBundle ?? ['public_comments' => [], 'owner_comment' => null, 'public_count' => 0];
 $publicComments = $commentBundle['public_comments'] ?? [];
@@ -29,14 +30,14 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
             <!-- Gallery -->
             <div class="lg:col-span-3 reveal-left">
                 <div class="aspect-video rounded-2xl overflow-hidden mb-4 shadow-xl">
-                    <img src="<?= e($primaryImage) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover">
+                    <img src="<?= e($primaryImage) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover" onerror="if(this.dataset.fallbackApplied==='1'){return;}this.dataset.fallbackApplied='1';this.src='<?= e($fallbackImage) ?>';">
                 </div>
                 <?php $subImages = array_slice($galleryImages, 1); ?>
                 <?php if (!empty($subImages)): ?>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <?php foreach ($subImages as $subIdx => $imageUrl): ?>
                             <div class="aspect-video rounded-xl overflow-hidden border border-gray-100 bg-white">
-                                <img src="<?= e($imageUrl) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover">
+                                <img src="<?= e($imageUrl) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover" loading="lazy" onerror="if(this.dataset.fallbackApplied==='1'){return;}this.dataset.fallbackApplied='1';this.src='<?= e($fallbackImage) ?>';">
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -145,8 +146,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                 foreach ($canonicalAmenities as $ca) {
                     $caKey = mb_strtolower($ca['key'], 'UTF-8');
                     $caLabel = mb_strtolower($ca['label'], 'UTF-8');
-                    if (mb_strpos($labelKey, $caKey) !== false || mb_strpos($labelKey, $caLabel) !== false ||
-                        mb_strpos($caKey, $labelKey) !== false || mb_strpos($caLabel, $labelKey) !== false) {
+                    if (mb_strpos($labelKey, $caKey) !== false || mb_strpos($labelKey, $caLabel) !== false) {
                         $matched = $ca;
                         break;
                     }
@@ -426,17 +426,23 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
     <button type="button" onclick="closeRoomLightbox()" class="absolute top-4 right-4 z-[10001] w-11 h-11 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl" aria-label="Dong">&times;</button>
     <button type="button" onclick="roomLightboxStep(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh truoc">&#10094;</button>
     <button type="button" onclick="roomLightboxStep(1)" class="absolute right-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh sau">&#10095;</button>
-    <img id="roomLightboxImg" src="" alt="Anh phong" class="max-w-[92vw] max-h-[88vh] object-contain rounded-lg" onclick="event.stopPropagation()">
+    <img id="roomLightboxImg" src="" alt="Anh phong" class="max-w-[92vw] max-h-[88vh] object-contain rounded-lg" onclick="event.stopPropagation()" onerror="if(this.dataset.fallbackApplied==='1'){return;}this.dataset.fallbackApplied='1';this.src='<?= e($fallbackImage) ?>';">
     <div id="roomLightboxCounter" class="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 text-white text-sm"></div>
 </div>
 <script>
 (function(){
     var urls = <?= json_encode(array_values((array)($room['gallery_images'] ?? []))) ?>;
+    var fallbackUrl = <?= json_encode($fallbackImage) ?>;
     var lb = document.getElementById('roomLightbox');
     var img = document.getElementById('roomLightboxImg');
     var cnt = document.getElementById('roomLightboxCounter');
     var cur = 0;
-    function render(){ if (!urls.length) return; img.src = urls[cur]; cnt.textContent = (cur + 1) + ' / ' + urls.length; }
+    function render(){
+        if (!urls.length) return;
+        img.dataset.fallbackApplied = '0';
+        img.src = urls[cur] || fallbackUrl;
+        cnt.textContent = (cur + 1) + ' / ' + urls.length;
+    }
     window.openRoomLightbox = function(i){ if (!urls.length) return; cur = Math.max(0, Math.min(i | 0, urls.length - 1)); render(); lb.classList.remove('hidden'); lb.classList.add('flex'); document.body.style.overflow = 'hidden'; };
     window.closeRoomLightbox = function(){ lb.classList.add('hidden'); lb.classList.remove('flex'); document.body.style.overflow = ''; };
     window.roomLightboxStep = function(d){ if (!urls.length) return; cur = (cur + d + urls.length) % urls.length; render(); };

@@ -65,6 +65,8 @@ class AuthController extends BaseController
      */
     public function login()
     {
+        if (isset($_SESSION['user_id'])) { redirectTo((int)($_SESSION['role'] ?? 0) === 1 ? 'admin' : (!empty($_SESSION['room_id']) ? 'tenant' : 'rooms')); }
+
         $errors = [];
         $old = ['email' => ''];
         $success = pullFlash('auth_success');
@@ -127,6 +129,8 @@ class AuthController extends BaseController
      */
     public function register()
     {
+        if (isset($_SESSION['user_id'])) { redirectTo((int)($_SESSION['role'] ?? 0) === 1 ? 'admin' : (!empty($_SESSION['room_id']) ? 'tenant' : 'rooms')); }
+
         $errors = [];
         $old = [
             'full_name' => '',
@@ -150,18 +154,26 @@ class AuthController extends BaseController
 
             if ($fullName === '') {
                 $errors['full_name'] = 'Vui lòng nhập họ và tên.';
+            } elseif (mb_strlen($fullName) > 100) {
+                $errors['full_name'] = 'Họ và tên không được vượt quá 100 ký tự.';
             }
 
             if ($email === '') {
                 $errors['email'] = 'Vui lòng nhập email.';
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $errors['email'] = 'Email chưa đúng định dạng.';
+            } elseif (mb_strlen($email) > 150) {
+                $errors['email'] = 'Email không được vượt quá 150 ký tự.';
             } elseif (UserModel::emailExists($email)) {
                 $errors['email'] = 'Email đã được sử dụng';
             }
 
             if ($phone === '') {
                 $errors['phone'] = 'Vui lòng nhập số điện thoại.';
+            } elseif (mb_strlen($phone) > 20) {
+                $errors['phone'] = 'Số điện thoại không được vượt quá 20 ký tự.';
+            } elseif (!preg_match('/^[0-9+\-\s]{8,15}$/', $phone)) {
+                $errors['phone'] = 'Số điện thoại chưa đúng định dạng.';
             }
 
             if ($password === '') {
@@ -177,15 +189,21 @@ class AuthController extends BaseController
             }
 
             if (empty($errors)) {
-                UserModel::create([
-                    'full_name' => $fullName,
-                    'email' => $email,
-                    'phone' => $phone,
-                    'password' => $password,
-                    'role' => 0,
-                    'room_id' => null,
-                ]);
+                try {
+                    UserModel::create([
+                        'full_name' => $fullName,
+                        'email' => $email,
+                        'phone' => $phone,
+                        'password' => $password,
+                        'role' => 0,
+                        'room_id' => null,
+                    ]);
+                } catch (Throwable $e) {
+                    $errors['email'] = 'Email đã được sử dụng';
+                }
+            }
 
+            if (empty($errors)) {
                 setFlash('auth_success', 'Tạo tài khoản thành công');
                 redirectTo('login');
             }

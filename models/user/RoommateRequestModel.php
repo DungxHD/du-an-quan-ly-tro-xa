@@ -10,7 +10,7 @@ class RoommateRequestModel {
         $gender = $data['gender'] ?? 'other';
         $payload = [
             'requester_id' => (int)($data['requester_id'] ?? 0),
-            'target_user_id' => (int)($data['target_user_id'] ?? 0),
+            'host_user_id' => (int)($data['host_user_id'] ?? 0),
             'room_id'      => (int)($data['room_id'] ?? 0),
             'gender'       => in_array($gender, ['male', 'female', 'other'], true) ? $gender : 'other',
             'relationship' => trim((string)($data['relationship'] ?? '')),
@@ -34,7 +34,7 @@ class RoommateRequestModel {
              FROM roommate_requests rr
              INNER JOIN users u ON u.id = rr.requester_id
              INNER JOIN rooms r ON r.id = rr.room_id
-             WHERE rr.target_user_id = ? AND rr.status = 'pending'
+             WHERE rr.host_user_id = ? AND rr.status = 'pending'
              ORDER BY rr.id DESC",
             [(int)$hostUserId]
         );

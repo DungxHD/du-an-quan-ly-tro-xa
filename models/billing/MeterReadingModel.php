@@ -77,20 +77,21 @@ class MeterReadingModel {
                     'name' => $service['name'] ?? 'Dịch vụ',
                     'unit' => $service['unit'] ?? 'đơn vị',
                     'icon' => $service['icon'] ?? 'settings',
-                    'price' => (float)($service['price'] ?? 0),
+                    'price' => (float)(PriceChangeModel::getEffectiveConfigForPeriod($service, $period['month'], $period['year'])['price'] ?? 0),
                 ];
                 $baseline = self::resolvePeriodBaseline($roomId, $service, $period['month'], $period['year']);
                 $reading = self::getReadingByPeriod($roomId, $serviceId, $period['month'], $period['year']);
                 $oldIndex = $reading ? (float)($reading['old_index'] ?? 0) : $baseline['old_index'];
                 $newIndex = $reading ? (float)($reading['new_index'] ?? 0) : null;
                 $consumption = $newIndex !== null ? max(0, $newIndex - (float)$oldIndex) : null;
-                $amount = $consumption !== null ? $consumption * (float)($service['price'] ?? 0) : null;
+                $effectivePrice = (float)(PriceChangeModel::getEffectiveConfigForPeriod($service, $period['month'], $period['year'])['price'] ?? 0);
+                $amount = $consumption !== null ? $consumption * $effectivePrice : null;
                 $cells[$serviceId] = [
                     'service_id' => $serviceId,
                     'service_name' => $service['name'] ?? 'Dịch vụ',
                     'service_icon' => $service['icon'] ?? 'settings',
                     'unit' => $service['unit'] ?? 'đơn vị',
-                    'price' => (float)($service['price'] ?? 0),
+                    'price' => $effectivePrice,
                     'reading_id' => (int)($reading['id'] ?? 0),
                     'old_index' => $oldIndex,
                     'new_index' => $newIndex,
@@ -354,7 +355,9 @@ class MeterReadingModel {
             $oldIndex = (float)($reading['old_index'] ?? 0);
             $newIndex = (float)($reading['new_index'] ?? 0);
             $consumption = max(0, $newIndex - $oldIndex);
-            $amount = $consumption * (float)($service['price'] ?? 0);
+            $effectiveConfig = PriceChangeModel::getEffectiveConfigForPeriod($service, $period['month'], $period['year']);
+            $effectivePrice = (float)($effectiveConfig['price'] ?? 0);
+            $amount = $consumption * $effectivePrice;
             $baseline = self::resolvePeriodBaseline($resolvedRoomId, $service, $period['month'], $period['year']);
 
             $items[] = [
@@ -362,12 +365,12 @@ class MeterReadingModel {
                 'service_name' => $service['name'] ?? 'Dịch vụ',
                 'service_icon' => $service['icon'] ?? 'settings',
                 'unit' => $service['unit'] ?? 'đơn vị',
-                'price' => (float)($service['price'] ?? 0),
+                'price' => $effectivePrice,
                 'old_index' => $oldIndex,
                 'new_index' => $newIndex,
                 'consumption' => $consumption,
                 'amount' => $amount,
-                'formula' => self::buildFormulaText($consumption, (float)($service['price'] ?? 0), $amount, $service['unit'] ?? 'đơn vị'),
+                'formula' => self::buildFormulaText($consumption, $effectivePrice, $amount, $service['unit'] ?? 'đơn vị'),
                 'baseline_note' => $baseline['source'] === 'contract_initial' ? $baseline['note'] : null,
             ];
         }
@@ -415,7 +418,7 @@ class MeterReadingModel {
                 'year' => (int)($reading['year'] ?? 0),
                 'label' => str_pad((string)($reading['month'] ?? 0), 2, '0', STR_PAD_LEFT) . '/' . ($reading['year'] ?? ''),
                 'consumption' => $consumption,
-                'amount' => $consumption * (float)($service['price'] ?? 0),
+                'amount' => $consumption * (float)(PriceChangeModel::getEffectiveConfigForPeriod($service, (int)($reading['month'] ?? 0), (int)($reading['year'] ?? 0))['price'] ?? 0),
             ];
             $grouped[$serviceId]['max_consumption'] = max($grouped[$serviceId]['max_consumption'], $consumption);
         }

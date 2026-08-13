@@ -88,7 +88,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <p class="text-2xl font-bold text-gray-800"><?= (int)($stats['rented_rooms'] ?? 0) ?></p>
         </div>
         <div class="bg-white rounded-2xl border p-5">
-            <p class="text-sm text-gray-500 mb-1">Chưa có thông tin</p>
+            <p class="text-sm text-gray-500 mb-1">Phòng chưa có thông tin</p>
             <p class="text-2xl font-bold text-amber-600"><?= (int)($stats['draft_rooms'] ?? 0) ?></p>
         </div>
         <div class="bg-white rounded-2xl border p-5">
@@ -186,7 +186,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Khu</p><p class="text-xl font-bold"><?= (int)($statsSummary['tracked_areas'] ?? 0) ?></p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Tổng phòng</p><p class="text-xl font-bold"><?= (int)($statsSummary['tracked_rooms'] ?? 0) ?></p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Phòng trống</p><p class="text-xl font-bold text-green-600"><?= (int)($statsSummary['tracked_available_rooms'] ?? 0) ?></p></div>
-<div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Chưa có thông tin</p><p class="text-xl font-bold text-amber-600"><?= (int)($statsSummary['tracked_draft_rooms'] ?? 0) ?></p></div>
+<div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Phòng chưa có thông tin</p><p class="text-xl font-bold text-amber-600"><?= (int)($statsSummary['tracked_draft_rooms'] ?? 0) ?></p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Lấp đầy</p><p class="text-xl font-bold text-primary"><?= number_format((float)($statsSummary['tracked_occupancy_rate'] ?? 0), 1) ?>%</p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">Doanh thu năm</p><p class="text-xl font-bold text-emerald-600"><?= number_format((float)($statsSummary['year_total'] ?? 0)) ?> ₫</p></div>
 <div class="bg-surface rounded-xl p-4"><p class="text-xs text-gray-500">HĐ đã trả</p><p class="text-xl font-bold text-secondary"><?= (int)($statsSummary['paid_invoice_count'] ?? 0) ?></p></div>
@@ -199,7 +199,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tổng phòng</th>
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trống</th>
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Đã thuê</th>
-<th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Chưa có thông tin</th>
+<th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phòng chưa có thông tin</th>
 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lấp đầy</th>
 </tr></thead>
 <tbody class="divide-y divide-gray-100">

@@ -123,7 +123,7 @@ trait AdminRoomTrait
 
         if ($rentedCount > 0) {
             setFlash('admin_delete_blocked', [
-                'type' => 'highest_floor',
+                'type' => 'top_floor',
                 'area_name' => $area['name'] ?? '',
                 'floor_name' => $highestFloor['name'] ?? '',
                 'floor_number' => $highestFloorNumber,

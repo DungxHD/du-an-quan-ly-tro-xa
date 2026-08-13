@@ -233,7 +233,7 @@ trait AdminTenantTrait
         $roommateRequests = RoommateRequestModel::getAll(['status' => $roommateStatusFilter]);
         foreach ($roommateRequests as &$row) {
             $requester = UserModel::getById((int)$row['requester_id']);
-            $host = UserModel::getById((int)$row['target_user_id']);
+            $host = UserModel::getById((int)$row['host_user_id']);
             $room = RoomModel::getById((int)$row['room_id']);
             $row['requester_name'] = (string)($requester['full_name'] ?? '');
             $row['host_name'] = (string)($host['full_name'] ?? '');

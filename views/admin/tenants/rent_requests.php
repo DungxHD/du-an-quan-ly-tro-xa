@@ -197,7 +197,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         </td>
                         <td class="px-6 py-4 align-top">
                             <p class="font-semibold text-gray-900"><?= e($rr['host_name'] ?? 'N/A') ?></p>
-                            <p class="text-xs text-gray-400 mt-1">ID: <?= (int)($rr['target_user_id'] ?? 0) ?></p>
+                            <p class="text-xs text-gray-400 mt-1">ID: <?= (int)($rr['host_user_id'] ?? 0) ?></p>
                         </td>
                         <td class="px-6 py-4 align-top font-medium text-gray-900"><?= e($rr['room_name'] ?? 'N/A') ?></td>
                         <td class="px-6 py-4 align-top text-sm text-gray-700"><?= $rrGender ?></td>
