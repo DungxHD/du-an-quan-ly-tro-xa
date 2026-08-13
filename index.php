@@ -125,9 +125,15 @@ function getPanelNavigation($role, $active = '')
     $menus = [
         'admin' => [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
-            ['id' => 'rent-requests', 'label' => 'Yêu cầu thuê', 'icon' => 'inbox', 'url' => BASE_URL . '?page=admin-rent-requests'],
-            ['id' => 'roommate-requests', 'label' => 'Yêu cầu ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=admin-roommate-requests'],
-['id' => 'areas', 'label' => 'Quản lý khu', 'icon' => 'apartment', 'url' => BASE_URL . '?page=admin-areas'],
+            ['id' => 'rent-requests', 'label' => 'Yêu cầu thuê & ở ghép', 'icon' => 'inbox', 'url' => BASE_URL . '?page=admin-rent-requests'],
+            [
+                'id' => 'group-settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune',
+                'children' => [
+                    ['id' => 'settings', 'label' => 'Cấu hình chung', 'icon' => 'settings', 'url' => BASE_URL . '?page=admin-settings'],
+                    ['id' => 'amenities', 'label' => 'Tiện ích', 'icon' => 'apps', 'url' => BASE_URL . '?page=admin-amenities'],
+                ],
+            ],
+            ['id' => 'areas', 'label' => 'Quản lý khu', 'icon' => 'apartment', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
             ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
 

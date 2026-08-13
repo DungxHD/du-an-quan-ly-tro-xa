@@ -224,9 +224,28 @@ trait AdminTenantTrait
             $statusFilter = 'pending';
         }
         $requests = RentalRequestModel::getAllWithDetails(['status' => $statusFilter]);
+
+        $roommateStatusFilter = trim((string)($_GET['rstatus'] ?? 'pending'));
+        $allowedRoommateStatuses = ['pending', 'approved', 'rejected', 'admin_rejected'];
+        if (!in_array($roommateStatusFilter, $allowedRoommateStatuses, true)) {
+            $roommateStatusFilter = 'pending';
+        }
+        $roommateRequests = RoommateRequestModel::getAll(['status' => $roommateStatusFilter]);
+        foreach ($roommateRequests as &$row) {
+            $requester = UserModel::getById((int)$row['requester_id']);
+            $host = UserModel::getById((int)$row['target_user_id']);
+            $room = RoomModel::getById((int)$row['room_id']);
+            $row['requester_name'] = (string)($requester['full_name'] ?? '');
+            $row['host_name'] = (string)($host['full_name'] ?? '');
+            $row['room_name'] = (string)($room['name'] ?? '');
+        }
+        unset($row);
+
         $message = pullFlash('rent_request_message', '');
         $error = pullFlash('rent_request_error', '');
-        $pageTitle = 'Yêu cầu thuê phòng - NhaTroA';
+        $roommateMessage = pullFlash('roommate_admin_message', '');
+        $roommateError = pullFlash('roommate_admin_error', '');
+        $pageTitle = 'Yêu cầu thuê & ở ghép - NhaTroA';
         require_once BASE_PATH . 'views/admin/tenants/rent_requests.php';
     }
 /**
@@ -331,29 +350,12 @@ trait AdminTenantTrait
         redirectTo('admin-rent-requests');
     }
 /**
-     * Admin xem danh sách yêu cầu ở ghép (kèm tên người gửi / người nhận / phòng).
+     * Yêu cầu ở ghép đã gộp vào trang quản lý yêu cầu (admin-rent-requests).
+     * Giữ route cũ để link/redirect cũ không bị lỗi.
      */
     public function roommateRequests()
     {
-        $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
-        $allowed = ['pending', 'approved', 'rejected', 'admin_rejected'];
-        if (!in_array($statusFilter, $allowed, true)) {
-            $statusFilter = 'pending';
-        }
-        $requests = RoommateRequestModel::getAll(['status' => $statusFilter]);
-        foreach ($requests as &$row) {
-            $req = UserModel::getById((int)$row['requester_id']);
-            $host = UserModel::getById((int)$row['target_user_id']);
-            $room = RoomModel::getById((int)$row['room_id']);
-            $row['requester_name'] = (string)($req['full_name'] ?? '');
-            $row['host_name'] = (string)($host['full_name'] ?? '');
-            $row['room_name'] = (string)($room['name'] ?? '');
-        }
-        unset($row);
-        $message = pullFlash('roommate_admin_message', '');
-        $error = pullFlash('roommate_admin_error', '');
-        $pageTitle = 'Yêu cầu ở ghép - NhaTroA';
-        require_once BASE_PATH . 'views/admin/tenants/roommate_requests.php';
+        redirectTo('admin-rent-requests');
     }
 /**
      * Admin veto yêu cầu ở ghép: nếu đã duyệt (B đã vào phòng) thì gỡ B ra.
@@ -361,14 +363,14 @@ trait AdminTenantTrait
     public function vetoRoommate()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-roommate-requests');
+            redirectTo('admin-rent-requests');
         }
         verify_csrf();
         $requestId = (int)($_POST['request_id'] ?? 0);
         $request = RoommateRequestModel::getById($requestId);
         if (!$request) {
             setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-roommate-requests');
+            redirectTo('admin-rent-requests');
         }
         $status = (string)$request['status'];
         $requesterId = (int)$request['requester_id'];
@@ -385,7 +387,7 @@ trait AdminTenantTrait
                 }
             } catch (Throwable $exception) {
                 setFlash('roommate_admin_error', 'Không gỡ được người ở ghép: ' . $exception->getMessage());
-                redirectTo('admin-roommate-requests');
+                redirectTo('admin-rent-requests');
             }
             RoommateRequestModel::setStatus($requestId, 'admin_rejected');
             NotificationModel::create([
@@ -407,7 +409,7 @@ trait AdminTenantTrait
         } else {
             setFlash('roommate_admin_error', 'Yêu cầu đã được xử lý trước đó.');
         }
-        redirectTo('admin-roommate-requests');
+        redirectTo('admin-rent-requests');
     }
 
 }
