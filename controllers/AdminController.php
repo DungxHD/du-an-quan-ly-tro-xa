@@ -1,10 +1,18 @@
-﻿<?php
+<?php
+// [DEV-QWEN-A][REFACTOR][NHOM-6] AdminController gọn: chỉ khai báo traits. Mọi method nằm trong controllers/AdminTraits/.
+// Model load qua autoloader của index.php như trước; RoomPriceChangeModel được dùng ở savePriceChange.
 require_once BASE_PATH . 'models/room/RoomPriceChangeModel.php';
-
-
+require_once BASE_PATH . 'controllers/AdminTraits/AdminHelperTrait.php';
+require_once BASE_PATH . 'controllers/AdminTraits/AdminSystemTrait.php';
+require_once BASE_PATH . 'controllers/AdminTraits/AdminRoomTrait.php';
+require_once BASE_PATH . 'controllers/AdminTraits/AdminMaintenanceTrait.php';
+require_once BASE_PATH . 'controllers/AdminTraits/AdminBillingTrait.php';
+require_once BASE_PATH . 'controllers/AdminTraits/AdminTenantTrait.php';
+require_once BASE_PATH . 'controllers/AdminTraits/AdminModerationTrait.php';
 
 class AdminController
 {
+<<<<<<< HEAD
     /**
      * Trang tổng quan admin.
      */
@@ -3230,6 +3238,13 @@ class AdminController
     }
 
     /** [DEV-QWEN-A] Stub method to prevent fatal error from missing route */
+=======
+    use AdminHelperTrait,
+        AdminSystemTrait,
+        AdminRoomTrait,
+        AdminMaintenanceTrait,
+        AdminBillingTrait,
+        AdminTenantTrait,
+        AdminModerationTrait;
+>>>>>>> 821bf3faed7eb1f95347a7ebe7ad37758db1d69f
 }
-
-// [QUAN TRỌNG] CẦN FIX LỖI MẤT ẢNH: Khi update, nếu \ rỗng, PHẢI lấy lại ảnh cũ từ DB trước khi chạy câu lệnh UPDATE. Ví dụ: if (empty(\['...'])) { \['images'] = \['images']; }
