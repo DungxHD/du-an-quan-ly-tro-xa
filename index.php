@@ -17,6 +17,7 @@ spl_autoload_register(static function ($className) {
         BASE_PATH . 'models/communication/',
         BASE_PATH . 'models/moderation/',
         BASE_PATH . 'models/content/',
+        
         BASE_PATH . 'controllers/',
     ];
 
