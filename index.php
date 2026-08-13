@@ -134,8 +134,7 @@ function getPanelNavigation($role, $active = '')
                 'id' => 'group-community', 'label' => 'Cộng đồng & Kiểm duyệt', 'icon' => 'star',
                 'children' => [
                     ['id' => 'comments', 'label' => 'Đánh giá', 'icon' => 'star', 'url' => BASE_URL . '?page=admin-comments'],
-                    ['id' => 'banned-words', 'label' => 'Từ cấm', 'icon' => 'gpp_bad', 'url' => BASE_URL . '?page=admin-banned-words'],
-                    ['id' => 'comment-reports', 'label' => 'Báo cáo', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-comment-reports'],
+                    ['id' => 'feedbacks', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-feedbacks'],
                 ],
             ],
 
@@ -151,6 +150,7 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'contract', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=tenant-contract'],
             ['id' => 'roommate', 'label' => 'Ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=tenant-roommate'],
             ['id' => 'maintenance', 'label' => 'Bảo trì', 'icon' => 'build', 'url' => BASE_URL . '?page=tenant-maintenance'],
+            ['id' => 'feedback', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=tenant-feedback'],
 
             ['id' => 'rooms', 'label' => 'Tìm phòng', 'icon' => 'search', 'url' => BASE_URL . '?page=rooms'],
         ],
@@ -246,9 +246,9 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->deleteArea((int)($_POST['id'] ?? 0));
         break;
-    case 'admin-delete-floor-top':
+    case 'admin-delete-floor-bottom':
         requireAdmin();
-        (new AdminController())->deleteTopFloor((int)($_POST['id'] ?? 0));
+        (new AdminController())->deleteBottomFloor((int)($_POST['id'] ?? 0));
         break;
     case 'admin-rooms':
         requireAdmin();
@@ -361,6 +361,14 @@ switch ($page) {
     case 'tenant-maintenance':
         redirectTo('tenant');
         break;
+    case 'tenant-feedback':
+        requireTenant();
+        (new TenantController())->feedback();
+        break;
+    case 'tenant-send-feedback':
+        requireTenant();
+        (new TenantController())->sendFeedback();
+        break;
     case 'tenant-reject-maintenance':
         (new TenantController())->rejectMaintenance();
         break;
@@ -392,21 +400,17 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->comments();
         break;
-    case 'admin-banned-words':
+    case 'admin-feedbacks':
         requireAdmin();
-        (new AdminController())->bannedWords();
+        (new AdminController())->feedbacks();
         break;
-    case 'admin-save-banned-word':
+    case 'admin-save-feedback':
         requireAdmin();
-        (new AdminController())->saveBannedWord();
+        (new AdminController())->saveFeedback();
         break;
-    case 'admin-comment-reports':
+    case 'admin-resolve-feedback':
         requireAdmin();
-        (new AdminController())->commentReports();
-        break;
-    case 'admin-resolve-report':
-        requireAdmin();
-        (new AdminController())->resolveReport();
+        (new AdminController())->resolveFeedback();
         break;
     case 'admin-invoices':
         requireAdmin();

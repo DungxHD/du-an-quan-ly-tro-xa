@@ -129,7 +129,32 @@ class CommentModel {
             $comment['moderation_notice'] = $moderated['notice'] ?? '';
         }
 
+        // [DEV-QWEN-A][NHOM-2][2026-08-14] Gửi thông báo cho admin khi có review mới
+        self::notifyAdminsNewReview($commentId, $userId);
+
         return $comment;
+    }
+
+    /**
+     * Gửi thông báo cho tất cả admin khi có đánh giá mới.
+     */
+    private static function notifyAdminsNewReview($commentId, $userId) {
+        $comment = self::getById($commentId);
+        if (!$comment) return;
+
+        $user = UserModel::getById($userId);
+        $userName = $user ? $user['full_name'] : 'Người thuê';
+        $roomName = $comment['room_name'] ?? 'Phòng #' . ($comment['room_id'] ?? '');
+
+        $admins = UserModel::getAll(['role' => 1]);
+        foreach ($admins as $admin) {
+            NotificationModel::create([
+                'user_id' => (int)$admin['id'],
+                'title' => 'Đánh giá phòng mới',
+                'content' => "Phòng \"{$roomName}\" được đánh giá từ người thuê \"{$userName}\".",
+                'type' => 'review',
+            ]);
+        }
     }
 
     /**

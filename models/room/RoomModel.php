@@ -611,20 +611,45 @@ class RoomModel
         return $diff->invert ? 0 : $diff->days;
     }
 
+/**
+     * Danh sách tiện ích chuẩn dùng chung cho admin, public filter, detail page.
+     * Mỗi item: key (dùng để lưu DB/filter), label (hiển thị), icon (material-symbols).
+     */
+    public static function getCanonicalAmenities()
+    {
+        return [
+            ['key' => 'dieu_hoa',  'label' => 'Điều hòa',   'icon' => 'ac_unit'],
+            ['key' => 'nong_lanh', 'label' => 'Nóng lạnh',  'icon' => 'water_heater'],
+            ['key' => 'tu_lanh',   'label' => 'Tủ lạnh',    'icon' => 'kitchen'],
+            ['key' => 'giuong',    'label' => 'Giường',     'icon' => 'bed'],
+            ['key' => 'ban_ghe',   'label' => 'Bàn ghế',    'icon' => 'chair'],
+            ['key' => 'tu_quan_ao','label' => 'Tủ quần áo', 'icon' => 'checkroom'],
+            ['key' => 'may_giat',  'label' => 'Máy giặt',   'icon' => 'local_laundry_service'],
+            ['key' => 'wifi',      'label' => 'Wifi',       'icon' => 'wifi'],
+        ];
+    }
+
     /**
-     * Bộ lọc tiện ích phòng được thiết kế tách riêng để sau này có thể nâng cấp
-     * sang bảng room_features mà không phải thay đổi controller/view.
+     * Lấy các key tiện ích chuẩn (dùng cho validation, filter).
+     */
+    public static function getCanonicalAmenityKeys()
+    {
+        return array_column(self::getCanonicalAmenities(), 'key');
+    }
+
+    /**
+     * Bộ lọc tiện ích cho trang public (subset của canonical, có thêm aliases cho tìm kiếm mờ).
+     * Giữ key/icon/label trùng với canonical để đồng bộ.
      */
     public static function getPublicFeatureOptions()
-{
-    // [DEV-QWEN-A][FIX-FILTER] 4 tien ich chinh theo yeu cau: Wifi, Dieu hoa, Nong lanh, May giat.
-    return [
-        ['key' => 'wifi',      'label' => 'Wifi',      'icon' => 'wifi',                  'aliases' => ['wifi', 'internet']],
-        ['key' => 'dieu_hoa',  'label' => 'Điều hòa',  'icon' => 'ac_unit',               'aliases' => ['điều hòa', 'máy lạnh', 'dieu hoa', 'may lanh']],
-        ['key' => 'nong_lanh', 'label' => 'Nóng lạnh', 'icon' => 'water_heater',          'aliases' => ['nóng lạnh', 'nong lanh', 'máy nước nóng', 'may nuoc nong', 'bình nóng lạnh', 'water heater']],
-        ['key' => 'may_giat',  'label' => 'Máy giặt',  'icon' => 'local_laundry_service', 'aliases' => ['máy giặt', 'may giat', 'giặt sấy']],
-    ];
-}
+    {
+        return [
+            ['key' => 'wifi',      'label' => 'Wifi',      'icon' => 'wifi',                  'aliases' => ['wifi', 'internet']],
+            ['key' => 'dieu_hoa',  'label' => 'Điều hòa',  'icon' => 'ac_unit',               'aliases' => ['điều hòa', 'máy lạnh', 'dieu hoa', 'may lanh']],
+            ['key' => 'nong_lanh', 'label' => 'Nóng lạnh', 'icon' => 'water_heater',          'aliases' => ['nóng lạnh', 'nong lanh', 'máy nước nóng', 'may nuoc nong', 'bình nóng lạnh', 'water heater']],
+            ['key' => 'may_giat',  'label' => 'Máy giặt',  'icon' => 'local_laundry_service', 'aliases' => ['máy giặt', 'may giat', 'giặt sấy']],
+        ];
+    }
 
     /**
      * Bổ sung metadata chỉ phục vụ trang public để view không cần suy diễn thêm.

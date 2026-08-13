@@ -207,6 +207,26 @@ CREATE TABLE IF NOT EXISTS `comment_reports` (
 
 -- Dumping data for table manage.comment_reports: ~0 rows (approximately)
 
+-- Dumping structure for table manage.feedbacks
+CREATE TABLE IF NOT EXISTS `feedbacks` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `room_id` int unsigned DEFAULT NULL,
+  `subject` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `admin_note` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','resolved','dismissed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_room` (`room_id`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `fk_fb_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_fb_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table manage.feedbacks: ~0 rows (approximately)
+
 -- Dumping structure for table manage.contracts
 CREATE TABLE IF NOT EXISTS `contracts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -667,9 +687,9 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('contact_email', 'contact@nhatroa.vn', 'contact', '2026-08-04 00:34:48'),
 	('contact_phone', '0901 234 567', 'contact', '2026-08-04 00:34:48'),
 	('contact_zalo', '0901234567', 'contact', '2026-08-04 00:34:48'),
-	('enable_comment_moderation', '1', 'moderation', '2026-08-04 00:34:48'),
-	('enable_gemini_moderation', '0', 'moderation', '2026-08-04 00:34:48'),
-	('gemini_api_key', '', 'moderation', '2026-08-04 00:34:48'),
+	('enable_comment_moderation', '0', 'moderation', '2026-08-04 00:34:48'),
+('enable_gemini_moderation', '1', 'moderation', '2026-08-04 00:34:48'),
+('gemini_api_key', 'AQ.Ab8RN6I57CAEvBm6qLDeWPf3a5u8r4IFP5rfvutOfY43JLDfTw', 'moderation', '2026-08-04 00:34:48'),
 	('hero_headline_1', 'Không Gian Sống', 'hero', '2026-08-04 00:34:48'),
 	('hero_headline_2', 'Chuẩn Mực', 'hero', '2026-08-04 00:34:48'),
 	('hero_image', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600', 'hero', '2026-08-04 00:34:48'),
