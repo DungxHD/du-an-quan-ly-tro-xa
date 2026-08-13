@@ -104,7 +104,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-2">
                                         <a href="<?= BASE_URL ?>?page=admin-feedbacks&edit=<?= (int)$fb['id'] ?>" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition">
-                                            <span class="material-symbols-outlined text-sm">edit</span> Xử lý
+                                            <span class="material-symbols-outlined text-sm">reply</span> Phản hồi
                                         </a>
                                     </div>
                                 </td>
@@ -121,11 +121,11 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onclick="this.remove()">
             <div class="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold">Xử lý phản ánh #<?= (int)$editFeedback['id'] ?></h3>
+                    <h3 class="text-xl font-bold">Phản hồi phản ánh #<?= (int)$editFeedback['id'] ?></h3>
                     <a href="<?= BASE_URL ?>?page=admin-feedbacks" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</a>
                 </div>
 
-                <form method="POST" class="space-y-4">
+                <form method="POST" action="<?= BASE_URL ?>?page=admin-save-feedback" class="space-y-4">
                     <?= csrf_field() ?>
                     <input type="hidden" name="form_action" value="save">
                     <input type="hidden" name="id" value="<?= (int)$editFeedback['id'] ?>">
@@ -165,19 +165,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         <textarea name="admin_note" rows="2" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" placeholder="Ghi chú chỉ admin xem, không gửi cho người thuê."><?= e($editFeedback['admin_note']) ?></textarea>
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold mb-1">Trạng thái</label>
-                        <select name="status" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                            <option value="pending" <?= $editFeedback['status'] === 'pending' ? 'selected' : '' ?>>Chờ xử lý</option>
-                            <option value="resolved" <?= $editFeedback['status'] === 'resolved' ? 'selected' : '' ?>>Đã xử lý</option>
-                            <option value="dismissed" <?= $editFeedback['status'] === 'dismissed' ? 'selected' : '' ?>>Đã bác bỏ</option>
-                        </select>
-                    </div>
-
                     <div class="flex justify-end gap-3 border-t border-gray-200 pt-4">
                         <a href="<?= BASE_URL ?>?page=admin-feedbacks" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition">Hủy</a>
                         <button type="submit" class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:bg-opacity-90 transition">
-                            <span class="material-symbols-outlined text-sm">save</span> Lưu thay đổi
+                            <span class="material-symbols-outlined text-sm">send</span> Gửi phản hồi
                         </button>
                     </div>
                 </form>

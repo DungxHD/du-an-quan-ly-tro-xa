@@ -194,62 +194,69 @@ class FeedbackModel {
     }
 
     /**
-     * Lưu hoặc cập nhật phản ánh (admin xử lý).
-     * Khi admin nhập câu trả lời (admin_reply) sẽ gửi thông báo cho tenant.
+     * Lưu ho hay cập nhật phản ánh (admin xử lý).
+     * - Không còn select trạng thái: admin chỉ cần điền "Trả lời" + "Ghi chú nội bộ".
+     * - Khi có admin_reply → status tự động "resolved" + gửi thông báo cho tenant.
+     * - Không có reply → giữ status hiện tại (pending).
      */
     public static function save($data, $id = null) {
         $id = $id ? (int)$id : null;
-        $adminNote = trim((string)($data['admin_note'] ?? ''));
-        $adminReply = trim((string)($data['admin_reply'] ?? ''));
-        $status = in_array((string)($data['status'] ?? ''), ['pending', 'resolved', 'dismissed'], true)
-            ? (string)$data['status']
-            : 'pending';
-
-        if ($id !== null && $id > 0) {
-            $feedback = self::getById($id);
-            if (!$feedback) {
-                throw new RuntimeException('Phản ánh không tồn tại hoặc đã bị xóa.');
-            }
-
-            // Cập nhật
-            Database::update('feedbacks', [
-                'admin_note' => mb_substr($adminNote, 0, 1000, 'UTF-8'),
-                'admin_reply' => mb_substr($adminReply, 0, 2000, 'UTF-8'),
-                'status' => $status,
-            ], 'id = :id', ['id' => $id]);
-
-            // Nếu admin có câu trả lời mới -> thông báo cho tenant
-            if ($adminReply !== '' && trim((string)($feedback['admin_reply'] ?? '')) !== $adminReply) {
-                self::notifyTenantReply($id, $adminReply);
-            }
-
-            return $id;
+        if ($id === null || $id <= 0) {
+            throw new RuntimeException('Admin không thể tạo phản ánh mới từ đây.');
         }
 
-        // Không hỗ trợ tạo mới từ admin (chỉ tenant mới tạo)
-        throw new RuntimeException('Admin không thể tạo phản ánh mới từ đây.');
+        $adminNote  = trim((string)($data['admin_note'] ?? ''));
+        $adminReply = trim((string)($data['admin_reply'] ?? ''));
+
+        // Lấy hàng cũ để biết user_id + reply cũ (fallback trường hợp SELECT trực tiếp)
+        $feedback = self::getById($id);
+        if ($feedback === null && Database::hasConnection()) {
+            $feedback = Database::fetchOne('SELECT user_id, admin_reply, subject FROM feedbacks WHERE id = ?', [$id]);
+        }
+        if ($feedback === null) {
+            throw new RuntimeException('Phản ánh không tồn tại hoặc đã bị xóa.');
+        }
+
+        $oldReply = trim((string)($feedback['admin_reply'] ?? ''));
+        $tenantId = (int)($feedback['user_id'] ?? 0);
+
+        // Khi có reply → đánh dấu resolved; ngược lại giữ nguyên status hiện tại
+        $status = ($adminReply !== '') ? 'resolved' : trim((string)($feedback['status'] ?? 'pending'));
+
+        Database::update('feedbacks', [
+            'admin_note'  => mb_substr($adminNote, 0, 1000, 'UTF-8'),
+            'admin_reply' => mb_substr($adminReply, 0, 2000, 'UTF-8'),
+            'status'      => $status,
+        ], 'id = :id', ['id' => $id]);
+
+        // Nếu admin có câu trả lời mới → thông báo cho tenant
+        if ($adminReply !== '' && $oldReply !== $adminReply) {
+            self::notifyTenantReply($id, $adminReply, $tenantId);
+        }
+
+        return $id;
     }
 
     /**
      * Gửi thông báo cho tenant khi admin trả lời phản ánh.
      */
-    private static function notifyTenantReply($feedbackId, $adminReply) {
+    private static function notifyTenantReply($feedbackId, $adminReply, $tenantId = 0) {
         $feedback = self::getById($feedbackId);
-        if (!$feedback) {
-            return;
-        }
-
-        $tenantId = (int)($feedback['user_id'] ?? 0);
+        $tenantId = $tenantId > 0 ? $tenantId : (int)($feedback['user_id'] ?? 0);
         if ($tenantId <= 0) {
             return;
         }
 
+        $preview = mb_substr($adminReply, 0, 150, 'UTF-8');
+        $subject = isset($feedback['subject']) ? (string)$feedback['subject'] : '';
+        $content = $subject !== '' ? ('Phản ánh "'.$subject.'": '.$preview) : $preview;
+
         NotificationModel::create([
             'user_id' => $tenantId,
-            'title' => 'Chủ trọ đã phản hồi phản ánh của bạn',
-            'content' => 'Phản ánh "' . $feedback['subject'] . '": ' . mb_substr($adminReply, 0, 150, 'UTF-8'),
-            'type' => 'feedback',
-            'link' => '?page=tenant-feedback',
+            'title'   => 'Chủ trọ đã phản hồi phản ánh của bạn',
+            'content' => $content,
+            'type'    => 'feedback',
+            'link'    => '?page=tenant-feedback',
         ]);
     }
 
@@ -336,7 +343,7 @@ class FeedbackModel {
             : 'pending';
         $row['tenant_name'] = trim((string)($row['tenant_name'] ?? '')) ?: 'Người thuê';
         $row['tenant_email'] = trim((string)($row['tenant_email'] ?? ''));
-        $row['room_name'] = $row['room_name'] ? trim((string)$row['room_name']) : '';
+        $row['room_name'] = isset($row['room_name']) && $row['room_name'] ? trim((string)$row['room_name']) : '';
         $row['created_at_label'] = !empty($row['created_at']) && strtotime((string)$row['created_at']) !== false
             ? date('d/m/Y H:i', strtotime((string)$row['created_at']))
             : '';
