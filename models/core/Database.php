@@ -305,11 +305,14 @@ class Database {
                 ['id' => 5, 'floor_id' => 6, 'name' => 'C301', 'floor' => 3, 'price' => 5200000, 'area' => 32, 'max_occupancy' => 2, 'description' => 'Studio cao cấp, đầy đủ nội thất và khu bếp riêng.', 'status' => 'rented', 'thumbnail' => 'https://images.unsplash.com/photo-1494526585095-c41746248156?w=900', 'views' => 210, 'notice_given' => 1, 'expected_vacant_date' => date('Y-m-d', strtotime('+5 days'))],
                 ['id' => 6, 'floor_id' => 5, 'name' => 'C101', 'floor' => 1, 'price' => 4700000, 'area' => 26, 'max_occupancy' => 2, 'description' => 'Phòng studio tiêu chuẩn, vào ở ngay.', 'status' => 'available', 'thumbnail' => 'https://images.unsplash.com/photo-1460317442991-0ec209397118?w=900', 'views' => 162, 'notice_given' => 0, 'expected_vacant_date' => null],
             ],
+            'room_images' => [],
             'users' => [
                 ['id' => 1, 'full_name' => 'Quản trị viên NhaTroA', 'email' => 'admin@nhatroa.vn', 'phone' => '0901 234 567', 'password' => $adminPassword, 'role' => 1, 'room_id' => null, 'avatar' => 'default.png', 'created_at' => $now],
                 ['id' => 2, 'full_name' => 'Nguyễn Minh An', 'email' => 'tenant1@gmail.com', 'phone' => '0908 888 999', 'password' => $tenantPassword, 'role' => 0, 'room_id' => 2, 'avatar' => 'default.png', 'date_of_birth' => '2003-05-12', 'permanent_address' => '12 Nguyễn Văn Linh, Quận 7, TP.HCM', 'identity_number' => '079203001234', 'identity_issue_date' => '2021-09-18', 'identity_issue_place' => 'Cục Cảnh sát QLHC về TTXH', 'created_at' => $now],
                 ['id' => 3, 'full_name' => 'Trần Thu Hà', 'email' => 'tenant2@gmail.com', 'phone' => '0909 123 456', 'password' => $tenantPassword, 'role' => 0, 'room_id' => null, 'avatar' => 'default.png', 'date_of_birth' => null, 'permanent_address' => null, 'identity_number' => null, 'identity_issue_date' => null, 'identity_issue_place' => null, 'created_at' => $now],
             ],
+            'roommate_requests' => [],
+            'rental_requests' => [],
             'contracts' => [
                 [
                     'id' => 1,
@@ -326,6 +329,7 @@ class Database {
                     'created_at' => date('Y-m-d H:i:s', strtotime('-46 days')),
                 ],
             ],
+            'maintenance_requests' => [],
             'services' => [
                 ['id' => 1, 'name' => 'Tiền điện', 'description' => 'Tính theo chỉ số công tơ.', 'price' => 3500, 'unit' => 'kwh', 'icon' => 'bolt', 'is_required' => 1, 'billing_mode' => 'meter', 'applies_to' => 'room', 'is_active' => 1],
                 ['id' => 2, 'name' => 'Tiền nước', 'description' => 'Mặc định tính theo đầu người, có thể đổi sang chỉ số nếu cần.', 'price' => 50000, 'unit' => 'người', 'icon' => 'water_drop', 'is_required' => 1, 'billing_mode' => 'per_person', 'applies_to' => 'room', 'is_active' => 1],

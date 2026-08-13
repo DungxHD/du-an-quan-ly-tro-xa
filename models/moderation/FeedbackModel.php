@@ -86,11 +86,9 @@ class FeedbackModel {
                 SELECT
                     f.*,
                     u.full_name AS tenant_name,
-                    u.email AS tenant_email,
-                    r.name AS room_name
+                    u.email AS tenant_email
                 FROM feedbacks f
                 INNER JOIN users u ON u.id = f.user_id
-                LEFT JOIN rooms r ON r.id = f.room_id
                 WHERE 1 = 1
             ";
             $params = [];
@@ -101,9 +99,8 @@ class FeedbackModel {
             }
 
             if ($filters['keyword'] !== '') {
-                $sql .= ' AND (u.full_name LIKE ? OR u.email LIKE ? OR f.subject LIKE ? OR f.content LIKE ? OR r.name LIKE ?)';
+                $sql .= ' AND (u.full_name LIKE ? OR u.email LIKE ? OR f.subject LIKE ? OR f.content LIKE ?)';
                 $keyword = '%' . $filters['keyword'] . '%';
-                $params[] = $keyword;
                 $params[] = $keyword;
                 $params[] = $keyword;
                 $params[] = $keyword;
@@ -360,21 +357,15 @@ class FeedbackModel {
      * Dựng feedback rows khi chạy bằng fallback data.
      */
     private static function buildFallbackRows() {
-        $rooms = [];
-        foreach (Database::getTable('rooms') as $room) {
-            $rooms[(int)($room['id'] ?? 0)] = $room;
-        }
-
         $users = [];
         foreach (Database::getTable('users') as $user) {
             $users[(int)($user['id'] ?? 0)] = $user;
         }
 
-        return array_map(static function ($feedback) use ($rooms, $users) {
-            $room = $feedback['room_id'] ? $rooms[(int)$feedback['room_id']] : null;
+        return array_map(static function ($feedback) use ($users) {
             $tenant = $users[(int)$feedback['user_id']] ?? [];
 
-            $feedback['room_name'] = $room ? $room['name'] : '';
+            $feedback['room_name'] = '';
             $feedback['tenant_name'] = $tenant['full_name'] ?? 'Người thuê';
             $feedback['tenant_email'] = $tenant['email'] ?? '';
 

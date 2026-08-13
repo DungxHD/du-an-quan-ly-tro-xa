@@ -63,8 +63,30 @@ trait AdminSystemTrait
     }
 public function stats()
     {
-        redirectTo('admin');
-        return;
+        $selectedAreaId = (int)($_GET['area_id'] ?? 0);
+        $selectedYear = max(2000, (int)($_GET['year'] ?? date('Y')));
+        $areas = AreaModel::getAllWithStats();
+        $areaStats = RoomModel::getStatsByArea($selectedAreaId);
+        $selectedArea = $selectedAreaId > 0 ? AreaModel::getById($selectedAreaId) : null;
+        $revenueStats = PaymentModel::getRevenueByMonth($selectedYear);
+        $statsSummary = [
+            'tracked_areas' => count($areaStats),
+            'tracked_rooms' => array_sum(array_map(static fn($row) => (int)($row['total_rooms'] ?? 0), $areaStats)),
+            'tracked_available_rooms' => array_sum(array_map(static fn($row) => (int)($row['available_rooms'] ?? 0), $areaStats)),
+            'tracked_draft_rooms' => array_sum(array_map(static fn($row) => (int)($row['draft_rooms'] ?? 0), $areaStats)),
+            'tracked_occupancy_rate' => 0,
+            'year_total' => (float)($revenueStats['year_total'] ?? 0),
+            'paid_invoice_count' => (int)($revenueStats['paid_invoice_count'] ?? 0),
+        ];
+        $knownRooms = $statsSummary['tracked_rooms'] - $statsSummary['tracked_draft_rooms'];
+        if ($knownRooms > 0) {
+            $statsSummary['tracked_occupancy_rate'] = round(
+                (($statsSummary['tracked_rooms'] - $statsSummary['tracked_draft_rooms'] - $statsSummary['tracked_available_rooms']) / $knownRooms) * 100,
+                1
+            );
+        }
+        $pageTitle = 'Thống kê - NhaTroA';
+        require_once BASE_PATH . 'views/admin/system/stats.php';
     }
 /**
      * Lưu cấu hình giao diện và kiểm duyệt đánh giá theo cơ chế UPSERT `settings`.

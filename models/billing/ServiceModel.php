@@ -78,6 +78,7 @@ class ServiceModel {
             'active_only' => false,
             'exclude_required' => false,
             'required_only' => false,
+            'search' => null,
         ], $filters);
 
         if (Database::hasConnection()) {
@@ -97,6 +98,12 @@ class ServiceModel {
             if (!empty($filters['required_only'])) {
                 $sql .= ' AND is_required = 1';
             }
+            if (!empty($filters['search'])) {
+                $sql .= ' AND (name LIKE ? OR description LIKE ?)';
+                $likeKeyword = '%' . $filters['search'] . '%';
+                $params[] = $likeKeyword;
+                $params[] = $likeKeyword;
+            }
 
             $sql .= ' ORDER BY is_required DESC, is_active DESC, name ASC';
             return array_map([self::class, 'normalizeServiceRow'], Database::fetchAll($sql, $params));
@@ -115,6 +122,13 @@ class ServiceModel {
             }
             if (!empty($filters['required_only']) && (int)($service['is_required'] ?? 0) !== 1) {
                 return false;
+            }
+            if (!empty($filters['search'])) {
+                $keyword = mb_strtolower((string)$filters['search']);
+                $searchable = mb_strtolower(trim((string)($service['name'] ?? ''))) . ' ' . mb_strtolower(trim((string)($service['description'] ?? '')));
+                if ($keyword !== '' && mb_strpos($searchable, $keyword) === false) {
+                    return false;
+                }
             }
             return true;
         }));

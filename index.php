@@ -1,7 +1,8 @@
 <?php
 session_start();
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 define('BASE_PATH', __DIR__ . '/');
 $baseUrl = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
 define('BASE_URL', $baseUrl !== '' ? '/' . $baseUrl . '/' : '/');
@@ -188,7 +189,7 @@ if (!empty($GLOBALS['cmsPreviewAdmin'])) {
 
 // Router chính: ưu tiên page ngắn, view-first, dễ nối route mới.
 $page = $_GET['page'] ?? 'home';
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$id = isset($_POST['id']) ? (int)$_POST['id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
 
 switch ($page) {
     case 'home':
@@ -366,7 +367,8 @@ switch ($page) {
         (new AdminController())->vetoRoommate();
         break;
     case 'tenant-maintenance':
-        redirectTo('tenant');
+        requireTenant();
+        (new TenantController())->maintenance();
         break;
     case 'tenant-feedback':
         requireTenant();
@@ -381,7 +383,7 @@ switch ($page) {
         break;
     case 'admin-maintenance':
         requireAdmin();
-        redirectTo('admin');
+        (new AdminController())->maintenance();
         break;
     case 'admin-propose-maintenance':
         requireAdmin();
@@ -449,7 +451,7 @@ switch ($page) {
         break;
     case 'admin-stats':
         requireAdmin();
-        redirectTo('admin');
+        (new AdminController())->stats();
         break;
     case 'tenant':
         requireTenant();

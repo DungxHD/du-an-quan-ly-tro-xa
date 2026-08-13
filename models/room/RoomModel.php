@@ -8,6 +8,7 @@
 class RoomModel
 {
     private static $settingsCache = null;
+    private const DEFAULT_ROOM_IMAGE = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900';
 
     // ========== SETTINGS ==========
     public static function loadSettings()
@@ -48,6 +49,64 @@ class RoomModel
     public static function resetSettingsCache()
     {
         self::$settingsCache = null;
+    }
+
+    /**
+     * Trả ảnh dự phòng dùng chung để giao diện không bị vỡ khi ảnh phòng lỗi hoặc thiếu file.
+     */
+    public static function getDefaultRoomImageUrl()
+    {
+        return self::DEFAULT_ROOM_IMAGE;
+    }
+
+    /**
+     * Chuẩn hoá URL ảnh từ DB/admin:
+     * - Giữ nguyên URL tuyệt đối.
+     * - Quy đổi `uploads/...`, `/.uploads/...`, `.uploads/...` về đúng `BASE_URL`.
+     * - Loại bỏ ảnh nội bộ không còn tồn tại trên disk để tránh render ảnh gãy.
+     */
+    private static function normalizeImageUrl($url, $fallback = '')
+    {
+        $url = trim((string)$url);
+        $fallback = trim((string)$fallback);
+        if ($url === '') {
+            return $fallback;
+        }
+
+        if (preg_match('#^(https?:)?//#i', $url) === 1) {
+            return $url;
+        }
+
+        $baseUrl = rtrim((string)BASE_URL, '/');
+        $normalized = str_replace('\\', '/', $url);
+
+        if ($baseUrl !== '' && strpos($normalized, $baseUrl . '/') === 0) {
+            $relativePath = ltrim(substr($normalized, strlen($baseUrl)), '/');
+            return self::resolveInternalImageUrl($relativePath, $normalized, $fallback);
+        }
+
+        $relativePath = ltrim($normalized, '/');
+        return self::resolveInternalImageUrl($relativePath, ($baseUrl !== '' ? $baseUrl . '/' : '/') . $relativePath, $fallback);
+    }
+
+    /**
+     * Chỉ chấp nhận ảnh nội bộ khi file thật còn tồn tại.
+     * Việc này chặn case DB giữ path cũ nhưng thư mục ảnh đã bị xoá hoặc đổi chỗ.
+     */
+    private static function resolveInternalImageUrl($relativePath, $publicUrl, $fallback = '')
+    {
+        $relativePath = ltrim(str_replace('\\', '/', (string)$relativePath), '/');
+        if ($relativePath === '') {
+            return trim((string)$fallback);
+        }
+
+        $isInternalUpload = strpos($relativePath, '.uploads/') === 0 || strpos($relativePath, 'uploads/') === 0;
+        if (!$isInternalUpload) {
+            return $publicUrl;
+        }
+
+        $localPath = BASE_PATH . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+        return is_file($localPath) ? $publicUrl : trim((string)$fallback);
     }
 
     public static function getSettingsByGroup($group)
@@ -491,14 +550,14 @@ class RoomModel
         $room['area'] = (float)($room['area'] ?? 0);
         $room['max_occupancy'] = (int)($room['max_occupancy'] ?? 0);
         $room['views'] = (int)($room['views'] ?? 0);
-        $room['thumbnail'] = trim((string)($room['thumbnail'] ?? '')) ?: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900';
+        $room['thumbnail'] = self::normalizeImageUrl($room['thumbnail'] ?? '', self::getDefaultRoomImageUrl());
         $rawAmenities = $room['amenities'] ?? null;
         $decodedAmenities = is_string($rawAmenities) ? json_decode($rawAmenities, true) : null;
         $room['amenities_list'] = is_array($decodedAmenities)
             ? array_values(array_filter(array_map(static fn($a) => trim((string)$a), $decodedAmenities), static fn($a) => $a !== ''))
             : [];
         $room['area_name'] = $room['area_name'] ?? ($room['building_name'] ?? 'Chưa có khu');
-        $room['area_image'] = trim((string)($room['area_image'] ?? ''));
+        $room['area_image'] = self::normalizeImageUrl($room['area_image'] ?? '');
         $room['building_name'] = $room['building_name'] ?? $room['area_name'];
         $room['floor_name'] = $room['floor_name'] ?? ('Tầng ' . $room['floor_number']);
         $room['building_type'] = $room['building_type'] ?? 'area';
@@ -991,7 +1050,6 @@ class RoomModel
 
     /**
      * Gallery tận dụng ảnh thật đang có trong hệ thống, tránh lặp thumb vô nghĩa.
-/**
      * [DEV-QWEN-A][NHOM-2][2026-08-08]
      * Gallery ưu tiên đọc từ bảng `room_images`:
      * ảnh chính (is_primary=1) đứng đầu, rồi đến ảnh phụ theo sort_order.
@@ -1035,7 +1093,7 @@ class RoomModel
             }
 
             foreach ($rows as $row) {
-                $url = trim((string)($row['image_url'] ?? ''));
+                $url = self::normalizeImageUrl($row['image_url'] ?? '');
                 if ($url !== '') {
                     $images[] = $url;
                 }
@@ -1045,13 +1103,13 @@ class RoomModel
         // Fallback: phòng chưa upload ảnh nào vào room_images
         if (empty($images)) {
             $images = array_values(array_filter(array_unique([
-                trim((string)($room['thumbnail'] ?? '')),
-                trim((string)($room['area_image'] ?? '')),
+                self::normalizeImageUrl($room['thumbnail'] ?? '', self::getDefaultRoomImageUrl()),
+                self::normalizeImageUrl($room['area_image'] ?? ''),
             ])));
         }
 
         if (empty($images)) {
-            $images[] = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900';
+            $images[] = self::getDefaultRoomImageUrl();
         }
 
         return array_values(array_unique($images));

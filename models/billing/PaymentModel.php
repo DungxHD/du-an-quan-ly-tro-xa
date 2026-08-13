@@ -710,7 +710,7 @@ private static function resolveRoomRentPrice(array $room, $billingContract, arra
             (float)($service['price'] ?? 0)
         );
         $baseQuantity = max(1, (float)($service['quantity'] ?? 1));
-        $billingMode = $service['billing_mode'] ?? 'fixed';
+        $billingMode = PriceChangeModel::getEffectiveConfigForPeriod($service, (int)$month, (int)$year)['billing_mode'] ?? 'fixed';
 
         switch ($billingMode) {
             case 'per_person':

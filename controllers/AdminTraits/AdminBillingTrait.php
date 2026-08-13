@@ -238,6 +238,7 @@ public function generateInvoice()
         $redirectParams = array_filter($redirectParams, fn($v) => $v !== null && $v !== '');
 
         $pageTitle = 'Hóa đơn - NhaTroA';
+        $invoiceList = PaymentModel::getInvoices(['month' => $period['month'], 'year' => $period['year']]);
         require_once BASE_PATH . 'views/admin/billing/meter_readings.php';
     }
 /**

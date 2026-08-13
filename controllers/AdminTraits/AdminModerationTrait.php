@@ -623,6 +623,10 @@ public function undoDeactivateService($id)
     }
 public function deleteService($id)
     {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-services');
+        }
+        verify_csrf();
         $service = ServiceModel::getById((int)$id);
         if ($service) {
             $locked = (int)($service['is_required'] ?? 0) === 1 || ServiceModel::isLockedKind($service['kind'] ?? 'other');
@@ -654,8 +658,8 @@ public function deleteService($id)
             }
         }
         $redirectParams = [];
-        if ((int)($_GET['room_id'] ?? 0) > 0) {
-            $redirectParams['room_id'] = (int)$_GET['room_id'];
+        if ((int)($_POST['room_id'] ?? 0) > 0) {
+            $redirectParams['room_id'] = (int)$_POST['room_id'];
         }
 
         try {
@@ -746,6 +750,10 @@ public function deleteService($id)
      */
     public function deleteAmenity($id)
     {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-amenities');
+        }
+        verify_csrf();
         $amenity = AmenityModel::getById($id);
         if (!$amenity) {
             setFlash('admin_amenity_error', 'Tiện ích không tồn tại hoặc đã bị xóa trước đó.');
