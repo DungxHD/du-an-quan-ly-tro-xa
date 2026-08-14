@@ -222,6 +222,15 @@ switch ($page) {
     case 'logout':
         (new AuthController())->logout();
         break;
+    case 'verify-otp':
+        (new AuthController())->verifyOtp();
+        break;
+    case 'reset-password':
+        (new AuthController())->resetPassword();
+        break;
+    case 'resend-otp':
+        (new AuthController())->resendOtp();
+        break;
     case 'admin':
         requireAdmin();
         (new AdminController())->dashboard();
