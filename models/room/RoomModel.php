@@ -698,8 +698,6 @@ class RoomModel
             ['key' => 'giuong',    'label' => 'Giường',     'icon' => 'bed'],
             ['key' => 'ban_ghe',   'label' => 'Bàn ghế',    'icon' => 'chair'],
             ['key' => 'tu_quan_ao','label' => 'Tủ quần áo', 'icon' => 'checkroom'],
-            ['key' => 'may_giat',  'label' => 'Máy giặt',   'icon' => 'local_laundry_service'],
-            ['key' => 'wifi',      'label' => 'Wifi',       'icon' => 'wifi'],
         ];
     }
 
@@ -711,14 +709,16 @@ class RoomModel
         return array_column(self::getCanonicalAmenities(), 'key');
     }
 
-    /**
-     * Bộ lọc tiện ích cho trang public - trả về TẤT CẢ 8 tiện ích chuẩn.
+/**
+     * Bộ lọc tiện ích cho trang public - trả về 5 tiện ích (bỏ máy giặt, wifi, giường).
      * Mỗi item: key (dùng để lưu DB/filter), label (hiển thị), icon (material-symbols).
-     * KHÔNG còn dùng aliases - match chính xác key trong cột rooms.amenities.
+     * KH�NG còn dùng aliases - match chính xác key trong cột rooms.amenities.
      */
     public static function getPublicFeatureOptions()
     {
-        return self::getCanonicalAmenities();
+        $all = self::getCanonicalAmenities();
+        $excludeKeys = ['may_giat', 'wifi', 'giuong'];
+        return array_values(array_filter($all, static fn($a) => !in_array($a['key'], $excludeKeys, true)));
     }
 
     /**
@@ -1148,6 +1148,104 @@ class RoomModel
             : 0.0;
 
         return $row;
+    }
+
+    /**
+     * Render HTML card phòng dùng cho cả server-side (lần load đầu) và AJAX response.
+     * Dữ liệu $room đã được qua attachPublicCatalogMeta (có amenity_list, views, availabilityLabel, v.v.)
+     */
+    public static function renderRoomCardHtml(array $room): string
+    {
+        $e = function ($str) {
+            return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
+        };
+
+        $roomId = (int)($room['id'] ?? 0);
+        $thumbnail = $e($room['thumbnail'] ?? '');
+        $name = $e($room['name'] ?? 'Chưa có dữ liệu');
+        $areaName = $e($room['area_name'] ?? 'Chưa có dữ liệu');
+        $floorName = $e($room['floor_name'] ?? 'Chưa có dữ liệu');
+        $areaSize = $e($room['area'] ?? 'Chưa có dữ liệu');
+        $maxOccupancy = $e($room['max_occupancy'] ?? 'Chưa có dữ liệu');
+        $price = (float)($room['price'] ?? 0);
+        $priceDisplay = number_format($price / 1000000, 1);
+        $availabilityLabel = $e($room['availabilityLabel'] ?? 'Chưa có dữ liệu');
+        $availabilityClass = $e($room['availabilityClass'] ?? 'bg-gray-500');
+        $availabilityNote = $e($room['availabilityNote'] ?? '');
+        $views = (int)($room['views'] ?? 0);
+        $amenityList = $room['amenity_list'] ?? [];
+        $serviceNames = $room['service_names'] ?? [];
+
+        $html = '<a href="' . BASE_URL . '?page=detail&id=' . $roomId . '" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 card-hover block">';
+        $html .= '<div class="relative aspect-video overflow-hidden">';
+        $html .= '<img src="' . $thumbnail . '" alt="' . $name . '" class="w-full h-full object-cover hover:scale-110 transition-transform duration-500">';
+        $html .= '<span class="absolute top-4 right-4 px-3 py-1 ' . $availabilityClass . ' text-white text-xs rounded-full font-semibold">' . $availabilityLabel . '</span>';
+
+        // Badge lượt xem
+        if ($views > 0) {
+            $html .= '<span class="absolute top-4 left-4 px-3 py-1 bg-black/60 text-white text-xs rounded-full font-semibold flex items-center gap-1">';
+            $html .= '<span class="material-symbols-outlined text-xs">visibility</span>';
+            $html .= number_format($views) . ' lượt xem';
+            $html .= '</span>';
+        } else {
+            $html .= '<span class="absolute top-4 left-4 px-3 py-1 bg-blue-500/90 text-white text-xs rounded-full font-semibold">Mới đăng</span>';
+        }
+
+        $html .= '</div>';
+        $html .= '<div class="p-6">';
+        $html .= '<div class="mb-2 flex items-center justify-between gap-3">';
+        $html .= '<p class="text-xs text-primary font-semibold">' . $areaName . '</p>';
+        $html .= '<p class="text-xs text-gray-500">' . $floorName . '</p>';
+        $html .= '</div>';
+        $html .= '<h3 class="text-lg font-bold mb-3">' . $name . '</h3>';
+        $html .= '<div class="flex items-center gap-3 text-sm text-gray-500 mb-4">';
+        $html .= '<span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">square_foot</span>' . $areaSize . 'm²</span>';
+        $html .= '<span class="flex items-center gap-1"><span class="material-symbols-outlined text-base">person</span>' . $maxOccupancy . '</span>';
+        $html .= '</div>';
+
+        if ($availabilityNote !== '') {
+            $html .= '<p class="mb-4 text-xs font-medium text-green-700">' . $availabilityNote . '</p>';
+        }
+
+        // Hiển thị tiện ích canonical (tối đa 4 + badge +N)
+        if (!empty($amenityList) && is_array($amenityList)) {
+            $html .= '<div class="mb-4">';
+            $html .= '<div class="flex flex-wrap gap-2">';
+            $amenitiesToShow = array_slice($amenityList, 0, 4);
+            $remaining = count($amenityList) - 4;
+            foreach ($amenitiesToShow as $amenity) {
+                $icon = $e($amenity['icon'] ?? 'check');
+                $label = $e($amenity['label'] ?? '');
+                $html .= '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">';
+                $html .= '<span class="material-symbols-outlined text-xs">' . $icon . '</span>' . $label;
+                $html .= '</span>';
+            }
+            if ($remaining > 0) {
+                $html .= '<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">+' . $remaining . '</span>';
+            }
+            $html .= '</div>';
+            $html .= '</div>';
+        }
+
+        if (!empty($serviceNames)) {
+            $html .= '<div class="flex flex-wrap gap-2 mb-4">';
+            foreach (array_slice($serviceNames, 0, 3) as $serviceName) {
+                $html .= '<span class="px-3 py-1 rounded-full bg-surface text-gray-600 text-xs font-medium">' . $e($serviceName) . '</span>';
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '<div class="flex items-center justify-between pt-4 border-t border-gray-100">';
+        $html .= '<div>';
+        $html .= '<p class="text-xs text-gray-500">Giá thuê</p>';
+        $html .= '<p class="text-2xl font-bold text-primary">' . $priceDisplay . 'M <span class="text-sm font-normal text-gray-500">/tháng</span></p>';
+        $html .= '</div>';
+        $html .= '<span class="text-primary text-sm font-semibold">Xem chi tiết →</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</a>';
+
+        return $html;
     }
 
     // ========== USERS ==========

@@ -368,9 +368,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <input type="hidden" name="id" id="drawer-room-id" value="0">
             <input type="hidden" name="position" id="drawer-position" value="0">
             <input type="hidden" name="extend_limit" id="drawer-extend" value="0">
-            <input type="hidden" name="return_area_id" value="<?= $currentFilters['area_id'] ?>">
-            <input type="hidden" name="return_floor_id" value="<?= $currentFilters['floor_id'] ?>">
-            <input type="hidden" name="return_status" value="<?= e($currentFilters['status']) ?>">
+            <input type="hidden" name="return_area_id" id="return_area_id" value="<?= $currentFilters['area_id'] ?>">
+            <input type="hidden" name="return_floor_id" id="return_floor_id" value="<?= $currentFilters['floor_id'] ?>">
+            <input type="hidden" name="return_status" id="return_status" value="<?= e($currentFilters['status']) ?>">
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -587,6 +587,15 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             if (!r) return;
             currentRoomId = Number(id);
             form.reset();
+            
+            // Cập nhật lại các trường filter trả về (return_*) theo bộ lọc hiện tại trên trang
+            const currentAreaId = document.getElementById('filter-area')?.value || '<?= $currentFilters['area_id'] ?>';
+            const currentFloorId = document.getElementById('filter-floor')?.value || '<?= $currentFilters['floor_id'] ?>';
+            const currentStatus = document.querySelector('select[name="status"]')?.value || '<?= e($currentFilters['status']) ?>';
+            $('return_area_id').value = currentAreaId;
+            $('return_floor_id').value = currentFloorId;
+            $('return_status').value = currentStatus;
+            
             $('drawer-room-id').value = id;
             $('drawer-position').value = r.position || 0;
             $('drawer-extend').value = 0;
@@ -604,6 +613,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 $('drawer-status-hidden').value = 'rented';
                 $('drawer-status-hidden').disabled = false;
                 $('drawer-status').disabled = true;
+                // Khóa giá cho phòng đang thuê (readonly: vẫn gửi giá cũ lên server, không chỉnh sửa được)
+                $('drawer-price').readOnly = true;
+                $('drawer-price').classList.add('bg-gray-50', 'cursor-not-allowed');
             } else {
                 $('drawer-status').classList.remove('hidden');
                 $('drawer-status-readonly').classList.add('hidden');
@@ -611,6 +623,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 $('drawer-status-hidden').disabled = true;
                 $('drawer-status').disabled = false;
                 $('drawer-status').value = (['draft', 'available', 'maintenance'].includes(r.status)) ? r.status : 'draft';
+                // Mở khóa giá cho phòng không thuê
+                $('drawer-price').readOnly = false;
+                $('drawer-price').classList.remove('bg-gray-50', 'cursor-not-allowed');
             }
             $('drawer-description').value = r.description || '';
             setAmenities(r.amenities || '');
@@ -628,28 +643,42 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         const openAdd = () => {
             currentRoomId = 0;
             form.reset();
+            // Cập nhật lại các trường filter trả về (return_*) theo bộ lọc hiện tại trên trang
+            const currentAreaId = document.getElementById('filter-area')?.value || '<?= $currentFilters['area_id'] ?>';
+            const currentFloorId = document.getElementById('filter-floor')?.value || '<?= $currentFilters['floor_id'] ?>';
+            const currentStatus = document.querySelector('select[name="status"]')?.value || '<?= e($currentFilters['status']) ?>';
+            $('return_area_id').value = currentAreaId;
+            $('return_floor_id').value = currentFloorId;
+            $('return_status').value = currentStatus;
+            
             $('drawer-room-id').value = 0;
             $('drawer-position').value = 0;
             $('drawer-extend').value = 1;
-            const areaId = '<?= $currentFilters['area_id'] ?>';
-            const floorId = '<?= $currentFilters['floor_id'] ?>';
-            $('drawer-area-id').value = areaId;
-            $('drawer-floor-id').value = floorId;
-            $('drawer-area-display').value = getAreaName(areaId);
-            $('drawer-floor-display').value = getFloorName(floorId);
+            $('drawer-area-id').value = currentAreaId;
+            $('drawer-floor-id').value = currentFloorId;
+            $('drawer-area-display').value = getAreaName(currentAreaId);
+            $('drawer-floor-display').value = getFloorName(currentFloorId);
             setFieldImg(0, '');
             for (let i = 0; i < 3; i++) setFieldImg(1 + i, '');
             $('drawer-status').value = 'draft';
             setAmenities('');
             originalPrice = null;
             isRented = false;
+            $('drawer-price').readOnly = false;
+            $('drawer-price').classList.remove('bg-gray-50', 'cursor-not-allowed');
             $('drawer-title').textContent = 'Thêm phòng mới';
-            $('drawer-context').textContent = 'Phòng mới gắn vào: ' + getAreaName(areaId) + ' · ' + getFloorName(floorId);
+            $('drawer-context').textContent = 'Phòng mới gắn vào: ' + getAreaName(currentAreaId) + ' · ' + getFloorName(currentFloorId);
             updateRoomSubmitState();
             openDrawer();
         };
 
-        document.querySelectorAll('[data-edit-room]').forEach(b => b.addEventListener('click', () => openEdit(b.getAttribute('data-edit-room'))));
+        const roomGrid = document.getElementById('room-grid');
+        if (roomGrid) {
+            roomGrid.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-edit-room]');
+                if (btn) openEdit(btn.getAttribute('data-edit-room'));
+            });
+        }
         const addBtn = document.getElementById('btn-add-room');
         if (addBtn) addBtn.addEventListener('click', openAdd);
 

@@ -379,5 +379,33 @@ class HomeController extends BaseController {
             $pageTitle
         );
     }
+
+    public function roomsFilterApi() {
+        header('Content-Type: application/json');
+        
+        $filters = RoomModel::normalizePublicFilters([
+            'area_id' => $_GET['area_id'] ?? '',
+            'min_price' => $_GET['min_price'] ?? '',
+            'max_price' => $_GET['max_price'] ?? '',
+            'amenities' => $_GET['amenities'] ?? [],
+        ]);
+
+        $rooms = RoomModel::getPublicCatalog($filters);
+        
+        $roomsHtml = '';
+        if (!empty($rooms)) {
+            foreach ($rooms as $room) {
+                $roomsHtml .= RoomModel::renderRoomCardHtml($room);
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'rooms' => $roomsHtml,
+            'total' => count($rooms),
+            'messages' => $filters['messages'] ?? [],
+        ]);
+        exit;
+    }
     
 }

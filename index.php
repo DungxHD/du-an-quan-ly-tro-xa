@@ -201,6 +201,9 @@ switch ($page) {
     case 'rooms':
         (new HomeController())->rooms();
         break;
+    case 'api-rooms-filter':
+        (new HomeController())->roomsFilterApi();
+        break;
     case 'detail':
         (new RoomController())->detail($id);
         break;
