@@ -180,12 +180,25 @@ class RoomModel
         $normalized['min_price'] = self::parseHumanPrice($normalized['min_price_input']);
         $normalized['max_price'] = self::parseHumanPrice($normalized['max_price_input']);
 
+        // Ràng buộc giá tối thiểu 500.000đ
+        if ($normalized['min_price'] !== null && $normalized['min_price'] < 500000) {
+            $normalized['min_price'] = 500000;
+            $normalized['messages'][] = 'Giá tối thiểu là 500.000đ, hệ thống đã tự điều chỉnh.';
+        }
+
+        // Ràng buộc khoảng cách giá tối thiểu 500.000đ
         if ($normalized['min_price'] !== null && $normalized['max_price'] !== null) {
             $minimumGap = 500000;
             if ($normalized['max_price'] < $normalized['min_price'] + $minimumGap) {
                 $normalized['max_price'] = $normalized['min_price'] + $minimumGap;
                 $normalized['messages'][] = 'Khoảng giá tối thiểu là 500.000đ nên hệ thống đã tự nới giá kết thúc cho phù hợp.';
             }
+        }
+
+        // Nếu chỉ có max_price mà không có min_price, và max_price < 500k → nâng lên 500k
+        if ($normalized['min_price'] === null && $normalized['max_price'] !== null && $normalized['max_price'] < 500000) {
+            $normalized['max_price'] = 500000;
+            $normalized['messages'][] = 'Giá tối thiểu là 500.000đ, hệ thống đã tự điều chỉnh giá kết thúc.';
         }
 
         $normalized['min_price_display'] = self::formatPriceInput($normalized['min_price']);
@@ -699,17 +712,13 @@ class RoomModel
     }
 
     /**
-     * Bộ lọc tiện ích cho trang public (subset của canonical, có thêm aliases cho tìm kiếm mờ).
-     * Giữ key/icon/label trùng với canonical để đồng bộ.
+     * Bộ lọc tiện ích cho trang public - trả về TẤT CẢ 8 tiện ích chuẩn.
+     * Mỗi item: key (dùng để lưu DB/filter), label (hiển thị), icon (material-symbols).
+     * KHÔNG còn dùng aliases - match chính xác key trong cột rooms.amenities.
      */
     public static function getPublicFeatureOptions()
     {
-        return [
-            ['key' => 'wifi',      'label' => 'Wifi',      'icon' => 'wifi',                  'aliases' => ['wifi', 'internet']],
-            ['key' => 'dieu_hoa',  'label' => 'Điều hòa',  'icon' => 'ac_unit',               'aliases' => ['điều hòa', 'máy lạnh', 'dieu hoa', 'may lanh']],
-            ['key' => 'nong_lanh', 'label' => 'Nóng lạnh', 'icon' => 'water_heater',          'aliases' => ['nóng lạnh', 'nong lanh', 'máy nước nóng', 'may nuoc nong', 'bình nóng lạnh', 'water heater']],
-            ['key' => 'may_giat',  'label' => 'Máy giặt',  'icon' => 'local_laundry_service', 'aliases' => ['máy giặt', 'may giat', 'giặt sấy']],
-        ];
+        return self::getCanonicalAmenities();
     }
 
     /**
@@ -719,15 +728,31 @@ class RoomModel
     {
         $roomIds = array_map(static fn($room) => (int)($room['id'] ?? 0), $rooms);
         $serviceMap = ServiceModel::getRoomServiceMap($roomIds);
+        $canonicalAmenities = self::getCanonicalAmenities();
+        $amenityMap = [];
+        foreach ($canonicalAmenities as $a) {
+            $amenityMap[$a['key']] = ['key' => $a['key'], 'label' => $a['label'], 'icon' => $a['icon']];
+        }
 
-        return array_map(static function ($room) use ($serviceMap) {
+        return array_map(static function ($room) use ($serviceMap, $amenityMap) {
             $roomId = (int)($room['id'] ?? 0);
             $services = $serviceMap[$roomId] ?? [];
             $serviceNames = array_values(array_filter(array_map(static fn($service) => trim((string)($service['name'] ?? '')), $services)));
             $isUpcoming = self::isUpcomingVacancy($room);
             $expectedVacantText = $isUpcoming ? self::formatExpectedVacantText($room['expected_vacant_date'] ?? null) : '';
 
-            $room['service_names'] = $serviceNames;
+            // Tạo amenity_list: chỉ những key trong rooms.amenities có trong canonical
+            $rawAmenities = trim((string)($room['amenities'] ?? ''));
+            $roomAmenityKeys = $rawAmenities !== '' ? array_values(array_filter(array_map('trim', explode(',', $rawAmenities)), static fn($k) => $k !== '')) : [];
+            $amenityList = [];
+            foreach ($roomAmenityKeys as $key) {
+                if (isset($amenityMap[$key])) {
+                    $amenityList[] = $amenityMap[$key];
+                }
+            }
+
+            $room['service_names'] = array_values(array_filter(array_map(static fn($service) => trim((string)($service['name'] ?? '')), $services)));
+            $room['amenity_list'] = $amenityList; // mảng [{key, label, icon}, ...]
             $room['isUpcoming'] = $isUpcoming;
             $room['daysLeft'] = $isUpcoming ? self::getDaysUntilVacant($room['expected_vacant_date'] ?? null) : null;
             $room['expectedVacantText'] = $expectedVacantText;
@@ -753,31 +778,29 @@ class RoomModel
     }
 
     private static function roomMatchesFeature(array $room, $featureKey)
-{
-    $feature = null;
-    foreach (self::getPublicFeatureOptions() as $item) {
-        if (($item['key'] ?? '') === $featureKey) { $feature = $item; break; }
-    }
-    if (!$feature) { return false; }
-    $aliases = array_values(array_filter(array_map(
-        static fn($a) => self::normalizeFeatureText($a),
-        (array)($feature['aliases'] ?? [])
-    ), static fn($a) => $a !== ''));
-    if (!$aliases) { return false; }
-
-    $labels = self::parseRoomAmenityLabels($room);
-    $blob = self::normalizeFeatureText(implode(' ', array_merge($labels, [(string)($room['description'] ?? '')])));
-
-    foreach ($aliases as $alias) {
-        foreach ($labels as $label) {
-            $hay = self::normalizeFeatureText($label);
-            if ($hay !== '' && (mb_strpos($hay, $alias) !== false || mb_strpos($alias, $hay) !== false)) { return true; }
+    {
+        // Chỉ match chính xác KEY trong cột rooms.amenities (chuỗi comma-separated các KEY)
+        // KHÔNG tìm kiếm trong description, service_names hay dùng aliases
+        $raw = trim((string)($room['amenities'] ?? ''));
+        if ($raw === '') {
+            return false;
         }
-        if ($blob !== '' && mb_strpos($blob, $alias) !== false) { return true; }
+        // Tách các key, trim, loại bỏ rỗng
+        $keys = array_values(array_filter(array_map('trim', explode(',', $raw)), static fn($k) => $k !== ''));
+        return in_array($featureKey, $keys, true);
     }
-    return false;
-}
 
+    /**
+     * Parse giá từ text người dùng nhập thành số nguyên VNĐ.
+     * Hỗ trợ: "2 triệu", "2.5 triệu", "2,5 triệu", "3 triệu", "2.1 triệu", "2.7 triệu", "3,3 triệu", "1.5tr", "2tr5",
+     *         "1500k", "1500 nghìn", "500k", "2000000", "500000", "500" (hiểu là 500k)
+     * Quy tắc:
+     * 1. Bỏ khoảng trắng, "vnđ", "vnd", "đ", "đồng"
+     * 2. Chứa "triệu"/"tr"/"m" → nhân 1,000,000 (hỗ trợ dấu chấm/phẩy thập phân, cả "2tr5" = 2.5 triệu)
+     * 3. Chứa "nghìn"/"k"/"ngàn" → nhân 1,000
+     * 4. Số thuần: < 100 → triệu (VD: "2" = 2 triệu); 100-99999 → nghìn (VD: "500" = 500k, "1500" = 1.5tr); >= 100000 → nguyên
+     * 5. Làm tròn hàng trăm nghìn (nếu chưa chia hết 100,000)
+     */
     private static function parseHumanPrice($value)
     {
         $rawValue = trim((string)$value);
@@ -786,25 +809,62 @@ class RoomModel
         }
 
         $normalized = mb_strtolower($rawValue, 'UTF-8');
-        $normalized = str_replace(['vnđ', 'vnd', 'đ', 'dong', ' '], '', $normalized);
+        // Loại bỏ ký tự tiền tệ và khoảng trắng
+        $normalized = str_replace(['vnđ', 'vnd', 'đ', 'dong', ' ', 'đồng'], '', $normalized);
+
+        // Xác định đơn vị nhân
+        $multiplier = 1;
+        $hasTrieu = false;
+        $hasNghin = false;
+
+        // 2tr5 → 2.5 triệu: detect "tr" followed by digits
+        if (preg_match('/tr(\d+)/', $normalized, $m)) {
+            $normalized = preg_replace('/tr(\d+)/', '.tr$1', $normalized);
+        }
+        $hasTrieu = str_contains($normalized, 'triệu') || str_contains($normalized, 'tr') || str_contains($normalized, 'm');
+        $hasNghin = str_contains($normalized, 'nghìn') || str_contains($normalized, 'nghin') || str_contains($normalized, 'ngàn') || str_contains($normalized, 'k');
+
+        if ($hasTrieu) {
+            $multiplier = 1000000;
+            $normalized = str_replace(['triệu', 'tr', 'm'], '', $normalized);
+        } elseif ($hasNghin) {
+            $multiplier = 1000;
+            $normalized = str_replace(['nghìn', 'nghin', 'ngàn', 'k'], '', $normalized);
+        }
+
+        // Lấy phần số (giữ lại chữ số, dấu chấm, dấu phẩy)
         $numberText = preg_replace('/[^0-9\.,]/', '', $normalized);
         if ($numberText === '') {
             return null;
         }
 
-        $number = (float)str_replace(',', '.', $numberText);
+        // Chuẩn hóa dấu thập phân: thay dấu phẩy bằng dấu chấm
+        $numberText = str_replace(',', '.', $numberText);
+        $number = (float)$numberText;
         if ($number <= 0) {
             return null;
         }
 
-        if (str_contains($normalized, 'tr') || str_contains($normalized, 'triệu') || $number < 1000) {
-            return (int)round($number * 1000000);
-        }
-        if (str_contains($normalized, 'k') || str_contains($normalized, 'nghin') || str_contains($normalized, 'nghìn') || $number < 100000) {
-            return (int)round($number * 1000);
+        // Nếu chưa xác định multiplier qua từ khóa, đoán theo quy tắc số thuần
+        if (!$hasTrieu && !$hasNghin) {
+            if ($number < 100) {
+                $multiplier = 1000000; // "2" = 2 triệu, "50" = 50 triệu
+            } elseif ($number < 100000) {
+                $multiplier = 1000;    // "500" = 500k, "1500" = 1.5tr, "9999" = 9.999tr
+            } else {
+                $multiplier = 1;       // "2000000" = 2.000.000
+            }
         }
 
-        return (int)round($number);
+        $price = (int)round($number * $multiplier);
+
+        // Làm tròn đến hàng trăm nghìn nếu chưa chia hết
+        $remainder = $price % 100000;
+        if ($remainder !== 0) {
+            $price = $price - $remainder + 100000;
+        }
+
+        return $price;
     }
 
     public static function formatPriceInput($price)
@@ -1095,35 +1155,4 @@ class RoomModel
     {
         return UserModel::findByEmail($email);
     }
-
-private static function normalizeFeatureText($text) {
-    $t = mb_strtolower(trim((string)$text), 'UTF-8');
-    $map = ['á'=>'a','à'=>'a','ả'=>'a','ã'=>'a','ạ'=>'a','ă'=>'a','ắ'=>'a','ằ'=>'a','ẳ'=>'a','ẵ'=>'a','ặ'=>'a','â'=>'a','ấ'=>'a','ầ'=>'a','ẩ'=>'a','ẫ'=>'a','ậ'=>'a','é'=>'e','è'=>'e','ẻ'=>'e','ẽ'=>'e','ẹ'=>'e','ê'=>'e','ế'=>'e','ề'=>'e','ể'=>'e','ễ'=>'e','ệ'=>'e','í'=>'i','ì'=>'i','ỉ'=>'i','ĩ'=>'i','ị'=>'i','ó'=>'o','ò'=>'o','ỏ'=>'o','õ'=>'o','ọ'=>'o','ô'=>'o','ố'=>'o','ồ'=>'o','ổ'=>'o','ỗ'=>'o','ộ'=>'o','ơ'=>'o','ớ'=>'o','ờ'=>'o','ở'=>'o','ỡ'=>'o','ợ'=>'o','ú'=>'u','ù'=>'u','ủ'=>'u','ũ'=>'u','ụ'=>'u','ư'=>'u','ứ'=>'u','ừ'=>'u','ử'=>'u','ữ'=>'u','ự'=>'u','ý'=>'y','ỳ'=>'y','ỷ'=>'y','ỹ'=>'y','ỵ'=>'y','đ'=>'d'];
-    return trim(strtr($t, $map));
-}
-
-private static function parseRoomAmenityLabels(array $room) {
-    $labels = [];
-    $raw = trim((string)($room['amenities'] ?? ''));
-    if ($raw !== '') {
-        $decoded = json_decode($raw, true);
-        $parts = is_array($decoded) ? $decoded : array_map('trim', explode(',', $raw));
-        foreach ($parts as $p) { $p = trim((string)$p); if ($p !== '') $labels[] = $p; }
-    }
-    foreach ((array)($room['service_names'] ?? []) as $s) { $s = trim((string)$s); if ($s !== '') $labels[] = $s; }
-    return array_values(array_unique($labels));
-}
-
-private static function roomMatchesFeatureKey(array $room, $featureKey) {
-    $needle = self::normalizeFeatureText((string)$featureKey);
-    if (strpos($needle, 'am_') === 0) $needle = substr($needle, 3);
-    $needle = trim((string)$needle);
-    if ($needle === '') return false;
-    foreach (self::parseRoomAmenityLabels($room) as $label) {
-        $hay = self::normalizeFeatureText($label);
-        if ($hay === '') continue;
-        if ($hay === $needle || mb_strpos($hay, $needle) !== false || mb_strpos($needle, $hay) !== false) return true;
-    }
-    return false;
-}
 }
