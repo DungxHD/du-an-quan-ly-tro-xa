@@ -335,9 +335,10 @@ class UserModel {
     }
     
     public static function create($data) {
+        $email = mb_strtolower(trim((string)($data['email'] ?? '')));
         $payload = [
             'full_name' => trim($data['full_name'] ?? ''),
-            'email' => mb_strtolower(trim((string)($data['email'] ?? ''))),
+            'email' => $email !== '' ? $email : null,
             'phone' => trim($data['phone'] ?? ''),
             'password' => password_hash($data['password'], PASSWORD_DEFAULT),
             'role' => (int)($data['role'] ?? 0),

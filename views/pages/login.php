@@ -3,6 +3,8 @@ $errors = $errors ?? [];
 $old = $old ?? [];
 $success = $success ?? '';
 $action = $action ?? 'login';
+$cp_step = $old['cp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập mật khẩu
+$fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
 ?>
 <section class="auth-shell min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 bg-gradient-to-br from-primary/5 to-secondary/5">
     <div class="auth-ambient" aria-hidden="true">
@@ -31,6 +33,20 @@ $action = $action ?? 'login';
                 <div class="auth-alert mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-2">
                     <span class="material-symbols-outlined mt-0.5">error</span>
                     <span><?= e($errors['general']) ?></span>
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($errors['otp_error'])): ?>
+                <div class="auth-alert mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-2">
+                    <span class="material-symbols-outlined mt-0.5">error</span>
+                    <span><?= e($errors['otp_error']) ?></span>
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($errors['otp_success'])): ?>
+                <div class="auth-alert mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-start gap-2">
+                    <span class="material-symbols-outlined mt-0.5">check_circle</span>
+                    <span><?= e($errors['otp_success']) ?></span>
                 </div>
             <?php endif; ?>
 
@@ -96,19 +112,20 @@ $action = $action ?? 'login';
                 </form>
 
                 <div class="mt-4 grid grid-cols-2 gap-3">
-                    <button type="button" class="auth-btn w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition" data-action="change_password">
+                    <button type="button" class="auth-btn w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition" data-action="change_password" data-step="1">
                         Đổi mật khẩu
                     </button>
-                    <button type="button" class="auth-btn w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition" data-action="forgot_password">
+                    <button type="button" class="auth-btn w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition" data-action="forgot_password" data-step="1">
                         Quên mật khẩu
                     </button>
                 </div>
 
-            <!-- FORM Đ��I M��T KH��U -->
-            <?php elseif ($action === 'change_password'): ?>
-                <form method="POST" class="space-y-4" data-change-form <?= !empty($errors) ? 'data-shake' : '' ?>>
+            <!-- FORM Đ��I M��T KH��U - B����C 1: NH��P IDENTIFIER -->
+            <?php elseif ($action === 'change_password' && $cp_step === 1): ?>
+                <form method="POST" class="space-y-4" data-change-form-step1 <?= !empty($errors['identifier']) ? 'data-shake' : '' ?>>
     <?= csrf_field() ?>
                     <input type="hidden" name="auth_action" value="change_password">
+                    <input type="hidden" name="cp_step" value="1">
                     
                     <div class="auth-field">
                         <label for="cp_identifier" class="block text-sm font-semibold mb-2">Số điện thoại hoặc email <span class="text-red-500">*</span></label>
@@ -136,7 +153,43 @@ $action = $action ?? 'login';
                         </div>
                     <?php endif; ?>
 
-                    <div class="auth-field" id="cp_password_fields" style="display: <?= empty($errors['identifier']) && !empty($old['identifier']) ? 'block' : 'none' ?>;">
+                    <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg">
+                        Tiếp tục
+                    </button>
+                </form>
+
+                <div class="mt-4 text-center">
+                    <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
+                </div>
+
+            <!-- FORM Đ��I M��T KH��U - B����C 2: NH��P M��T KH��U C��/M��I -->
+            <?php elseif ($action === 'change_password' && $cp_step === 2): ?>
+                <form method="POST" class="space-y-4" data-change-form-step2 <?= !empty($errors) ? 'data-shake' : '' ?>>
+    <?= csrf_field() ?>
+                    <input type="hidden" name="auth_action" value="change_password">
+                    <input type="hidden" name="cp_step" value="2">
+                    <input type="hidden" name="identifier" value="<?= e($old['identifier'] ?? '') ?>">
+                    
+                    <div class="auth-field">
+                        <label for="cp_identifier_display" class="block text-sm font-semibold mb-2">Tài khoản</label>
+                        <input
+                            id="cp_identifier_display"
+                            type="text"
+                            value="<?= e($old['identifier'] ?? '') ?>"
+                            readonly
+                            class="w-full px-4 py-3 border rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                        >
+                    </div>
+
+                    <?php if (!empty($old['show_register_link'])): ?>
+                        <div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg flex items-center gap-2">
+                            <span class="material-symbols-outlined">info</span>
+                            <span>Tài khoản này chưa tồn tại. </span>
+                            <a href="<?= BASE_URL ?>?page=register&prefill_identifier=<?= urlencode($old['identifier']) ?>" class="text-primary font-semibold hover:underline">Đăng ký ngay</a>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="auth-field">
                         <label for="cp_old_password" class="block text-sm font-semibold mb-2">Mật khẩu cũ <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input
@@ -166,7 +219,9 @@ $action = $action ?? 'login';
                         <?php if (!empty($errors['old_password'])): ?>
                             <p class="mt-2 text-sm text-red-600"><?= e($errors['old_password']) ?></p>
                         <?php endif; ?>
+                    </div>
 
+                    <div class="auth-field">
                         <label for="cp_new_password" class="block text-sm font-semibold mb-2 mt-4">Mật khẩu mới <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input
@@ -197,7 +252,9 @@ $action = $action ?? 'login';
                         <?php if (!empty($errors['new_password'])): ?>
                             <p class="mt-2 text-sm text-red-600"><?= e($errors['new_password']) ?></p>
                         <?php endif; ?>
+                    </div>
 
+                    <div class="auth-field">
                         <label for="cp_confirm_password" class="block text-sm font-semibold mb-2 mt-4">Xác nhận mật khẩu mới <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <input
@@ -239,11 +296,12 @@ $action = $action ?? 'login';
                     <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
                 </div>
 
-            <!-- FORM QU��N M��T KH��U -->
-            <?php elseif ($action === 'forgot_password'): ?>
-                <form method="POST" class="space-y-4" data-forgot-form <?= !empty($errors) ? 'data-shake' : '' ?>>
+            <!-- FORM QU��N M��T KH��U - B����C 1: NH��P IDENTIFIER -->
+            <?php elseif ($action === 'forgot_password' && $fp_step === 1): ?>
+                <form method="POST" class="space-y-4" data-forgot-form-step1 <?= !empty($errors['identifier']) ? 'data-shake' : '' ?>>
     <?= csrf_field() ?>
                     <input type="hidden" name="auth_action" value="forgot_password">
+                    <input type="hidden" name="fp_step" value="1">
                     
                     <div class="auth-field">
                         <label for="fp_identifier" class="block text-sm font-semibold mb-2">Số điện thoại hoặc email <span class="text-red-500">*</span></label>
@@ -271,67 +329,105 @@ $action = $action ?? 'login';
                         </div>
                     <?php endif; ?>
 
-                    <?php if (!empty($errors['no_email'])): ?>
-                        <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                            <p class="font-semibold mb-2">Tài khoản của bạn chưa đăng ký email. Vui lòng liên hệ chủ trọ để được cấp lại mật khẩu.</p>
-                            <?php if (!empty($old['contact_phone'])): ?>
-                                <a href="tel:<?= e(str_replace(' ', '', $old['contact_phone'])) ?>" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition flex items-center justify-center gap-2">
-                                    <span class="material-symbols-outlined">call</span>
-                                    <span>Liên hệ ngay: <?= e($old['contact_phone']) ?></span>
-                                </a>
-                            <?php else: ?>
-                                <p class="text-sm">Vui lòng liên hệ chủ trọ qua thông tin trên trang web.</p>
-                            <?php endif; ?>
-                            <a href="<?= BASE_URL ?>?page=login" class="block mt-3 text-center text-gray-500 hover:text-primary text-sm">Quay lại</a>
-                        </div>
-                    <?php elseif (!empty($errors['otp_sent']) || !empty($errors['show_otp_form'])): ?>
-                        <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-start gap-2">
-                            <span class="material-symbols-outlined mt-0.5">check_circle</span>
-                            <span>Mã OTP đã được gửi đến email đăng ký của tài khoản.</span>
-                        </div>
-                        <a href="<?= BASE_URL ?>?page=verify-otp" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg">
-                            Nhập mã OTP
-                        </a>
-                        <?php if (!empty($errors['otp_resend_wait'])): ?>
-                            <div class="mt-3 text-center text-sm text-gray-500">
-                                Gửi lại sau <span id="fp_resend_countdown"><?= (int)$errors['otp_resend_wait'] ?></span> giây
-                            </div>
-                        <?php elseif (!empty($errors['otp_max_daily'])): ?>
-                            <div class="mt-3 text-center text-sm text-red-600">
-                                Đã gửi tối đa 5 lần trong 24h. Vui lòng thử lại sau hoặc liên hệ chủ trọ.
-                            </div>
-                        <?php else: ?>
-                            <div class="mt-3 text-center">
-                                <form method="POST" action="<?= BASE_URL ?>?page=resend-otp" class="inline">
-    <?= csrf_field() ?>
-                                    <button type="submit" class="text-primary hover:underline text-sm font-medium">Gửi lại mã OTP</button>
-                                </form>
-                            </div>
-                        <?php endif; ?>
-                        <a href="<?= BASE_URL ?>?page=login" class="block mt-3 text-center text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
-                    <?php elseif (!empty($errors['otp_send_failed'])): ?>
-                        <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                            <p class="font-semibold mb-2">Gửi OTP thất bại.</p>
-                            <?php if (!empty($old['contact_phone'])): ?>
-                                <a href="tel:<?= e(str_replace(' ', '', $old['contact_phone'])) ?>" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition flex items-center justify-center gap-2">
-                                    <span class="material-symbols-outlined">call</span>
-                                    <span>Liên hệ ngay: <?= e($old['contact_phone']) ?></span>
-                                </a>
-                            <?php else: ?>
-                                <p class="text-sm">Vui lòng liên hệ chủ trọ qua thông tin trên trang web.</p>
-                            <?php endif; ?>
-                            <a href="<?= BASE_URL ?>?page=login" class="block mt-3 text-center text-gray-500 hover:text-primary text-sm">Quay lại</a>
-                        </div>
-                    <?php else: ?>
-                        <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg">
-                            Gửi mã OTP
-                        </button>
-                    <?php endif; ?>
+                    <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg">
+                        Gửi mã OTP
+                    </button>
                 </form>
 
                 <div class="mt-4 text-center">
                     <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
                 </div>
+
+            <!-- FORM QU��N M��T KH��U - B����C 2: NH��P OTP (INLINE, KH��NG REDIRECT) -->
+            <?php elseif ($action === 'forgot_password' && $fp_step === 2): ?>
+                <?php if (!empty($errors['no_email'])): ?>
+                    <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+                        <p class="font-semibold mb-2">Tài khoản này chưa được cập nhật email. Vui lòng liên hệ chủ trọ để được cấp lại mật khẩu.</p>
+                        <?php if (!empty($old['contact_phone'])): ?>
+                            <a href="tel:<?= e(str_replace(' ', '', $old['contact_phone'])) ?>" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined">call</span>
+                                <span>Liên hệ ngay: <?= e($old['contact_phone']) ?></span>
+                            </a>
+                        <?php else: ?>
+                            <p class="text-sm">Vui lòng liên hệ chủ trọ qua thông tin trên trang web.</p>
+                        <?php endif; ?>
+                        <a href="<?= BASE_URL ?>?page=login" class="block mt-3 text-center text-gray-500 hover:text-primary text-sm">Quay lại</a>
+                    </div>
+                <?php elseif (!empty($errors['otp_send_failed'])): ?>
+                    <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+                        <p class="font-semibold mb-2">Gửi OTP thất bại.</p>
+                        <?php if (!empty($old['contact_phone'])): ?>
+                            <a href="tel:<?= e(str_replace(' ', '', $old['contact_phone'])) ?>" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined">call</span>
+                                <span>Liên hệ ngay: <?= e($old['contact_phone']) ?></span>
+                            </a>
+                        <?php else: ?>
+                            <p class="text-sm">Vui lòng liên hệ chủ trọ qua thông tin trên trang web.</p>
+                        <?php endif; ?>
+                        <a href="<?= BASE_URL ?>?page=login" class="block mt-3 text-center text-gray-500 hover:text-primary text-sm">Quay lại</a>
+                    </div>
+                <?php else: ?>
+                    <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-start gap-2">
+                        <span class="material-symbols-outlined mt-0.5">check_circle</span>
+                        <span>Mã OTP đã được gửi đến email <strong><?= e($old['otp_sent_email'] ?? 'đăng ký của tài khoản') ?></strong>.</span>
+                    </div>
+
+                    <form method="POST" class="space-y-4" data-otp-form <?= !empty($errors['otp']) ? 'data-shake' : '' ?>>
+    <?= csrf_field() ?>
+                        <input type="hidden" name="auth_action" value="forgot_password">
+                        <input type="hidden" name="fp_step" value="2">
+                        <input type="hidden" name="identifier" value="<?= e($old['identifier'] ?? '') ?>">
+                        
+                        <div class="auth-field">
+                            <label for="fp_otp_input" class="block text-sm font-semibold mb-2">Mã OTP <span class="text-red-500">*</span></label>
+                            <input
+                                id="fp_otp_input"
+                                type="text"
+                                name="otp"
+                                required
+                                maxlength="4"
+                                pattern="\d{4}"
+                                inputmode="numeric"
+                                autocomplete="one-time-code"
+                                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition text-center text-2xl tracking-widest <?= !empty($errors['otp']) ? 'border-red-300 bg-red-50' : 'border-gray-200' ?>"
+                                aria-describedby="fp_otp_error"
+                                placeholder="••••"
+                            >
+                            <p id="fp_otp_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['otp']) ? 'hidden' : '' ?>">
+                                <?= e($errors['otp'] ?? '') ?>
+                            </p>
+                        </div>
+
+                        <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg">
+                            Xác thực OTP
+                        </button>
+                    </form>
+
+                    <div class="mt-4 text-center">
+                        <form method="POST" action="<?= BASE_URL ?>?page=resend-otp" class="inline" id="fpResendForm">
+    <?= csrf_field() ?>
+                            <button type="submit" class="text-primary hover:underline text-sm font-medium" id="fpResendBtn" disabled>
+                                Gửi lại mã OTP sau <span id="fpResendCountdown">02:00</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <?php if (!empty($errors['otp_info'])): ?>
+                        <div class="mt-2 text-center text-sm text-yellow-600">
+                            <?= e($errors['otp_info']) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($old['otp_resent'])): ?>
+                        <div class="mt-2 text-center text-sm text-green-600">
+                            Mã OTP mới đã được gửi lại.
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="mt-4 text-center">
+                        <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
 
             <div class="mt-6 p-4 bg-blue-50 rounded-lg text-xs text-blue-900">
@@ -401,15 +497,27 @@ $action = $action ?? 'login';
     });
   });
 
-  // Action buttons
+  // Action buttons - handle step 1 for change_password and forgot_password
   document.querySelectorAll('[data-action]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var action = this.getAttribute('data-action');
-      var form = document.querySelector('form[data-login-form], form[data-change-form], form[data-forgot-form]');
+      var step = this.getAttribute('data-step') || '1';
+      var form = document.querySelector('form[data-login-form]');
       if (form) {
-        var hiddenInput = form.querySelector('input[name="auth_action"]');
-        if (hiddenInput) {
-          hiddenInput.value = action;
+        var hiddenAction = form.querySelector('input[name="auth_action"]');
+        var hiddenStep = form.querySelector('input[name="' + action + '_step"]') || form.querySelector('input[name="cp_step"]') || form.querySelector('input[name="fp_step"]');
+        if (hiddenAction) {
+          hiddenAction.value = action;
+        }
+        // Add step hidden input if not exists
+        if (!hiddenStep) {
+          var stepInput = document.createElement('input');
+          stepInput.type = 'hidden';
+          stepInput.name = action === 'change_password' ? 'cp_step' : 'fp_step';
+          stepInput.value = step;
+          form.appendChild(stepInput);
+        } else {
+          hiddenStep.value = step;
         }
         form.submit();
       }
@@ -424,18 +532,55 @@ $action = $action ?? 'login';
     });
   }
 
-  // Resend countdown for forgot password
-  var fpCountdown = document.getElementById('fp_resend_countdown');
-  if (fpCountdown) {
-    var seconds = parseInt(fpCountdown.textContent, 10);
+  // OTP input auto-format for forgot password step 2
+  var fpOtpInput = document.getElementById('fp_otp_input');
+  if (fpOtpInput) {
+    fpOtpInput.focus();
+    fpOtpInput.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(0, 4);
+    });
+    
+    fpOtpInput.addEventListener('paste', function(e) {
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text');
+      text = text.replace(/\D/g, '').slice(0, 4);
+      this.value = text;
+      if (text.length === 4) {
+        this.form?.querySelector('button[type="submit"]')?.click();
+      }
+    });
+  }
+
+  // Resend countdown for forgot password step 2 (2 minutes = 120 seconds)
+  var fpCountdownEl = document.getElementById('fpResendCountdown');
+  var fpResendBtn = document.getElementById('fpResendBtn');
+  var fpResendForm = document.getElementById('fpResendForm');
+
+  if (fpCountdownEl && fpResendBtn && fpResendForm) {
+    var totalSeconds = 120; // 2 minutes
+    var seconds = totalSeconds;
+    fpResendBtn.disabled = true;
+
     var timer = setInterval(function() {
       seconds--;
-      fpCountdown.textContent = seconds;
+      var mins = Math.floor(seconds / 60);
+      var secs = seconds % 60;
+      fpCountdownEl.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
       if (seconds <= 0) {
         clearInterval(timer);
-        fpCountdown.parentElement.innerHTML = '<form method="POST" action="<?= BASE_URL ?>?page=resend-otp" class="inline"><input type="hidden" name="_csrf_token" value="<?= e(csrf_token()) ?>"><button type="submit" class="text-primary hover:underline text-sm font-medium">Gửi lại mã OTP</button></form>';
+        fpResendBtn.disabled = false;
+        fpResendBtn.innerHTML = 'Gửi lại mã OTP';
       }
     }, 1000);
+
+    // Handle resend form submit - prevent default, submit via AJAX to update countdown without page reload
+    fpResendForm.addEventListener('submit', function(e) {
+      if (fpResendBtn.disabled) {
+        e.preventDefault();
+        return;
+      }
+      // Let it submit normally - server will handle and redirect back with new countdown
+    });
   }
 })();
 </script>

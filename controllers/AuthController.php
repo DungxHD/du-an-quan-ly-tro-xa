@@ -72,7 +72,19 @@ class AuthController extends BaseController
         $errors = [];
         $old = ['identifier' => ''];
         $success = pullFlash('auth_success');
-        $action = $_POST['auth_action'] ?? ($_GET['auth_action'] ?? '');
+        $action = $_GET['auth_action'] ?? ($_POST['auth_action'] ?? '');
+        $cp_step = (int)($_GET['cp_step'] ?? $_POST['cp_step'] ?? 1);
+        $fp_step = (int)($_GET['fp_step'] ?? $_POST['fp_step'] ?? 1);
+
+        // Lấy flash messages từ resendOtp
+        $otpError = pullFlash('otp_error');
+        $otpSuccess = pullFlash('otp_success');
+        if ($otpError) {
+            $errors['otp_info'] = $otpError;
+        }
+        if ($otpSuccess) {
+            $old['otp_resent'] = true;
+        }
 
         // Xử lý POST cho login/change-password/forgot-password
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -86,11 +98,23 @@ class AuthController extends BaseController
             if ($action === 'login') {
                 $this->handleLogin($identifier, $password, $errors, $old);
             } elseif ($action === 'change_password') {
-                $this->handleChangePassword($identifier, $password, $_POST['new_password'] ?? '', $_POST['confirm_password'] ?? '', $errors, $old);
+                if ($cp_step === 1) {
+                    $this->handleChangePasswordStep1($identifier, $errors, $old);
+                } else {
+                    $this->handleChangePasswordStep2($identifier, $password, $_POST['new_password'] ?? '', $_POST['confirm_password'] ?? '', $errors, $old);
+                }
             } elseif ($action === 'forgot_password') {
-                $this->handleForgotPassword($identifier, $errors, $old);
+                if ($fp_step === 1) {
+                    $this->handleForgotPasswordStep1($identifier, $errors, $old);
+                } else {
+                    $this->handleForgotPasswordStep2($identifier, trim($_POST['otp'] ?? ''), $errors, $old);
+                }
             }
         }
+
+        // Chỉ set mặc định nếu handler chưa set (handler sẽ set cp_step/fp_step khi cần chuyển bước)
+        if (!isset($old['cp_step'])) $old['cp_step'] = $cp_step;
+        if (!isset($old['fp_step'])) $old['fp_step'] = $fp_step;
 
         $pageTitle = 'Đăng nhập - ' . RoomModel::getSetting('site_name', 'NhaTroA');
         $this->renderPublic('views/pages/login.php', compact('errors', 'old', 'success', 'action'), 'login', $pageTitle);
@@ -136,9 +160,9 @@ class AuthController extends BaseController
     }
 
     /**
-     * Xử lý đổi mật khẩu từ form đăng nhập.
+     * Xử lý đổi mật khẩu - Bước 1: Validate identifier.
      */
-    private function handleChangePassword($identifier, $oldPassword, $newPassword, $confirmPassword, &$errors, &$old)
+    private function handleChangePasswordStep1($identifier, &$errors, &$old)
     {
         if ($identifier === '') {
             $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
@@ -152,6 +176,32 @@ class AuthController extends BaseController
             $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
             $old['show_register_link'] = true;
             $old['identifier'] = $identifier;
+            return;
+        }
+
+        // Identifier hợp lệ, chuyển sang bước 2
+        $old['cp_step'] = 2;
+        $old['identifier'] = $identifier;
+    }
+
+    /**
+     * Xử lý đổi mật khẩu - Bước 2: Validate mật khẩu cũ/mới.
+     */
+    private function handleChangePasswordStep2($identifier, $oldPassword, $newPassword, $confirmPassword, &$errors, &$old)
+    {
+        if ($identifier === '') {
+            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
+            $old['cp_step'] = 1;
+            return;
+        }
+
+        $user = $this->findUserByIdentifier($identifier);
+
+        if (!$user) {
+            $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
+            $old['show_register_link'] = true;
+            $old['identifier'] = $identifier;
+            $old['cp_step'] = 1;
             return;
         }
 
@@ -178,19 +228,38 @@ class AuthController extends BaseController
             setFlash('auth_success', 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
             redirectTo('login');
         }
+
+        // Gi�� lại step 2 để hiển thị form mật khẩu
+        $old['cp_step'] = 2;
+        $old['identifier'] = $identifier;
     }
 
     /**
-     * Xử lý quên mật khẩu.
+     * Xử lý quên mật khẩu - Bước 1: Validate identifier, gửi OTP.
+     * Chỉ gửi OTP qua email. Nếu nhập phone -> tìm user bằng phone -> check email.
      */
-    private function handleForgotPassword($identifier, &$errors, &$old)
+    private function handleForgotPasswordStep1($identifier, &$errors, &$old)
     {
         if ($identifier === '') {
             $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
             return;
         }
 
-        $user = $this->findUserByIdentifier($identifier);
+        $isEmail = str_contains($identifier, '@');
+        $user = null;
+
+        if ($isEmail) {
+            // Tìm bằng email
+            $user = UserModel::findByEmail(mb_strtolower(trim($identifier)));
+        } else {
+            // Tìm bằng phone (chuẩn hóa trước)
+            $normalizedPhone = UserModel::normalizePhone($identifier);
+            if (!$normalizedPhone) {
+                $errors['identifier'] = 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, khoảng trắng, +84 ở đầu.';
+                return;
+            }
+            $user = UserModel::findByPhone($normalizedPhone);
+        }
 
         if (!$user) {
             $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
@@ -207,6 +276,8 @@ class AuthController extends BaseController
         if (empty($user['email'])) {
             $errors['no_email'] = true;
             $old['contact_phone'] = RoomModel::getSetting('contact_phone', '');
+            $old['fp_step'] = 2;
+            $old['identifier'] = $identifier;
             return;
         }
 
@@ -220,7 +291,8 @@ class AuthController extends BaseController
             } elseif ($rateLimit['reason'] === 'max_daily') {
                 $errors['otp_max_daily'] = true;
             }
-            $errors['show_otp_form'] = true;
+            $old['fp_step'] = 2;
+            $old['identifier'] = $identifier;
             return;
         }
 
@@ -233,12 +305,67 @@ class AuthController extends BaseController
         if (!$sent) {
             $errors['otp_send_failed'] = true;
             $old['contact_phone'] = RoomModel::getSetting('contact_phone', '');
-            $errors['show_otp_form'] = true;
+            $old['fp_step'] = 2;
+            $old['identifier'] = $identifier;
             return;
         }
 
+        // Gửi thành công -> chuyển sang bước 2 (nhập OTP), lưu email để hiển thị
+        $old['fp_step'] = 2;
+        $old['identifier'] = $identifier;
+        $old['otp_sent_email'] = $this->maskEmail($user['email']);
         $errors['otp_sent'] = true;
-        $errors['show_otp_form'] = true;
+    }
+
+    /**
+     * Mask email để hiển thị an toàn: a***@domain.com
+     */
+    private function maskEmail($email)
+    {
+        if (!$email || !str_contains($email, '@')) return $email;
+        [$local, $domain] = explode('@', $email, 2);
+        if (strlen($local) <= 2) {
+            $maskedLocal = str_repeat('*', strlen($local));
+        } else {
+            $maskedLocal = $local[0] . str_repeat('*', strlen($local) - 2) . $local[strlen($local) - 1];
+        }
+        return $maskedLocal . '@' . $domain;
+    }
+
+    /**
+     * Xử lý quên mật khẩu - Bước 2: Xác thực OTP (inline trên cùng trang).
+     */
+    private function handleForgotPasswordStep2($identifier, $otpInput, &$errors, &$old)
+    {
+        if (!isset($_SESSION['reset_user_id'])) {
+            redirectTo('login');
+        }
+
+        if ($otpInput === '') {
+            $errors['otp'] = 'Vui lòng nhập mã OTP.';
+        } elseif (!preg_match('/^\d{4}$/', $otpInput)) {
+            $errors['otp'] = 'Mã OTP phải là 4 chữ số.';
+        }
+
+        if (empty($errors)) {
+            $result = PasswordResetModel::verifyOtp($_SESSION['reset_user_id'], $otpInput);
+
+            if ($result === true) {
+                $_SESSION['otp_verified'] = true;
+                // Chuyển sang trang reset-password
+                redirectTo('reset-password');
+            } elseif ($result === 'expired') {
+                $errors['otp'] = 'Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.';
+            } elseif ($result === 'invalid') {
+                $errors['otp'] = 'Mã OTP không đúng.';
+            } elseif ($result === 'max_attempts') {
+                $errors['otp'] = 'Mã OTP không còn hợp lệ. Vui lòng gửi lại mã mới.';
+            }
+        }
+
+        // Gi�� lại step 2 để hiển thị form OTP
+        $old['fp_step'] = 2;
+        $old['identifier'] = $identifier;
     }
 
     /**
@@ -327,7 +454,7 @@ class AuthController extends BaseController
     }
 
     /**
-     * Gửi lại OTP.
+     * Gửi lại OTP - redirect về form quên mật khẩu step 2.
      */
     public function resendOtp()
     {
@@ -349,7 +476,7 @@ class AuthController extends BaseController
                 } elseif ($rateLimit['reason'] === 'max_daily') {
                     setFlash('otp_error', 'Bạn đã gửi OTP tối đa 5 lần trong 24 giờ. Vui lòng thử lại sau hoặc liên hệ chủ trọ.');
                 }
-                redirectTo('verify-otp');
+                redirectTo('login?auth_action=forgot_password&fp_step=2');
             }
 
             $otp = PasswordResetModel::createOtp($userId, $ip);
@@ -361,15 +488,15 @@ class AuthController extends BaseController
                 $sent = Mailer::sendOtpEmail($user['email'], $otp, $user['full_name']);
                 if (!$sent) {
                     setFlash('otp_error', 'Gửi OTP thất bại. Vui lòng liên hệ chủ trọ.');
-                    redirectTo('verify-otp');
+                    redirectTo('login?auth_action=forgot_password&fp_step=2');
                 }
             }
 
             setFlash('otp_success', 'Mã OTP mới đã được gửi đến email của bạn.');
-            redirectTo('verify-otp');
+            redirectTo('login?auth_action=forgot_password&fp_step=2');
         }
 
-        redirectTo('verify-otp');
+        redirectTo('login?auth_action=forgot_password&fp_step=2');
     }
 
     /**
