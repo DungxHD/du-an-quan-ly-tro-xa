@@ -590,6 +590,12 @@ public function saveRoom()
             'description'   => trim((string)($_POST['description'] ?? '')),
         ];
 
+        // [DEV-QWEN-A][FIX][2026-08-14] Khóa giá hoàn toàn đối với phòng đang thuê:
+        // giữ nguyên giá cũ dù request có cố tình gửi giá mới.
+        if ($id > 0 && $editRoom && ($editRoom['status'] ?? '') === 'rented') {
+            $data['price'] = (float)($editRoom['price'] ?? 0);
+        }
+
         // [DEV-QWEN-A][NHOM-2][2026-08-13] Fix: khai báo $amenityValues trước khi dùng implode
         $amenityValues = array_values(array_unique(array_filter(array_map(
             static fn($value) => trim((string)$value),
@@ -773,7 +779,9 @@ public function saveRoom()
         setFlash('admin_room_message', $pendingPriceMessage !== ''
             ? $pendingPriceMessage
             : ($data['status'] === 'draft' ? 'Đã lưu phòng CHƯA CÓ THÔNG TIN — chưa hiển thị web.' : 'Đã lưu phòng và đăng lên website.'));
-        redirectTo('admin-rooms', ['area_id' => (int)($floor['area_id'] ?? 0), 'floor_id' => (int)$data['floor_id']]);
+        // [DEV-QWEN-A][FIX-FILTER][2026-08-14] Giữ nguyên bộ lọc đang dùng (return_* từ form) khi redirect
+        // sau khi lưu, thay vì ép về khu/tầng của phòng vừa sửa.
+        redirectTo('admin-rooms', $redirectParams);
     }
 /**
      * [DEV-QWEN-A][NHOM-2][2026-08-08]

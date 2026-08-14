@@ -39,22 +39,21 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
             </p>
         </div>
 
-        <?php if (!empty($filterMessages)): ?>
-        <div class="mb-6 space-y-3">
-            <?php foreach ($filterMessages as $message): ?>
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                <?= e($message) ?>
-            </div>
-            <?php endforeach; ?>
+        <!-- Filter messages (from initial load or AJAX) -->
+        <div id="filter-messages" class="mb-6 space-y-3">
+            <?php if (!empty($filterMessages)): ?>
+                <?php foreach ($filterMessages as $message): ?>
+                <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    <?= e($message) ?>
+                </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Sidebar bộ lọc -->
             <aside class="lg:col-span-1">
                 <form method="GET" id="room-filter-form" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20" data-price-min-gap="500000">
-                    <input type="hidden" name="page" value="rooms">
-
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-lg flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">filter_list</span>
@@ -67,7 +66,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 
                     <div class="mb-6">
                         <label class="block text-sm font-semibold mb-2">Khu</label>
-                        <select name="area_id" id="filter-area_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" data-auto-submit="change">
+                        <select name="area_id" id="filter-area_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none" data-auto-fetch="change">
                             <option value="">Tất cả khu</option>
                             <?php foreach ($areas as $area): ?>
                             <option value="<?= (int)($area['id'] ?? 0) ?>" <?= (int)($filters['area_id'] ?? 0) === (int)($area['id'] ?? 0) ? 'selected' : '' ?>>
@@ -86,11 +85,11 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                             <input type="text" name="min_price" id="filter-min_price" list="price-suggestion-start"
                                 value="<?= e($filters['min_price_display'] ?? '') ?>"
                                 class="px-3 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
-                                placeholder="VD: 1 triệu, 1500k, 2000000" data-price-input="start" autocomplete="off" data-auto-submit="debounce">
+                                placeholder="VD: 1 triệu, 1500k, 2000000" data-price-input="start" autocomplete="off" data-auto-fetch="debounce">
                             <input type="text" name="max_price" id="filter-max_price" list="price-suggestion-end"
                                 value="<?= e($filters['max_price_display'] ?? '') ?>"
                                 class="px-3 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
-                                placeholder="VD: 3 triệu, 3500k, 5000000" data-price-input="end" autocomplete="off" data-auto-submit="debounce">
+                                placeholder="VD: 3 triệu, 3500k, 5000000" data-price-input="end" autocomplete="off" data-auto-fetch="debounce">
                         </div>
                         <p class="mt-2 text-xs text-gray-500" data-price-helper>
                             Hỗ trợ: "2 triệu", "2.5tr", "2500000", "500k". Khoảng cách tối thiểu 500.000đ.
@@ -130,34 +129,20 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                                 <input type="checkbox" name="amenities[]" value="<?= e($feature['key'] ?? '') ?>"
                                     class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary"
                                     <?= in_array($feature['key'] ?? '', $selectedAmenities, true) ? 'checked' : '' ?>
-                                    data-auto-submit="change">
+                                    data-auto-fetch="change">
                                 <span class="material-symbols-outlined text-primary text-base"><?= e($feature['icon'] ?? 'check') ?></span>
                                 <span class="text-sm font-medium text-gray-700"><?= e($feature['label'] ?? 'Chưa có dữ liệu') ?></span>
                             </label>
                             <?php endforeach; ?>
                         </div>
                     </div>
-
-                    <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition mb-2 hidden" id="filter-submit-btn">
-                        Tìm phòng
-                    </button>
-                    <a href="<?= e($roomFilterBaseUrl) ?>" id="clear-filters-link" class="block w-full py-3 text-center text-gray-600 hover:text-primary transition hidden">
-                        Xóa bộ lọc
-                    </a>
                 </form>
             </aside>
 
             <!-- Danh sách phòng -->
             <div class="lg:col-span-3">
-                <?php if (empty($rooms)): ?>
-                <div class="bg-white p-12 rounded-2xl text-center">
-                    <span class="material-symbols-outlined text-6xl text-gray-300 mb-4">search_off</span>
-                    <p class="text-gray-700 font-semibold mb-2">Chưa tìm thấy phòng phù hợp</p>
-                    <p class="text-gray-500">Bạn có thể đổi khu nhà, nới khoảng giá hoặc bỏ bớt tiện ích đang chọn.</p>
-                </div>
-                <?php else: ?>
-                <div class="mb-5 flex flex-wrap items-center gap-3">
-                    <span class="px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700">
+                <div id="rooms-results" class="mb-5 flex flex-wrap items-center gap-3">
+                    <span class="px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700" id="rooms-count">
                         <?= count($rooms) ?> phòng phù hợp
                     </span>
                     <?php if ($selectedArea): ?>
@@ -167,99 +152,39 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                     <?php endif; ?>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children">
+                <div id="rooms-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children">
                     <?php foreach ($pagedRooms as $room): ?>
-                    <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>"
-                        class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
-                        <div class="relative aspect-video overflow-hidden">
-                            <img src="<?= e($room['thumbnail'] ?? '') ?>" alt="<?= e($room['name'] ?? 'Phòng trọ') ?>"
-                                class="w-full h-full object-cover hover:scale-110 transition-transform duration-500">
-                            <span class="absolute top-4 right-4 px-3 py-1 <?= e($room['availabilityClass'] ?? 'bg-gray-500') ?> text-white text-xs rounded-full font-semibold">
-                                <?= e($room['availabilityLabel'] ?? 'Chưa có dữ liệu') ?>
-                            </span>
-                            <!-- Badge lượt xem -->
-                            <?php $views = (int)($room['views'] ?? 0); ?>
-                            <?php if ($views > 0): ?>
-                            <span class="absolute top-4 left-4 px-3 py-1 bg-black/60 text-white text-xs rounded-full font-semibold flex items-center gap-1">
-                                <span class="material-symbols-outlined text-xs">visibility</span>
-                                <?= number_format($views) ?> lượt xem
-                            </span>
-                            <?php else: ?>
-                            <span class="absolute top-4 left-4 px-3 py-1 bg-blue-500/90 text-white text-xs rounded-full font-semibold">
-                                Mới đăng
-                            </span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="p-6">
-                            <div class="mb-2 flex items-center justify-between gap-3">
-                                <p class="text-xs text-primary font-semibold"><?= e($room['area_name'] ?? 'Chưa có dữ liệu') ?></p>
-                                <p class="text-xs text-gray-500"><?= e($room['floor_name'] ?? 'Chưa có dữ liệu') ?></p>
-                            </div>
-                            <h3 class="text-lg font-bold mb-3"><?= e($room['name'] ?? 'Chưa có dữ liệu') ?></h3>
-                            <div class="flex items-center gap-3 text-sm text-gray-500 mb-4">
-                                <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-base">square_foot</span>
-                                    <?= e($room['area'] ?? 'Chưa có dữ liệu') ?>m²
-                                </span>
-                                <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-base">person</span>
-                                    <?= e($room['max_occupancy'] ?? 'Chưa có dữ liệu') ?>
-                                </span>
-                            </div>
-
-                            <?php if (!empty($room['availabilityNote'])): ?>
-                            <p class="mb-4 text-xs font-medium text-green-700">
-                                <?= e($room['availabilityNote']) ?>
-                            </p>
-                            <?php endif; ?>
-
-                            <!-- Hiển thị tiện ích canonical (tối đa 4 + badge +N) -->
-                            <?php if (!empty($room['amenity_list']) && is_array($room['amenity_list'])): ?>
-                            <div class="mb-4">
-                                <div class="flex flex-wrap gap-2">
-                                    <?php 
-                                    $amenitiesToShow = array_slice($room['amenity_list'], 0, 4);
-                                    $remaining = count($room['amenity_list']) - 4;
-                                    foreach ($amenitiesToShow as $amenity): ?>
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                                        <span class="material-symbols-outlined text-xs"><?= e($amenity['icon'] ?? 'check') ?></span>
-                                        <?= e($amenity['label'] ?? '') ?>
-                                    </span>
-                                    <?php endforeach; ?>
-                                    <?php if ($remaining > 0): ?>
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
-                                        +<?= $remaining ?>
-                                    </span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <?php endif; ?>
-
-                            <?php if (!empty($room['service_names'])): ?>
-                            <div class="flex flex-wrap gap-2 mb-4">
-                                <?php foreach (array_slice($room['service_names'], 0, 3) as $serviceName): ?>
-                                <span class="px-3 py-1 rounded-full bg-surface text-gray-600 text-xs font-medium">
-                                    <?= e($serviceName) ?>
-                                </span>
-                                <?php endforeach; ?>
-                            </div>
-                            <?php endif; ?>
-
-                            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                <div>
-                                    <p class="text-xs text-gray-500">Giá thuê</p>
-                                    <p class="text-2xl font-bold text-primary">
-                                        <?= number_format(((float)($room['price'] ?? 0)) / 1000000, 1) ?>M
-                                        <span class="text-sm font-normal text-gray-500">/tháng</span>
-                                    </p>
-                                </div>
-                                <span class="text-primary text-sm font-semibold">Xem chi tiết →</span>
-                            </div>
-                        </div>
-                    </a>
+                    <?= RoomModel::renderRoomCardHtml($room) ?>
                     <?php endforeach; ?>
                 </div>
-                <?php endif; ?>
+
+                <!-- Loading state (hidden by default) -->
+                <div id="rooms-loading" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <?php for ($i = 0; $i < 6; $i++): ?>
+                        <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 animate-pulse">
+                            <div class="aspect-video bg-gray-200"></div>
+                            <div class="p-6 space-y-4">
+                                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                                <div class="h-6 bg-gray-200 rounded w-1/2"></div>
+                                <div class="h-4 bg-gray-200 rounded w-full"></div>
+                                <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+                                <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                                <div class="pt-4 border-t border-gray-100">
+                                    <div class="h-6 bg-gray-200 rounded w-1/4"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <!-- Empty state (hidden by default) -->
+                <div id="rooms-empty" class="hidden bg-white p-12 rounded-2xl text-center">
+                    <span class="material-symbols-outlined text-6xl text-gray-300 mb-4">search_off</span>
+                    <p class="text-gray-700 font-semibold mb-2">Không tìm thấy phòng phù hợp</p>
+                    <p class="text-gray-500">Bạn có thể đổi khu nhà, nới khoảng giá hoặc bỏ bớt tiện ích đang chọn.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -286,42 +211,149 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 <?php endif; ?>
 
 <script>
-// Auto-submit filter form with debounce for price inputs
+    // Expose BASE_URL to JavaScript
+    window.BASE_URL = '<?= BASE_URL ?>';
+</script>
+<script>
+// AJAX Filter for rooms page
 (function() {
-    const form = document.getElementById('room-filter-form');
-    if (!form) return;
-
-    const priceInputs = form.querySelectorAll('[data-price-input]');
-    const autoSubmitInputs = form.querySelectorAll('[data-auto-submit]');
+    const filterForm = document.getElementById('room-filter-form');
+    const roomsGrid = document.getElementById('rooms-grid');
+    const roomsLoading = document.getElementById('rooms-loading');
+    const roomsEmpty = document.getElementById('rooms-empty');
+    const roomsCount = document.getElementById('rooms-count');
+    const filterMessages = document.getElementById('filter-messages');
     const clearBtn = document.getElementById('clear-filters-btn');
-    const submitBtn = document.getElementById('filter-submit-btn');
-    const clearLink = document.getElementById('clear-filters-link');
+    
+    if (!filterForm || !roomsGrid) return;
 
     let debounceTimers = {};
+    let requestSeq = 0;
+    const API_URL = BASE_URL + '?page=api-rooms-filter';
 
-    function submitForm() {
-        form.submit();
+    // Ngăn browser submit form thủ công (Enter/implicit submit) → reload trang
+    filterForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+    });
+
+    function showLoading() {
+        roomsGrid.classList.add('hidden');
+        roomsEmpty.classList.add('hidden');
+        roomsLoading.classList.remove('hidden');
     }
 
-    function debouncedSubmit(name, delay) {
+    function hideLoading() {
+        roomsLoading.classList.add('hidden');
+    }
+
+    function showEmpty() {
+        roomsGrid.classList.add('hidden');
+        roomsLoading.classList.add('hidden');
+        roomsEmpty.classList.remove('hidden');
+    }
+
+    function showResults(html, total, messages) {
+        hideLoading();
+        if (total > 0) {
+            roomsGrid.innerHTML = html;
+            roomsGrid.classList.remove('hidden');
+            roomsEmpty.classList.add('hidden');
+        } else {
+            showEmpty();
+        }
+        if (roomsCount) {
+            roomsCount.textContent = total + ' phòng phù hợp';
+        }
+        // Update filter messages
+        if (filterMessages) {
+            filterMessages.innerHTML = '';
+            if (messages && messages.length > 0) {
+                messages.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = 'rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700';
+                    div.textContent = msg;
+                    filterMessages.appendChild(div);
+                });
+            }
+        }
+    }
+
+    function showError(message) {
+        hideLoading();
+        roomsGrid.classList.add('hidden');
+        roomsEmpty.classList.add('hidden');
+        if (filterMessages) {
+            filterMessages.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
+            div.textContent = message || 'Có lỗi xảy ra khi tải danh sách phòng. Vui lòng thử lại.';
+            filterMessages.appendChild(div);
+        }
+    }
+
+    function buildFetchUrl() {
+        const formData = new FormData(filterForm);
+        const params = new URLSearchParams();
+        for (const [key, value] of formData.entries()) {
+            if (key === 'amenities[]') {
+                params.append('amenities[]', value);
+            } else {
+                params.append(key, value);
+            }
+        }
+        return API_URL + '&' + params.toString();
+    }
+
+    function fetchFilteredRooms() {
+        const seq = ++requestSeq;
+        const url = buildFetchUrl();
+        showLoading();
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (seq !== requestSeq) return; // bỏ qua response cũ khi user đã thay đổi filter
+            if (data.success) {
+                showResults(data.rooms, data.total, data.messages);
+            } else {
+                showError(data.message || 'Không thể tải danh sách phòng');
+            }
+        })
+        .catch(error => {
+            if (seq !== requestSeq) return;
+            console.error('Fetch error:', error);
+            showError('Có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại.');
+        });
+    }
+
+    function debouncedFetch(name, delay) {
         if (debounceTimers[name]) {
             clearTimeout(debounceTimers[name]);
         }
-        debounceTimers[name] = setTimeout(submitForm, delay);
+        debounceTimers[name] = setTimeout(fetchFilteredRooms, delay);
     }
 
     // Price inputs: debounce 800ms on input, immediate on blur/Enter
+    const priceInputs = filterForm.querySelectorAll('[data-price-input]');
     priceInputs.forEach(input => {
         input.addEventListener('input', function() {
-            debouncedSubmit(this.name, 800);
+            debouncedFetch(this.name, 800);
         });
         input.addEventListener('blur', function() {
             if (debounceTimers[this.name]) {
                 clearTimeout(debounceTimers[this.name]);
             }
-            // Chỉ submit nếu giá trị thực sự thay đổi so với khi focus
-            // (Có thể so sánh với dataset.initialValue nếu cần)
-            submitForm();
+            fetchFilteredRooms();
         });
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
@@ -329,23 +361,21 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                 if (debounceTimers[this.name]) {
                     clearTimeout(debounceTimers[this.name]);
                 }
-                submitForm();
+                fetchFilteredRooms();
             }
         });
     });
 
-    // Area select & checkboxes: immediate submit on change
-    autoSubmitInputs.forEach(input => {
-        if (input.dataset.autoSubmit === 'change') {
-            input.addEventListener('change', submitForm);
-        }
+    // Area select & checkboxes: immediate fetch on change
+    const autoFetchInputs = filterForm.querySelectorAll('[data-auto-fetch="change"]');
+    autoFetchInputs.forEach(input => {
+        input.addEventListener('change', fetchFilteredRooms);
     });
 
     // Clear filters button
     if (clearBtn) {
         clearBtn.addEventListener('click', function() {
-            // Reset form to default (empty)
-            const inputs = form.querySelectorAll('input, select');
+            const inputs = filterForm.querySelectorAll('input, select');
             inputs.forEach(input => {
                 if (input.type === 'checkbox') {
                     input.checked = false;
@@ -355,7 +385,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                     input.value = '';
                 }
             });
-            submitForm();
+            fetchFilteredRooms();
         });
     }
 })();
