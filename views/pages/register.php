@@ -21,53 +21,61 @@ $old = $old ?? [];
             <form method="POST" class="space-y-4" data-register-form novalidate <?= !empty($errors) ? 'data-shake' : '' ?>>
 <?= csrf_field() ?>
                 <div class="auth-field">
-                    <label for="register_full_name" class="block text-sm font-semibold mb-2">Họ và tên</label>
+                    <label for="register_full_name" class="block text-sm font-semibold mb-2">Họ và tên <span class="text-red-500">*</span></label>
                     <input
                         id="register_full_name"
                         type="text"
                         name="full_name"
                         required
+                        maxlength="100"
                         value="<?= e($old['full_name'] ?? '') ?>"
                         class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition <?= !empty($errors['full_name']) ? 'border-red-300 bg-red-50' : 'border-gray-200' ?>"
+                        aria-describedby="full_name_error"
                     >
-                    <p class="field-error mt-2 text-sm text-red-600 <?= empty($errors['full_name']) ? 'hidden' : '' ?>">
+                    <p id="full_name_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['full_name']) ? 'hidden' : '' ?>">
                         <?= e($errors['full_name'] ?? '') ?>
                     </p>
                 </div>
 
                 <div class="auth-field">
-                    <label for="register_email" class="block text-sm font-semibold mb-2">Email</label>
+                    <label for="register_email" class="block text-sm font-semibold mb-2">Email (Không bắt buộc)</label>
                     <input
                         id="register_email"
                         type="email"
                         name="email"
-                        required
                         value="<?= e($old['email'] ?? '') ?>"
                         placeholder="example@email.com"
                         class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition <?= !empty($errors['email']) ? 'border-red-300 bg-red-50' : 'border-gray-200' ?>"
+                        aria-describedby="email_error"
                     >
-                    <p class="field-error mt-2 text-sm text-red-600 <?= empty($errors['email']) ? 'hidden' : '' ?>">
+                    <p id="email_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['email']) ? 'hidden' : '' ?>">
                         <?= e($errors['email'] ?? '') ?>
                     </p>
+                    <p class="field-hint mt-1 text-xs text-gray-500 hidden" id="email_hint">Email không bắt buộc. Nếu nhập, phải đúng định dạng.</p>
                 </div>
 
                 <div class="auth-field">
-                    <label for="register_phone" class="block text-sm font-semibold mb-2">Số điện thoại</label>
+                    <label for="register_phone" class="block text-sm font-semibold mb-2">Số điện thoại <span class="text-red-500">*</span></label>
                     <input
                         id="register_phone"
                         type="tel"
                         name="phone"
                         required
                         value="<?= e($old['phone'] ?? '') ?>"
+                        placeholder="0328528757 hoặc +84328528757"
                         class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition <?= !empty($errors['phone']) ? 'border-red-300 bg-red-50' : 'border-gray-200' ?>"
+                        aria-describedby="phone_error"
+                        inputmode="tel"
+                        autocomplete="tel"
                     >
-                    <p class="field-error mt-2 text-sm text-red-600 <?= empty($errors['phone']) ? 'hidden' : '' ?>">
+                    <p id="phone_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['phone']) ? 'hidden' : '' ?>">
                         <?= e($errors['phone'] ?? '') ?>
                     </p>
+                    <p class="field-hint mt-1 text-xs text-gray-500 hidden" id="phone_hint">Chỉ số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.</p>
                 </div>
 
                 <div class="auth-field">
-                    <label for="reg_password" class="block text-sm font-semibold mb-2">Mật khẩu</label>
+                    <label for="reg_password" class="block text-sm font-semibold mb-2">Mật khẩu <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input
                             id="reg_password"
@@ -76,6 +84,7 @@ $old = $old ?? [];
                             required
                             minlength="6"
                             class="w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition <?= !empty($errors['password']) ? 'border-red-300 bg-red-50' : 'border-gray-200' ?>"
+                            aria-describedby="password_error"
                         >
                         <button
                             type="button"
@@ -93,7 +102,7 @@ $old = $old ?? [];
                             </svg>
                         </button>
                     </div>
-                    <p class="field-error mt-2 text-sm text-red-600 <?= empty($errors['password']) ? 'hidden' : '' ?>">
+                    <p id="password_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['password']) ? 'hidden' : '' ?>">
                         <?= e($errors['password'] ?? '') ?>
                     </p>
                     <div class="pw-meter" id="pwMeter" hidden>
@@ -103,7 +112,7 @@ $old = $old ?? [];
                 </div>
 
                 <div class="auth-field">
-                    <label for="reg_confirm" class="block text-sm font-semibold mb-2">Xác nhận mật khẩu</label>
+                    <label for="reg_confirm" class="block text-sm font-semibold mb-2">Xác nhận mật khẩu <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input
                             id="reg_confirm"
@@ -112,6 +121,7 @@ $old = $old ?? [];
                             required
                             minlength="6"
                             class="w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition <?= !empty($errors['confirm_password']) ? 'border-red-300 bg-red-50' : 'border-gray-200' ?>"
+                            aria-describedby="confirm_error"
                         >
                         <button
                             type="button"
@@ -129,13 +139,20 @@ $old = $old ?? [];
                             </svg>
                         </button>
                     </div>
-                    <p class="field-error mt-2 text-sm text-red-600 <?= empty($errors['confirm_password']) ? 'hidden' : '' ?>">
+                    <p id="confirm_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['confirm_password']) ? 'hidden' : '' ?>">
                         <?= e($errors['confirm_password'] ?? '') ?>
                     </p>
                     <div class="pw-match" id="pwMatch" hidden></div>
                 </div>
 
-                <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg">
+                <?php if (!empty($errors['general'])): ?>
+                    <div class="auth-alert p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-2">
+                        <span class="material-symbols-outlined mt-0.5">error</span>
+                        <span><?= e($errors['general']) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg" id="registerBtn" disabled>
                     Đăng ký
                 </button>
             </form>
@@ -215,7 +232,7 @@ $old = $old ?? [];
       btn.querySelector('.icon-eye').classList.toggle('hidden', wasHidden);
       btn.querySelector('.icon-eye-off').classList.toggle('hidden', !wasHidden);
       btn.setAttribute('aria-pressed', String(wasHidden));
-      btn.setAttribute('aria-label', wasHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+      btn.setAttribute('aria-label', wasHidden ? '��n mật khẩu' : 'Hiện mật khẩu');
     });
   });
 
@@ -225,19 +242,75 @@ $old = $old ?? [];
   var meter = document.getElementById('pwMeter');
   var meterLabel = meter ? meter.querySelector('.pw-label') : null;
   var matchBox = document.getElementById('pwMatch');
+  var registerBtn = document.getElementById('registerBtn');
   var strengthWords = ['', 'Rất yếu', 'Yếu', 'Trung bình', 'Mạnh'];
 
   function setFieldError(input, message) {
-    var box = input.parentElement && input.parentElement.nextElementSibling && input.parentElement.nextElementSibling.classList.contains('field-error')
-      ? input.parentElement.nextElementSibling
-      : input.parentElement.parentElement.querySelector('.field-error');
-
+    if (!input) return;
+    var box = document.getElementById(input.id + '_error');
     if (!box) return;
 
     box.textContent = message;
     box.classList.toggle('hidden', !message);
     input.classList.toggle('border-red-300', !!message);
     input.classList.toggle('bg-red-50', !!message);
+  }
+
+  function validateEmailStrict(email) {
+    if (!email) return { valid: true }; // Email không bắt buộc
+    email = email.trim();
+    if (email.length > 150) return { valid: false, message: 'Email không được vượt quá 150 ký tự.' };
+    if (email.split('@').length !== 2) return { valid: false, message: 'Email phải có đúng một dấu @.' };
+    if (email.includes(' ')) return { valid: false, message: 'Email không được chứa khoảng trắng.' };
+    
+    var parts = email.split('@');
+    var localPart = parts[0];
+    var domain = parts[1];
+    
+    if (!localPart || !domain) return { valid: false, message: 'Email không hợp lệ.' };
+    if (localPart[0] === '.' || localPart[localPart.length - 1] === '.') return { valid: false, message: 'Phần trước @ không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
+    if (localPart.includes('..')) return { valid: false, message: 'Phần trước @ không được có hai dấu chấm liên tiếp.' };
+    if (!domain.includes('.')) return { valid: false, message: 'Domain phải có ít nhất một dấu chấm.' };
+    if (domain[0] === '.' || domain[domain.length - 1] === '.') return { valid: false, message: 'Domain không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
+    if (domain.includes('..')) return { valid: false, message: 'Domain không được có hai dấu chấm liên tiếp.' };
+    if (localPart.endsWith('.') || domain.startsWith('.')) return { valid: false, message: 'Không được có dấu chấm ngay trước hoặc sau @.' };
+    
+    var tld = domain.substring(domain.lastIndexOf('.') + 1);
+    if (!/^[a-zA-Z]{2,}$/.test(tld)) return { valid: false, message: 'TLD phải có ít nhất 2 ký tự chữ.' };
+    if (domain.toLowerCase() === 'localhost') return { valid: false, message: 'Không chấp nhận localhost.' };
+    if (!/^[A-Za-z0-9._%+-]+$/.test(localPart)) return { valid: false, message: 'Phần trước @ chứa ký tự không hợp lệ.' };
+    if (!/^[A-Za-z0-9.-]+$/.test(domain)) return { valid: false, message: 'Domain chứa ký tự không hợp lệ.' };
+    
+    return { valid: true };
+  }
+
+  function normalizePhoneInput(rawPhone) {
+    if (!rawPhone) return null;
+    var phone = rawPhone.replace(/\s+/g, '');
+    if (!/^[0-9+]+$/.test(phone)) return null;
+    var plusPos = phone.indexOf('+');
+    if (plusPos !== -1 && plusPos !== 0) return null;
+    
+    if (phone.startsWith('+84')) {
+      var suffix = phone.substring(3);
+      if (suffix.length !== 9 || !/^\d+$/.test(suffix)) return null;
+      if (suffix[0] === '0') return null;
+      return '0' + suffix;
+    }
+    
+    if (phone.startsWith('84') && !phone.startsWith('+')) {
+      var suffix = phone.substring(2);
+      if (suffix.length !== 9 || !/^\d+$/.test(suffix)) return null;
+      if (suffix[0] === '0') return null;
+      return '0' + suffix;
+    }
+    
+    if (phone.startsWith('0')) {
+      if (phone.length !== 10 || !/^\d+$/.test(phone)) return null;
+      return phone;
+    }
+    
+    return null;
   }
 
   function scorePassword(value) {
@@ -288,22 +361,137 @@ $old = $old ?? [];
     }
   }
 
+  function checkFormValidity() {
+    if (!form) return;
+    
+    var fullNameInput = document.getElementById('register_full_name');
+    var emailInput = document.getElementById('register_email');
+    var phoneInput = document.getElementById('register_phone');
+    
+    var hasError = false;
+    
+    // Full name
+    if (fullNameInput && !fullNameInput.value.trim()) {
+      hasError = true;
+    } else if (fullNameInput && fullNameInput.value.length > 100) {
+      hasError = true;
+    }
+    
+    // Email
+    if (emailInput && emailInput.value.trim()) {
+      var emailResult = validateEmailStrict(emailInput.value);
+      if (!emailResult.valid) hasError = true;
+    }
+    
+    // Phone
+    if (phoneInput && phoneInput.value.trim()) {
+      var normalized = normalizePhoneInput(phoneInput.value);
+      if (!normalized) hasError = true;
+    } else if (phoneInput && !phoneInput.value.trim()) {
+      hasError = true;
+    }
+    
+    // Password
+    if (passwordInput && (!passwordInput.value || passwordInput.value.length < 6)) {
+      hasError = true;
+    }
+    
+    // Confirm
+    if (confirmInput && (!confirmInput.value || confirmInput.value !== passwordInput?.value)) {
+      hasError = true;
+    }
+    
+    registerBtn.disabled = hasError;
+  }
+
+  function validateFieldOnBlur(input) {
+    if (!input) return;
+    
+    if (input.id === 'register_full_name') {
+      if (!input.value.trim()) {
+        setFieldError(input, 'Vui lòng nhập họ và tên.');
+      } else if (input.value.length > 100) {
+        setFieldError(input, 'Họ và tên không được vượt quá 100 ký tự.');
+      } else {
+        setFieldError(input, '');
+      }
+    } else if (input.id === 'register_email') {
+      if (input.value.trim()) {
+        var result = validateEmailStrict(input.value);
+        setFieldError(input, result.valid ? '' : result.message);
+      } else {
+        setFieldError(input, '');
+      }
+    } else if (input.id === 'register_phone') {
+      if (!input.value.trim()) {
+        setFieldError(input, 'Vui lòng nhập số điện thoại.');
+      } else {
+        var normalized = normalizePhoneInput(input.value);
+        if (!normalized) {
+          setFieldError(input, 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.');
+        } else {
+          setFieldError(input, '');
+        }
+      }
+    } else if (input.id === 'reg_password') {
+      if (!input.value) {
+        setFieldError(input, 'Vui lòng nhập mật khẩu.');
+      } else if (input.value.length < 6) {
+        setFieldError(input, 'Mật khẩu phải có ít nhất 6 ký tự.');
+      } else {
+        setFieldError(input, '');
+      }
+    } else if (input.id === 'reg_confirm') {
+      if (!input.value) {
+        setFieldError(input, 'Vui lòng xác nhận mật khẩu.');
+      } else if (input.value !== passwordInput?.value) {
+        setFieldError(input, 'Xác nhận mật khẩu chưa khớp.');
+      } else {
+        setFieldError(input, '');
+      }
+    }
+    
+    checkFormValidity();
+  }
+
+  // Input event listeners for real-time validation
+  var fullNameInput = document.getElementById('register_full_name');
+  var emailInput = document.getElementById('register_email');
+  var phoneInput = document.getElementById('register_phone');
+  
+  [fullNameInput, emailInput, phoneInput].forEach(function(input) {
+    if (input) {
+      var debounceTimer;
+      input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+          validateFieldOnBlur(input);
+        }, 700);
+      });
+      input.addEventListener('blur', function() {
+        clearTimeout(debounceTimer);
+        validateFieldOnBlur(input);
+      });
+    }
+  });
+
   if (passwordInput) {
     passwordInput.addEventListener('input', function () {
       updatePasswordMeter();
       updatePasswordMatch();
+      checkFormValidity();
     });
   }
 
   if (confirmInput) {
-    confirmInput.addEventListener('input', updatePasswordMatch);
+    confirmInput.addEventListener('input', function() {
+      updatePasswordMatch();
+      checkFormValidity();
+    });
   }
 
   if (form) {
     form.addEventListener('submit', function (event) {
-      var emailInput = document.getElementById('register_email');
-      var fullNameInput = document.getElementById('register_full_name');
-      var phoneInput = document.getElementById('register_phone');
       var hasError = false;
 
       [
@@ -320,15 +508,15 @@ $old = $old ?? [];
       if (fullNameInput && !fullNameInput.value.trim()) {
         setFieldError(fullNameInput, 'Vui lòng nhập họ và tên.');
         hasError = true;
+      } else if (fullNameInput && fullNameInput.value.length > 100) {
+        setFieldError(fullNameInput, 'Họ và tên không được vượt quá 100 ký tự.');
+        hasError = true;
       }
 
-      if (emailInput) {
-        var email = emailInput.value.trim();
-        if (!email) {
-          setFieldError(emailInput, 'Vui lòng nhập email.');
-          hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          setFieldError(emailInput, 'Email chưa đúng định dạng.');
+      if (emailInput && emailInput.value.trim()) {
+        var emailResult = validateEmailStrict(emailInput.value);
+        if (!emailResult.valid) {
+          setFieldError(emailInput, emailResult.message);
           hasError = true;
         }
       }
@@ -336,6 +524,12 @@ $old = $old ?? [];
       if (phoneInput && !phoneInput.value.trim()) {
         setFieldError(phoneInput, 'Vui lòng nhập số điện thoại.');
         hasError = true;
+      } else if (phoneInput && phoneInput.value.trim()) {
+        var normalized = normalizePhoneInput(phoneInput.value);
+        if (!normalized) {
+          setFieldError(phoneInput, 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.');
+          hasError = true;
+        }
       }
 
       if (passwordInput) {
@@ -352,7 +546,7 @@ $old = $old ?? [];
         if (!confirmInput.value) {
           setFieldError(confirmInput, 'Vui lòng xác nhận mật khẩu.');
           hasError = true;
-        } else if (confirmInput.value !== passwordInput.value) {
+        } else if (confirmInput.value !== passwordInput?.value) {
           setFieldError(confirmInput, 'Xác nhận mật khẩu chưa khớp.');
           hasError = true;
         }
@@ -364,6 +558,8 @@ $old = $old ?? [];
     });
   }
 
+  // Initial check
+  checkFormValidity();
   updatePasswordMeter();
   updatePasswordMatch();
 

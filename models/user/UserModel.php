@@ -12,6 +12,137 @@ class UserModel {
     ];
 
     /**
+     * Chuẩn hóa số điện thoại về dạng 0xxxxxxxxx.
+     * Trả về null nếu không hợp lệ.
+     *
+     * Quy tắc:
+     * 1. Xóa tất cả whitespace.
+     * 2. Chỉ chấp nhận chữ số và dấu cộng ở đầu.
+     * 3. +84xxxxxxxxx -> 0xxxxxxxxx (9 số sau +84, số đầu không được là 0)
+     * 4. 84xxxxxxxxx (không có +) -> 0xxxxxxxxx (9 số sau 84, số đầu không được là 0)
+     * 5. 0xxxxxxxxx (10 số) -> giữ nguyên
+     * 6. Các trường hợp khác -> null
+     */
+    public static function normalizePhone($rawPhone) {
+        if ($rawPhone === null || $rawPhone === '') {
+            return null;
+        }
+
+        $phone = preg_replace('/\s+/', '', (string)$rawPhone);
+
+        if (!preg_match('/^[0-9+]+$/', $phone)) {
+            return null;
+        }
+
+        if (strpos($phone, '+') !== false && strpos($phone, '+') !== 0) {
+            return null;
+        }
+
+        if (str_starts_with($phone, '+84')) {
+            $suffix = substr($phone, 3);
+            if (strlen($suffix) !== 9 || !ctype_digit($suffix)) {
+                return null;
+            }
+            if ($suffix[0] === '0') {
+                return null;
+            }
+            return '0' . $suffix;
+        }
+
+        if (str_starts_with($phone, '84') && !str_starts_with($phone, '+')) {
+            $suffix = substr($phone, 2);
+            if (strlen($suffix) !== 9 || !ctype_digit($suffix)) {
+                return null;
+            }
+            if ($suffix[0] === '0') {
+                return null;
+            }
+            return '0' . $suffix;
+        }
+
+        if (str_starts_with($phone, '0')) {
+            if (strlen($phone) !== 10 || !ctype_digit($phone)) {
+                return null;
+            }
+            return $phone;
+        }
+
+        return null;
+    }
+
+    /**
+     * Kiểm tra định dạng email nghiêm ngặt.
+     * Trả về true nếu hợp lệ, false nếu không.
+     */
+    public static function validateEmailStrict($email) {
+        $email = trim((string)$email);
+        if ($email === '') {
+            return false;
+        }
+
+        if (mb_strlen($email) > 150) {
+            return false;
+        }
+
+        if (substr_count($email, '@') !== 1) {
+            return false;
+        }
+
+        if (str_contains($email, ' ')) {
+            return false;
+        }
+
+        [$localPart, $domain] = explode('@', $email, 2);
+
+        if ($localPart === '' || $domain === '') {
+            return false;
+        }
+
+        if ($localPart[0] === '.' || $localPart[strlen($localPart) - 1] === '.') {
+            return false;
+        }
+
+        if (str_contains($localPart, '..')) {
+            return false;
+        }
+
+        if (substr_count($domain, '.') < 1) {
+            return false;
+        }
+
+        if ($domain[0] === '.' || $domain[strlen($domain) - 1] === '.') {
+            return false;
+        }
+
+        if (str_contains($domain, '..')) {
+            return false;
+        }
+
+        if (str_ends_with($localPart, '.') || str_starts_with($domain, '.')) {
+            return false;
+        }
+
+        $tld = substr($domain, strrpos($domain, '.') + 1);
+        if (!preg_match('/^[a-zA-Z]{2,}$/', $tld)) {
+            return false;
+        }
+
+        if (strtolower($domain) === 'localhost') {
+            return false;
+        }
+
+        if (!preg_match('/^[A-Za-z0-9._%+-]+$/', $localPart)) {
+            return false;
+        }
+
+        if (!preg_match('/^[A-Za-z0-9.-]+$/', $domain)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Lấy danh sách các field hợp đồng nhạy cảm để controller/view dùng thống nhất.
      */
     public static function getContractFields() {
@@ -157,6 +288,49 @@ class UserModel {
             }
         }
 
+        return false;
+    }
+
+    /**
+     * Tìm user theo số điện thoại (đã chuẩn hóa).
+     */
+    public static function findByPhone($phone) {
+        $normalizedPhone = self::normalizePhone($phone);
+        if (!$normalizedPhone) {
+            return null;
+        }
+
+        if (Database::hasConnection()) {
+            $user = Database::fetchOne("SELECT * FROM users WHERE phone = ?", [$normalizedPhone]);
+            return $user ? self::hydrateUser($user) : null;
+        }
+
+        foreach (Database::getTable('users') as $user) {
+            if (($user['phone'] ?? '') === $normalizedPhone) {
+                return self::hydrateUser($user);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Kiểm tra số điện thoại đã tồn tại (dùng phone đã chuẩn hóa).
+     */
+    public static function phoneExists($phone) {
+        $normalizedPhone = self::normalizePhone($phone);
+        if (!$normalizedPhone) {
+            return false;
+        }
+
+        if (Database::hasConnection()) {
+            return (bool)Database::fetchOne("SELECT id FROM users WHERE phone = ?", [$normalizedPhone]);
+        }
+
+        foreach (Database::getTable('users') as $user) {
+            if (($user['phone'] ?? '') === $normalizedPhone) {
+                return true;
+            }
+        }
         return false;
     }
     
