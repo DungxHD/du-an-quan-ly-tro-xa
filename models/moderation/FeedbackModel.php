@@ -276,6 +276,21 @@ class FeedbackModel {
 
         Database::update('feedbacks', ['status' => $targetStatus], 'id = :id', ['id' => $feedbackId]);
 
+        $tenantId = (int)($feedback['user_id'] ?? 0);
+        if ($tenantId > 0 && $targetStatus === 'resolved') {
+            $subject = (string)($feedback['subject'] ?? '');
+            $content = $subject !== ''
+                ? ('Phản ánh "'.$subject.'" của bạn đã được chủ trọ xử lý.')
+                : 'Phản ánh của bạn đã được chủ trọ xử lý.';
+            NotificationModel::create([
+                'user_id' => $tenantId,
+                'title'   => 'Phản ánh của bạn đã được xử lý',
+                'content' => $content,
+                'type'    => 'feedback',
+                'link'    => '?page=tenant-feedback',
+            ]);
+        }
+
         return [
             'action' => $targetStatus,
             'feedback_id' => $feedbackId,

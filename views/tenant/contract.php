@@ -3,7 +3,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'tenant';
 $panelActive = 'contract';
 $panelTitle = $siteName . ' - Cư dân';
-$panelSubtitle = 'Khai báo thông tin phục vụ hợp đồng';
+$panelSubtitle = 'Xem hợp đồng thuê phòng và khai báo thông tin cá nhân';
 $panelTopLink = ['label' => 'Trang chủ', 'url' => BASE_URL . '?page=home'];
 $panelWelcome = 'Xin chào, ' . ($_SESSION['full_name'] ?? 'Cư dân');
 require BASE_PATH . 'views/layouts/panel_header.php';
@@ -42,6 +42,54 @@ $formatContractDate = static function ($value) {
             <div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
                 <span class="material-symbols-outlined">error</span>
                 <?= e($error) ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Hợp đồng thuê phòng hiện tại -->
+            <?php if (!empty($activeContract)): ?>
+            <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
+                    <h3 class="text-xl font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">description</span>
+                        Hợp đồng thuê phòng hiện tại
+                    </h3>
+                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-semibold">Đang hiệu lực</span>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <p class="text-gray-500 mb-1">Phòng</p>
+                            <p class="font-semibold text-gray-900"><?= e($activeContract['room_name'] ?? '') ?></p>
+                            <p class="text-sm text-gray-500 mt-1"><?= e(($activeContract['area_name'] ?? '') . ' - ' . ($activeContract['floor_name'] ?? '')) ?></p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <p class="text-gray-500 mb-1">Tiền phòng / tháng</p>
+                            <p class="font-semibold text-gray-900"><?= number_format((float)($activeContract['room_price'] ?? 0), 0, ',', '.') ?> đ</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <p class="text-gray-500 mb-1">Ngày bắt đầu</p>
+                            <p class="font-semibold text-gray-900"><?= e($formatContractDate($activeContract['start_date'] ?? '')) ?></p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <p class="text-gray-500 mb-1">Ngày kết thúc</p>
+                            <p class="font-semibold text-gray-900"><?= e($formatContractDate($activeContract['end_date'] ?? '')) ?></p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <p class="text-gray-500 mb-1">Tiền cọc</p>
+                            <p class="font-semibold text-gray-900"><?= number_format((float)($activeContract['deposit'] ?? 0), 0, ',', '.') ?> đ</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <p class="text-gray-500 mb-1">Trạng thái</p>
+                            <p class="font-semibold text-gray-900"><?= e($activeContract['status'] ?? 'active') ?></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <?php else: ?>
+            <div class="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                <span class="material-symbols-outlined text-4xl text-gray-300">description</span>
+                <h3 class="text-xl font-bold mt-3 text-gray-600">Chưa có hợp đồng thuê phòng</h3>
+                <p class="text-gray-500 mt-1">Admin sẽ tạo hợp đồng sau khi duyệt yêu cầu thuê phòng của bạn.</p>
             </div>
             <?php endif; ?>
 

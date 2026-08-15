@@ -89,6 +89,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $room = RoomModel::getById($user['room_id']);
         $myServices = ServiceModel::getByUser((int)($user['id'] ?? 0));
         $availableServices = ServiceModel::getAvailablePersonalServices((int)($user['id'] ?? 0));
+        $roomServices = $room ? ServiceModel::getServicesForRoom((int)$room['id']) : [];
         $tenantServiceMessage = pullFlash('tenant_service_message', '');
         $tenantServiceError = pullFlash('tenant_service_error', '');
         
@@ -220,6 +221,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $user = $this->getAuthenticatedTenant();
         $success = pullFlash('tenant_contract_message', '');
         $error = pullFlash('tenant_contract_error', '');
+        $activeContract = ContractModel::getActiveByUserId($userId);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verify_csrf();
@@ -564,6 +566,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
             setFlash('roommate_error', 'Phòng không tồn tại.');
             redirectTo('tenant');
         }
+        $myRoom['occupants'] = RoomModel::countOccupants((int)$myRoom['id']);
 
         $maxOcc = max(1, (int)($myRoom['max_occupancy'] ?? 1));
         $currentOcc = RoomModel::countOccupants((int)$myRoom['id']);
@@ -572,8 +575,8 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
             redirectTo('tenant');
         }
 
-        // Lấy danh sách yêu cầu ở ghép đã gửi của người A
-        $myRequests = RoommateRequestModel::getByRequester((int)$user['id']);
+        // Lấy danh sách yêu cầu ở ghép đã gửi của người A (host)
+        $myRequests = RoommateRequestModel::getByHost((int)$user['id']);
         
         $searchQuery = trim((string)($_GET['q'] ?? ''));
         $inviteCandidate = null;

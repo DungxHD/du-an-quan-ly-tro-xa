@@ -159,6 +159,8 @@ function getPanelNavigation($role, $active = '')
                 'id' => 'group-community', 'label' => 'Cộng đồng & Kiểm duyệt', 'icon' => 'star',
                 'children' => [
                     ['id' => 'comments', 'label' => 'Đánh giá', 'icon' => 'star', 'url' => BASE_URL . '?page=admin-comments'],
+                    ['id' => 'comment-reports', 'label' => 'Báo cáo đánh giá', 'icon' => 'report', 'url' => BASE_URL . '?page=admin-comment-reports'],
+                    ['id' => 'banned-words', 'label' => 'Bộ từ cấm', 'icon' => 'block', 'url' => BASE_URL . '?page=admin-banned-words'],
                     ['id' => 'feedbacks', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-feedbacks'],
                 ],
             ],
@@ -478,6 +480,22 @@ switch ($page) {
     case 'admin-toggle-comment':
         requireAdmin();
         (new AdminController())->toggleComment();
+        break;
+    case 'admin-comment-reports':
+        requireAdmin();
+        (new AdminController())->commentReports();
+        break;
+    case 'admin-resolve-report':
+        requireAdmin();
+        (new AdminController())->resolveCommentReport();
+        break;
+    case 'admin-banned-words':
+        requireAdmin();
+        (new AdminController())->bannedWords();
+        break;
+    case 'admin-save-banned-word':
+        requireAdmin();
+        (new AdminController())->saveBannedWord();
         break;
     case 'admin-terminate-contract':
         requireAdmin();

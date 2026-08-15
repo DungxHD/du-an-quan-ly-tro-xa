@@ -487,6 +487,40 @@ public static function getAssignmentsByRoom($roomId) {
     }
 
     /**
+     * Trả các dịch vụ áp dụng cho một phòng (dùng cho tenant xem tất cả dịch vụ của phòng mình).
+     * Gồm: bắt buộc (is_required/locked kind) + gán phòng qua room_services.
+     */
+    public static function getServicesForRoom($roomId) {
+        $roomId = (int)$roomId;
+        if ($roomId <= 0) {
+            return [];
+        }
+
+        $serviceMap = [];
+
+        // 1. Dịch vụ bắt buộc (applies_to='room' && is_required/locked kind) - áp cho TẤT CẢ phòng đang thuê
+        foreach (self::getAll([
+            'applies_to' => 'room',
+            'required_only' => true,
+            'active_only' => true,
+        ]) as $service) {
+            $service['quantity'] = max(1, (int)($service['quantity'] ?? 1));
+            $service['source'] = 'mandatory';
+            $serviceMap[(int)($service['id'] ?? 0)] = $service;
+        }
+
+        // 2. Dịch vụ gán cho phòng cụ thể (qua room_services)
+        foreach (self::getAssignmentsByRoom($roomId) as $service) {
+            $service['quantity'] = max(1, (int)($service['quantity'] ?? 1));
+            $service['source'] = 'room_assignment';
+            $serviceMap[(int)($service['id'] ?? 0)] = $service;
+        }
+
+        uasort($serviceMap, static fn($left, $right) => strcmp((string)($left['name'] ?? ''), (string)($right['name'] ?? '')));
+        return array_values($serviceMap);
+    }
+
+    /**
      * Lấy các dịch vụ cá nhân mà người dùng đang đăng ký.
      */
     public static function getByUser($userId) {
