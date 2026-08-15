@@ -37,7 +37,6 @@ class TenantController {
     public function dashboard() {
         $user = $this->getAuthenticatedTenant();
         
-        $myServices = ServiceModel::getByUser((int)($user['id'] ?? 0));
         if ($user['room_id']) {
             $room = RoomModel::getById($user['room_id']);
             $roomServices = ServiceModel::getByRoom($user['room_id']);
@@ -90,9 +89,8 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         }
         
         $room = RoomModel::getById($user['room_id']);
-        $myServices = ServiceModel::getByUser((int)($user['id'] ?? 0));
-        $availableServices = ServiceModel::getAvailableServicesForTenant((int)($user['id'] ?? 0), (int)($user['room_id'] ?? 0));
         $roomServices = $room ? ServiceModel::getServicesForRoom((int)$room['id']) : [];
+        $availableServices = ServiceModel::getAvailableServicesForTenant((int)($user['id'] ?? 0), (int)($user['room_id'] ?? 0));
         $tenantServiceMessage = pullFlash('tenant_service_message', '');
         $tenantServiceError = pullFlash('tenant_service_error', '');
         
@@ -280,35 +278,24 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
             }
 
             if ($serviceAction === 'cancel') {
-                if (($service['applies_to'] ?? '') === 'room') {
-                    ServiceModel::removeFromRoom((int)($user['room_id'] ?? 0), $serviceId);
-                    setFlash('tenant_service_message', 'Đã hủy đăng ký dịch vụ phòng.');
-                } else {
-                    ServiceModel::unregisterForUser((int)($user['id'] ?? 0), $serviceId);
-                    setFlash('tenant_service_message', 'Đã hủy đăng ký dịch vụ cá nhân.');
-                }
+                ServiceModel::removeFromRoom((int)($user['room_id'] ?? 0), $serviceId);
+                setFlash('tenant_service_message', 'Đã hủy dịch vụ khỏi phòng.');
             } else {
+                // Dịch vụ tính theo chỉ số: số lượng luôn là 1, chỉ số sẽ nhập khi lập hóa đơn.
+                if (($service['billing_mode'] ?? '') === 'meter') {
+                    $quantity = 1;
+                }
                 if ($quantity <= 0) {
                     throw new RuntimeException('Số lượng đăng ký phải lớn hơn 0.');
                 }
 
-                if (($service['applies_to'] ?? '') === 'room') {
-                    $result = ServiceModel::assignToRoom((int)($user['room_id'] ?? 0), $serviceId, $quantity);
-                    setFlash(
-                        'tenant_service_message',
-                        $result === 'updated'
-                            ? 'Dịch vụ phòng đã đăng ký trước đó, hệ thống đã cập nhật lại số lượng.'
-                            : 'Đăng ký dịch vụ phòng thành công.'
-                    );
-                } else {
-                    $result = ServiceModel::registerForUser((int)($user['id'] ?? 0), $serviceId, $quantity);
-                    setFlash(
-                        'tenant_service_message',
-                        $result === 'updated'
-                            ? 'Dịch vụ đã đăng ký trước đó, hệ thống đã cập nhật lại số lượng.'
-                            : 'Đăng ký dịch vụ thành công.'
-                    );
-                }
+                $result = ServiceModel::assignToRoom((int)($user['room_id'] ?? 0), $serviceId, $quantity);
+                setFlash(
+                    'tenant_service_message',
+                    $result === 'updated'
+                        ? 'Dịch vụ phòng đã đăng ký trước đó, hệ thống đã cập nhật lại số lượng.'
+                        : 'Đăng ký dịch vụ cho phòng thành công.'
+                );
             }
         } catch (Throwable $exception) {
             setFlash('tenant_service_error', $exception->getMessage());

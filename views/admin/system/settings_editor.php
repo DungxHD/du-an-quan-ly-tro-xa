@@ -414,7 +414,8 @@ document.addEventListener('DOMContentLoaded', () => {
         shell.scrollTo({ top: Math.max(0, top - shell.clientHeight / 3), behavior: 'smooth' });
     };
 
-    // Lưu thứ tự tiện ích sau khi kéo thả (activate_id dùng khi kéo tiện ích đang ẩn vào bản xem trước)
+    // Lưu thứ tự tiện ích sau khi kéo thả (activate_id dùng khi kéo tiện ích đang ẩn vào bản xem trước).
+    // Không reload trang - chỉ reload lại bản xem trước để áp dụng thứ tự mới.
     const saveAmenityOrder = (orderedIds, activateId, thenReload) => {
         const body = new URLSearchParams();
         body.set('_csrf_token', root.dataset.csrf || '');
@@ -422,19 +423,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activateId) { body.set('activate_id', String(activateId)); }
         fetch(root.dataset.saveOrderUrl, { method: 'POST', body })
             .then(() => {
-                if (thenReload) {
-                    sessionStorage.setItem('cmsActiveTab', activeTab);
-                    window.location.reload();
-                }
+                syncAmenityChips();
+                loadPreview();
             })
             .catch(() => { window.alert('Không lưu được thứ tự tiện ích.'); });
     };
 
-    // Bật/tắt hiển thị tiện ích
+    // Bật/tắt hiển thị tiện ích. Không reload trang - chỉ reload bản xem trước.
     const toggleAmenity = (chip, active) => {
         if (active) {
-            const activeCount = root.querySelectorAll('.cms-amenity-chip[data-active="1"]').length;
-            if (activeCount >= 8) {
+            const activeIds = new Set();
+            root.querySelectorAll('.cms-amenity-chip[data-active="1"], .cms-amenity-row[data-active="1"]')
+                .forEach((el) => activeIds.add(String(el.dataset.id)));
+            if (activeIds.size >= 8) {
                 window.alert('Tối đa 8 tiện ích được hiển thị trên website. Hãy gỡ bớt tiện ích khác trước.');
                 return;
             }
@@ -453,10 +454,67 @@ document.addEventListener('DOMContentLoaded', () => {
         body.set('is_active', active ? '1' : '0');
         fetch(root.dataset.saveAmenityUrl, { method: 'POST', body })
             .then(() => {
-                sessionStorage.setItem('cmsActiveTab', activeTab);
-                window.location.reload();
+                syncAmenityChips();
+                loadPreview();
             })
             .catch(() => { window.alert('Không cập nhật được tiện ích.'); });
+    };
+
+    // Đồng bộ trạng thái hiển thị của các chip/row trong panel sau khi thay đổi,
+    // áp dụng theo đúng cấu trúc render của view (data-active, màu nền, icon mắt, nút +).
+    const syncAmenityChips = () => {
+        const refreshChip = (el) => {
+            const active = el.dataset.active === '1';
+            if (el.classList.contains('cms-amenity-chip')) {
+                el.classList.toggle('bg-primary/5', active);
+                el.classList.toggle('border-primary/40', active);
+                el.classList.toggle('bg-gray-50', !active);
+                el.classList.toggle('border-dashed', !active);
+                el.classList.toggle('border-gray-300', !active);
+                el.classList.toggle('opacity-75', !active);
+                const titleEl = el.querySelector('.text-sm.font-semibold');
+                if (titleEl) { titleEl.classList.toggle('text-gray-800', active); titleEl.classList.toggle('text-gray-500', !active); }
+                el.querySelectorAll('.material-symbols-outlined').forEach((icon, idx) => {
+                    if (idx === 1) { icon.classList.toggle('text-primary', active); icon.classList.toggle('text-gray-400', !active); }
+                    if (idx === 2) { icon.classList.toggle('text-primary', active); icon.classList.toggle('text-gray-300', !active); icon.textContent = active ? 'visibility' : 'visibility_off'; }
+                });
+                el.title = active ? 'Bấm để ẩn khỏi bản xem trước' : 'Bấm để hiển thị trong bản xem trước';
+            } else if (el.classList.contains('cms-amenity-row')) {
+                const badge = el.querySelector('span.rounded-full.font-semibold');
+                if (badge) {
+                    badge.textContent = active ? 'Đang hiển thị' : 'Đang ẩn';
+                    badge.classList.toggle('bg-green-50', active);
+                    badge.classList.toggle('text-green-600', active);
+                    badge.classList.toggle('bg-gray-100', !active);
+                    badge.classList.toggle('text-gray-400', !active);
+                }
+                const iconWrap = el.querySelector('.w-11.h-11');
+                if (iconWrap) {
+                    iconWrap.classList.toggle('bg-primary/10', active);
+                    iconWrap.classList.toggle('text-primary', active);
+                    iconWrap.classList.toggle('bg-gray-100', !active);
+                    iconWrap.classList.toggle('text-gray-400', !active);
+                }
+                const addBtn = el.querySelector('.cms-amenity-add');
+                if (addBtn) {
+                    addBtn.classList.toggle('text-green-500', active);
+                    addBtn.classList.toggle('text-gray-400', !active);
+                    addBtn.classList.toggle('hover:bg-green-50', !active);
+                    addBtn.classList.toggle('hover:text-green-600', !active);
+                }
+                const toggleBtn = el.querySelector('.cms-amenity-toggle');
+                if (toggleBtn) {
+                    toggleBtn.classList.toggle('text-primary', active);
+                    toggleBtn.classList.toggle('hover:bg-primary/10', active);
+                    toggleBtn.classList.toggle('text-gray-400', !active);
+                    toggleBtn.classList.toggle('hover:bg-gray-100', !active);
+                    toggleBtn.querySelector('span').textContent = active ? 'visibility' : 'visibility_off';
+                }
+                const titleP = el.querySelector('p.font-bold');
+                if (titleP) { titleP.classList.toggle('text-gray-800', active); titleP.classList.toggle('text-gray-400', !active); }
+            }
+        };
+        root.querySelectorAll('.cms-amenity-chip, .cms-amenity-row').forEach(refreshChip);
     };
 
     // ---------- Kéo thả tiện ích (chip trong panel editor + dòng trong bảng quản lý) ----------
@@ -508,12 +566,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             event.preventDefault();
             listEl.querySelectorAll('.cms-drag-over').forEach((n) => n.classList.remove('cms-drag-over'));
-            const items = Array.from(listEl.querySelectorAll('.cms-amenity-chip, .cms-amenity-row'))
-                .filter((n) => String(n.dataset.id) !== String(payload.id));
-            const targetIndex = items.indexOf(target);
-            const insertAt = targetIndex === -1 ? items.length : targetIndex;
-            items.splice(insertAt, 0, target.closest('.cms-amenity-chip, .cms-amenity-row'));
-            saveAmenityOrder(items.map((n) => n.dataset.id), 0, true);
+
+            // Di chuyển node thật sự trong DOM panel (không reload trang)
+            const draggedEl = listEl.querySelector('.cms-amenity-chip[data-id="' + payload.id + '"], .cms-amenity-row[data-id="' + payload.id + '"]');
+            if (draggedEl) {
+                const rect = target.getBoundingClientRect();
+                if (event.clientY < rect.top + rect.height / 2) {
+                    listEl.insertBefore(draggedEl, target);
+                } else {
+                    listEl.insertBefore(draggedEl, target.nextSibling);
+                }
+            }
+
+            const orderedIds = Array.from(listEl.querySelectorAll('.cms-amenity-chip, .cms-amenity-row'))
+                .map((n) => n.dataset.id);
+            saveAmenityOrder(orderedIds, 0);
         });
         listEl.addEventListener('dragleave', (event) => {
             if (!listEl.contains(event.relatedTarget)) {
@@ -589,8 +656,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     dropzone.querySelectorAll('.cms-drop-target').forEach((n) => n.classList.remove('cms-drop-target'));
                 };
                 dropzone.addEventListener('dragover', (event) => {
-                    const payload = getDragPayload(event);
-                    if (!payload) { return; }
+                    // Lưu ý: theo HTML5 DnD, getData() chỉ đọc được trong drop event.
+                    // Trong dragover phải kiểm tra types để biết có payload không.
+                    const types = Array.from(event.dataTransfer.types || []);
+                    if (!types.includes('application/x-amenity')) { return; }
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'move';
                     clearDropTargets();
@@ -664,7 +733,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (statusEl) { statusEl.textContent = 'Đang tải bản xem trước...'; }
         frame.removeEventListener('load', decorateFrame);
         frame.addEventListener('load', decorateFrame);
-        frame.src = buildPreviewUrl();
+        // Cache-buster: nếu src giống hệt, trình duyệt sẽ không reload iframe,
+        // khiến thay đổi tiện ích (ẩn/hiện) không phản ánh cho tới khi F5.
+        frame.src = buildPreviewUrl() + '&_t=' + Date.now();
         applyScale();
     };
 

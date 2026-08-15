@@ -3,7 +3,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'tenant';
 $panelActive = 'services';
 $panelTitle = $siteName . ' - Cư dân';
-$panelSubtitle = 'Tất cả dịch vụ áp dụng cho phòng bạn: bắt buộc, gán phòng, và cá nhân';
+$panelSubtitle = 'Tất cả dịch vụ áp dụng cho phòng bạn: bắt buộc, gán phòng, và đăng ký thêm';
 $panelTopLink = ['label' => 'Trang chủ', 'url' => BASE_URL . '?page=home'];
 $panelWelcome = 'Xin chào, ' . ($_SESSION['full_name'] ?? 'Cư dân');
 $formatMoney = static fn($value) => number_format((float)$value, 0, ',', '.') . ' đ';
@@ -19,8 +19,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <div class="space-y-6">
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-            <h2 class="text-3xl font-bold">Dịch vụ phòng & cá nhân</h2>
-            <p class="text-gray-600 mt-2">Danh sách đầy đủ dịch vụ áp dụng cho phòng bạn: bắt buộc (điện/nước/rác), gán phòng, và dịch vụ cá nhân.</p>
+            <h2 class="text-3xl font-bold">Dịch vụ phòng</h2>
+            <p class="text-gray-600 mt-2">Mọi dịch vụ phòng bạn đăng ký đều áp cho cả phòng và tính vào hóa đơn của phòng (bất kể ai trong phòng đăng ký).</p>
         </div>
         <div class="grid grid-cols-3 gap-3">
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
@@ -32,8 +32,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <p class="text-lg font-bold text-primary"><?= count($roomServices ?? []) ?></p>
             </div>
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
-                <p class="text-xs text-gray-500">Dịch vụ cá nhân</p>
-                <p class="text-lg font-bold text-secondary"><?= count($myServices ?? []) ?></p>
+                <p class="text-xs text-gray-500">Đăng ký được thêm</p>
+                <p class="text-lg font-bold text-secondary"><?= count($availableServices ?? []) ?></p>
             </div>
         </div>
     </div>
@@ -129,81 +129,14 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </section>
 
-    <!-- SECTION 2: Dịch vụ cá nhân đang dùng -->
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100">
-            <h3 class="text-xl font-bold flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary">check_circle</span>
-                Dịch vụ cá nhân đang dùng
-            </h3>
-            <p class="text-sm text-gray-500 mt-1">Đăng ký/hủy riêng cho tài khoản của bạn. Số lượng và thành tiền hiển thị dưới đây.</p>
-        </div>
-
-        <div class="p-6">
-            <?php if (empty($myServices)): ?>
-            <div class="rounded-2xl border border-dashed border-gray-200 px-6 py-10 text-center text-gray-500">
-                Bạn chưa đăng ký dịch vụ cá nhân nào.
-            </div>
-            <?php else: ?>
-            <div class="space-y-4">
-                <?php foreach ($myServices as $service): ?>
-                <div class="bg-primary/5 border border-primary/10 rounded-2xl p-5">
-                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
-                                <span class="material-symbols-outlined text-2xl"><?= e($service['icon'] ?? 'settings') ?></span>
-                            </div>
-                            <div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <h4 class="font-bold text-gray-900"><?= e($service['name'] ?? '') ?></h4>
-                                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-semibold">Đã đăng ký</span>
-                                    <?php if ((int)($service['is_active'] ?? 0) === 0): ?>
-                                    <span class="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-semibold">Tạm ngừng nhận mới</span>
-                                    <?php endif; ?>
-                                </div>
-                                <p class="text-sm text-gray-500 mt-1"><?= e(fallbackText($service['description'] ?? '')) ?></p>
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">Số lượng: <?= (int)($service['quantity'] ?? 1) ?></span>
-                                    <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">/<?= e($service['unit'] ?? 'đơn vị') ?></span>
-                                </div>
-                            </div>
-                        </div>
-                        <form method="POST" action="<?= BASE_URL ?>?page=tenant-register-service">
-<?= csrf_field() ?>
-                            <input type="hidden" name="service_id" value="<?= (int)($service['id'] ?? 0) ?>">
-                            <input type="hidden" name="service_action" value="cancel">
-                            <button type="submit" class="px-4 py-2 rounded-xl border border-red-200 text-red-600 font-semibold hover:bg-red-50 transition">
-                                Hủy
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="mt-4 pt-4 border-t border-primary/10 flex items-center justify-between">
-                        <div>
-                            <?php if ((float)($service['price'] ?? 0) <= 0): ?>
-                            <p class="text-lg font-bold text-green-600">Miễn phí</p>
-                            <?php else: ?>
-                            <p class="text-lg font-bold text-primary"><?= $formatMoney((float)($service['line_total'] ?? 0)) ?></p>
-                            <p class="text-sm text-gray-500"><?= $formatMoney((float)($service['price'] ?? 0)) ?> x <?= (int)($service['quantity'] ?? 1) ?></p>
-                            <?php endif; ?>
-                        </div>
-                        <p class="text-sm text-gray-500">Đăng ký riêng cho tài khoản của bạn.</p>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-        </div>
-    </section>
-
-    <!-- SECTION 3: Dịch vụ có thể đăng ký thêm -->
+    <!-- SECTION 2: Dịch vụ có thể đăng ký thêm -->
     <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-secondary">add_circle</span>
-                Dịch vụ có thể đăng ký thêm
+                Dịch vụ có thể đăng ký thêm cho phòng
             </h3>
-            <p class="text-sm text-gray-500 mt-1">Các dịch vụ đang mở mà phòng/tài khoản bạn chưa dùng. Dịch vụ theo phòng sẽ gán vào phòng, theo người sẽ đăng ký cho tài khoản.</p>
+            <p class="text-sm text-gray-500 mt-1">Các dịch vụ đang mở mà phòng chưa dùng. Đăng ký sẽ áp cho cả phòng và tính vào hóa đơn của phòng.</p>
         </div>
 
         <div class="p-6">
@@ -244,6 +177,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <?= csrf_field() ?>
                         <input type="hidden" name="service_id" value="<?= (int)($service['id'] ?? 0) ?>">
                         <input type="hidden" name="service_action" value="register">
+                        <?php if (($service['billing_mode'] ?? '') === 'meter'): ?>
+                        <p class="text-sm text-gray-500 sm:mr-auto">Chỉ số sẽ được nhập khi lập hóa đơn.</p>
+                        <?php else: ?>
                         <div class="sm:w-40">
                             <label class="block text-sm font-semibold mb-2">Số lượng</label>
                             <input
@@ -254,6 +190,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             >
                         </div>
+                        <?php endif; ?>
                         <button type="submit" class="px-5 py-3 bg-secondary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
                             Đăng ký
                         </button>

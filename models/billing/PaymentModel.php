@@ -175,15 +175,6 @@ class PaymentModel {
             }
         }
 
-        foreach ($tenants as $tenant) {
-            foreach (ServiceModel::getByUser((int)($tenant['id'] ?? 0)) as $service) {
-                $personalItem = self::buildPersonalServiceItemPreview($tenant, $service, $period['month'], $period['year']);
-                if ($personalItem !== null) {
-                    $items[] = $personalItem;
-                }
-            }
-        }
-
         foreach ($items as $item) {
             $totalAmount += (float)($item['amount'] ?? 0);
         }

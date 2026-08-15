@@ -764,7 +764,9 @@ class RoomModel
         return array_map(static function ($room) use ($serviceMap, $amenityMap) {
             $roomId = (int)($room['id'] ?? 0);
             $services = $serviceMap[$roomId] ?? [];
-            $serviceNames = array_values(array_filter(array_map(static fn($service) => trim((string)($service['name'] ?? '')), $services)));
+            // Dịch vụ bắt buộc (điện/nước/rác) là mặc định của mọi phòng, không hiển thị trong danh sách phòng.
+            $optionalServices = array_values(array_filter($services, static fn($service) => (int)($service['is_required'] ?? 0) !== 1));
+            $serviceNames = array_values(array_filter(array_map(static fn($service) => trim((string)($service['name'] ?? '')), $optionalServices)));
             $isUpcoming = self::isUpcomingVacancy($room);
             $expectedVacantText = $isUpcoming ? self::formatExpectedVacantText($room['expected_vacant_date'] ?? null) : '';
 
@@ -778,7 +780,7 @@ class RoomModel
                 }
             }
 
-            $room['service_names'] = array_values(array_filter(array_map(static fn($service) => trim((string)($service['name'] ?? '')), $services)));
+            $room['service_names'] = array_values(array_filter(array_map(static fn($service) => trim((string)($service['name'] ?? '')), $optionalServices)));
             $room['amenity_list'] = $amenityList; // mảng [{key, label, icon}, ...]
             $room['isUpcoming'] = $isUpcoming;
             $room['daysLeft'] = $isUpcoming ? self::getDaysUntilVacant($room['expected_vacant_date'] ?? null) : null;

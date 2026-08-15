@@ -342,12 +342,12 @@ public static function getAssignmentsByRoom($roomId) {
                 [$roomId]
             );
 
-            return array_map(static function ($row) {
+            return array_values(array_filter(array_map(static function ($row) {
                 $service = self::normalizeServiceRow($row);
                 $service['quantity'] = max(1, (int)($row['quantity'] ?? 1));
                 $service['registered_at'] = $row['registered_at'] ?? null;
                 return $service;
-            }, $rows);
+            }, $rows), static fn($service) => !((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other'))));
         }
 
         $services = [];
@@ -363,6 +363,9 @@ public static function getAssignmentsByRoom($roomId) {
 
             $service = $services[(int)($assignment['service_id'] ?? 0)] ?? null;
             if (!$service) {
+                continue;
+            }
+            if ((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other')) {
                 continue;
             }
 
@@ -389,7 +392,7 @@ public static function getAssignmentsByRoom($roomId) {
         if (Database::hasConnection()) {
             $placeholders = implode(', ', array_fill(0, count($roomIds), '?'));
             $rows = Database::fetchAll(
-                "SELECT rs.room_id, s.id AS service_id, s.name, s.icon, s.description
+                "SELECT rs.room_id, s.id AS service_id, s.name, s.icon, s.description, s.is_required
                  FROM room_services rs
                  INNER JOIN services s ON s.id = rs.service_id
                  WHERE rs.room_id IN ($placeholders)",
@@ -415,6 +418,7 @@ public static function getAssignmentsByRoom($roomId) {
                     'name' => $service['name'] ?? '',
                     'icon' => $service['icon'] ?? '',
                     'description' => $service['description'] ?? '',
+                    'is_required' => (int)($service['is_required'] ?? 0),
                 ];
             }
         }
@@ -442,9 +446,6 @@ public static function getAssignmentsByRoom($roomId) {
         $service = self::getById($serviceId);
         if (!$service) {
             throw new RuntimeException('Dịch vụ không tồn tại.');
-        }
-        if (($service['applies_to'] ?? '') !== 'room') {
-            throw new RuntimeException('Chỉ được gán dịch vụ áp dụng theo phòng.');
         }
         if ((int)($service['is_required'] ?? 0) === 1) {
             throw new RuntimeException('Dịch vụ bắt buộc tự áp cho mọi phòng, không cần gán tay.');
@@ -479,6 +480,10 @@ public static function getAssignmentsByRoom($roomId) {
      * Gỡ một dịch vụ đang gán khỏi phòng.
      */
     public static function removeFromRoom($roomId, $serviceId) {
+        $service = self::getById($serviceId);
+        if ($service && (int)($service['is_required'] ?? 0) === 1) {
+            throw new RuntimeException('Dịch vụ bắt buộc (điện/nước/rác) không thể hủy.');
+        }
         Database::delete(
             'room_services',
             'room_id = :room_id AND service_id = :service_id',
@@ -593,16 +598,12 @@ public static function getAssignmentsByRoom($roomId) {
     }
 
     /**
-     * Trả các dịch vụ đang mở mà tenant chưa dùng (theo phòng & theo người, không tính bắt buộc)
-     * để tenant tự đăng ký thêm.
+     * Trả các dịch vụ đang mở mà phòng chưa dùng (theo phòng & theo người, không tính bắt buộc)
+     * để tenant trong phòng tự đăng ký. Mọi dịch vụ đăng ký đều áp cho cả phòng.
      */
     public static function getAvailableServicesForTenant($userId, $roomId) {
-        $usedIds = array_map(
-            static fn($service) => (int)($service['id'] ?? 0),
-            self::getByUser((int)$userId)
-        );
-
         $roomId = (int)$roomId;
+        $usedIds = [];
         if ($roomId > 0) {
             foreach (self::getAssignmentsByRoom($roomId) as $service) {
                 $usedIds[] = (int)($service['id'] ?? 0);
