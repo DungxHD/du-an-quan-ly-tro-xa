@@ -944,10 +944,10 @@ CREATE TABLE IF NOT EXISTS `users` (
 
 -- Dumping data for table manage.users: ~4 rows (approximately)
 INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, `role`, `room_id`, `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`, `created_at`) VALUES
-	(1, 'Nguyễn Văn An (Chủ trọ)', 'admin@nhatroa.vn', '0901234567', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-01 01:00:00'),
-	(2, 'Trần Văn Bình', 'tenant1@gmail.com', '0912345678', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 03:00:00'),
-	(3, 'Lê Thị Cẩm', 'tenant2@gmail.com', '0923456789', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-10 07:00:00'),
-	(4, 'Phạm Đăng Khoa', 'tenant3@gmail.com', '0934567890', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-15 02:00:00'),
+	(1, 'Nguyễn Minh Anh', 'admin@nhatroxanh.vn', '0901000001', '$2y$10$ukdr.763CdVbd0W3AqJLfuo.Syd/8Tq4dATM3V/U5AiWgp8hjhi5y', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-01 01:00:00'),
+	(2, 'Phạm Gia Bảo', 'tenant01@example.com', '0912000001', '$2y$10$ukdr.763CdVbd0W3AqJLfuo.Syd/8Tq4dATM3V/U5AiWgp8hjhi5y', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 03:00:00'),
+	(3, 'Nguyễn Thùy Linh', 'tenant02@example.com', '0912000002', '$2y$10$ukdr.763CdVbd0W3AqJLfuo.Syd/8Tq4dATM3V/U5AiWgp8hjhi5y', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-10 07:00:00'),
+	(4, 'Phạm Đăng Khoa', 'tenant03@example.com', '0912000003', '$2y$10$ukdr.763CdVbd0W3AqJLfuo.Syd/8Tq4dATM3V/U5AiWgp8hjhi5y', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-15 02:00:00'),
 	(82, 'Lương Văn Dũng', 'giagiong001@gmail.com', '0328528757', '$2y$10$KK2dmN2Mf6aEnHmbdLj0LOsLMiyJgzniMxiztiRjwbX1s4qCCdm9q', 'default.png', 0, 13, NULL, NULL, NULL, NULL, NULL, '2026-08-15 08:30:53'),
 	(83, 'Huyền', 'dungls2k7@gmail.com', '0397149601', '$2y$10$a9cNmhvDPasad7looUFu3uzva6mUJVtkU2LEwdxBvnVyc89jBMJgO', 'default.png', 0, 13, 'ENC:d6jx2SmgJJ0Of2tOixzSmJozEUwRmyCrCNz8URRoPhw=', 'ENC:D6bPb8AnHcpVZIB0IlMtzSrN0XqinE7bYX0zlGSO4xo=', 'ENC:YiEZXVgxJxQe3bUO0uAF1pNMqk2D/AGk5KrQRXPML4c=', 'ENC:DV2bHP2+HuQO0/aGzZCAlPWgWoTZtZ7Cfyh86UIaDzg=', 'ENC:Lb0/gnHY+1W0bAAGVpM0NiksKmVVhKAO6UYh/XxehPo=', '2026-08-15 09:02:30');
 

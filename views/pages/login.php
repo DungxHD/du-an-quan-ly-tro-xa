@@ -431,9 +431,9 @@ $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
             <?php endif; ?>
 
             <div class="mt-6 p-4 bg-blue-50 rounded-lg text-xs text-blue-900">
-                <p class="font-semibold mb-1">Tài khoản demo (mật khẩu: password):</p>
-                <p>Admin: admin@nhatroa.vn</p>
-                <p>Tenant: tenant1@gmail.com</p>
+                <p class="font-semibold mb-1">Tài khoản demo (mật khẩu: 123456):</p>
+                <p>Admin: admin@nhatroxanh.vn</p>
+                <p>Tenant: tenant01@example.com</p>
             </div>
 
             <div class="mt-6 text-center text-sm text-gray-600">

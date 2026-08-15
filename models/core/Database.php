@@ -272,7 +272,7 @@ class Database {
                 ['id' => 13, 'setting_key' => 'stat_3_label', 'setting_value' => 'Hỗ trợ cư dân', 'setting_group' => 'stats'],
                 ['id' => 14, 'setting_key' => 'contact_address', 'setting_value' => 'Khu Công nghệ cao, TP. Thủ Đức, TP.HCM', 'setting_group' => 'contact'],
                 ['id' => 15, 'setting_key' => 'contact_phone', 'setting_value' => '0901 234 567', 'setting_group' => 'contact'],
-                ['id' => 16, 'setting_key' => 'contact_email', 'setting_value' => 'admin@nhatroa.vn', 'setting_group' => 'contact'],
+                ['id' => 16, 'setting_key' => 'contact_email', 'setting_value' => 'admin@nhatroxanh.vn', 'setting_group' => 'contact'],
                 ['id' => 17, 'setting_key' => 'contact_zalo', 'setting_value' => '0901234567', 'setting_group' => 'contact'],
                 ['id' => 18, 'setting_key' => 'min_days_to_review', 'setting_value' => '15', 'setting_group' => 'moderation'],
                 ['id' => 19, 'setting_key' => 'comment_edit_hours', 'setting_value' => '24', 'setting_group' => 'moderation'],
@@ -307,7 +307,7 @@ class Database {
             ],
             'room_images' => [],
             'users' => [
-                ['id' => 1, 'full_name' => 'Quản trị viên NhaTroA', 'email' => 'admin@nhatroa.vn', 'phone' => '0901 234 567', 'password' => $adminPassword, 'role' => 1, 'room_id' => null, 'avatar' => 'default.png', 'created_at' => $now],
+                ['id' => 1, 'full_name' => 'Quản trị viên NhaTroA', 'email' => 'admin@nhatroxanh.vn', 'phone' => '0901 234 567', 'password' => $adminPassword, 'role' => 1, 'room_id' => null, 'avatar' => 'default.png', 'created_at' => $now],
                 ['id' => 2, 'full_name' => 'Nguyễn Minh An', 'email' => 'tenant1@gmail.com', 'phone' => '0908 888 999', 'password' => $tenantPassword, 'role' => 0, 'room_id' => 2, 'avatar' => 'default.png', 'date_of_birth' => '2003-05-12', 'permanent_address' => '12 Nguyễn Văn Linh, Quận 7, TP.HCM', 'identity_number' => '079203001234', 'identity_issue_date' => '2021-09-18', 'identity_issue_place' => 'Cục Cảnh sát QLHC về TTXH', 'created_at' => $now],
                 ['id' => 3, 'full_name' => 'Trần Thu Hà', 'email' => 'tenant2@gmail.com', 'phone' => '0909 123 456', 'password' => $tenantPassword, 'role' => 0, 'room_id' => null, 'avatar' => 'default.png', 'date_of_birth' => null, 'permanent_address' => null, 'identity_number' => null, 'identity_issue_date' => null, 'identity_issue_place' => null, 'created_at' => $now],
             ],
