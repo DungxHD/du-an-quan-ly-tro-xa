@@ -878,6 +878,15 @@ public function deleteService($id)
             redirectTo('admin-settings');
         }
 
+        if (!empty($data['is_active']) && AmenityModel::countActive() >= 8) {
+            $existing = $id > 0 ? AmenityModel::getById($id) : null;
+            if (!$existing || empty($existing['is_active'])) {
+                setFlash('admin_amenity_error', 'Tối đa 8 tiện ích được hiển thị trên website. Hãy ẩn bớt tiện ích khác trước.');
+                setFlash('admin_amenity_old', array_merge($data, ['id' => $id]));
+                redirectTo('admin-settings');
+            }
+        }
+
         $savedId = AmenityModel::save($data, $id > 0 ? $id : null);
         setFlash('admin_amenity_message', $id > 0 ? 'Đã cập nhật tiện ích thành công.' : 'Đã thêm tiện ích mới thành công.');
         redirectTo('admin-settings');
@@ -933,6 +942,11 @@ public function deleteService($id)
             $nextOrder++;
         }
         if ($activateId > 0 && isset($existingIds[$activateId])) {
+            $existingAmenity = AmenityModel::getById($activateId);
+            if (empty($existingAmenity['is_active']) && AmenityModel::countActive() >= 8) {
+                setFlash('admin_amenity_error', 'Tối đa 8 tiện ích được hiển thị trên website. Hãy gỡ bớt tiện ích khác trước.');
+                redirectTo('admin-settings');
+            }
             Database::update('amenities', ['is_active' => 1], 'id = :id', ['id' => $activateId]);
         }
 

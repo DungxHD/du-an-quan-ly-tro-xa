@@ -91,18 +91,34 @@ $amenities = (array)($roomExtra['amenities'] ?? []);
         </div>
 
         <div class="mt-5">
-            <h4 class="font-bold text-sm text-gray-700 mb-2">Dịch vụ đã đăng ký</h4>
-            <?php if ($services): ?>
+            <h4 class="font-bold text-sm text-gray-700 mb-2">Dịch vụ phòng đã đăng ký</h4>
+            <?php if (!empty($roomServices)): ?>
             <div class="flex flex-wrap gap-2">
-                <?php foreach ($services as $s): ?>
-                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                <?php foreach ($roomServices as $s): ?>
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
                     <span class="material-symbols-outlined text-sm"><?= e((string)($s['icon'] ?? 'settings')) ?></span>
                     <?= e((string)($s['name'] ?? '')) ?><?= ((int)($s['quantity'] ?? 1) > 1) ? ' ×' . (int)$s['quantity'] : '' ?>
                 </span>
                 <?php endforeach; ?>
             </div>
             <?php else: ?>
-            <p class="text-sm text-gray-400">Chưa đăng ký dịch vụ nào.</p>
+            <p class="text-sm text-gray-400">Chưa đăng ký dịch vụ phòng nào.</p>
+            <?php endif; ?>
+        </div>
+
+        <div class="mt-5">
+            <h4 class="font-bold text-sm text-gray-700 mb-2">Dịch vụ cá nhân đã đăng ký</h4>
+            <?php if (!empty($myServices)): ?>
+            <div class="flex flex-wrap gap-2">
+                <?php foreach ($myServices as $s): ?>
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-secondary/10 text-secondary">
+                    <span class="material-symbols-outlined text-sm"><?= e((string)($s['icon'] ?? 'settings')) ?></span>
+                    <?= e((string)($s['name'] ?? '')) ?><?= ((int)($s['quantity'] ?? 1) > 1) ? ' ×' . (int)$s['quantity'] : '' ?>
+                </span>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
+            <p class="text-sm text-gray-400">Bạn chưa đăng ký dịch vụ cá nhân nào. <a href="<?= BASE_URL ?>?page=tenant-services" class="text-primary font-semibold hover:underline">Xem & đăng ký</a></p>
             <?php endif; ?>
         </div>
 

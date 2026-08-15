@@ -26,8 +26,7 @@ $getValue = static function ($key) use ($allFields) {
         'site_slogan'       => ['label' => 'Slogan (badge verified trên hero)', 'type' => 'text'],
         'hero_subheadline'  => ['label' => 'Mô tả trang chủ (dưới tiêu đề hero)', 'type' => 'textarea'],
         'site_description'  => ['label' => 'Mô tả website (SEO + footer)', 'type' => 'textarea'],
-        'hero_image'        => ['label' => 'Ảnh Hero (Trang chủ)', 'type' => 'image'],
-        'intro_image'       => ['label' => 'Ảnh Trang Giới thiệu', 'type' => 'image'],
+        'hero_image'        => ['label' => 'Ảnh banner (Trang chủ & Giới thiệu)', 'type' => 'image'],
 
         'contact_address'   => ['label' => 'Liên hệ — Địa chỉ', 'type' => 'text'],
         'contact_phone'     => ['label' => 'Liên hệ — Số điện thoại', 'type' => 'text'],
@@ -301,6 +300,9 @@ $initialTab = $hasAmenityFlash ? 'amenities' : 'home';
                         <span class="text-[10px] px-2 py-1 rounded-full font-semibold <?= !empty($item['is_active']) ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400' ?>">
                             <?= !empty($item['is_active']) ? 'Đang hiển thị' : 'Đang ẩn' ?>
                         </span>
+                        <button type="button" class="cms-amenity-add w-9 h-9 rounded-lg flex items-center justify-center <?= !empty($item['is_active']) ? 'text-green-500' : 'text-gray-400 hover:bg-green-50 hover:text-green-600' ?>" title="<?= !empty($item['is_active']) ? 'Đang hiển thị trong bản xem trước' : 'Thêm vào bản xem trước' ?>">
+                            <span class="material-symbols-outlined text-lg">add</span>
+                        </button>
                         <button type="button" class="cms-amenity-toggle w-9 h-9 rounded-lg flex items-center justify-center <?= !empty($item['is_active']) ? 'text-primary hover:bg-primary/10' : 'text-gray-400 hover:bg-gray-100' ?>" title="<?= !empty($item['is_active']) ? 'Ẩn tiện ích' : 'Hiển thị tiện ích' ?>">
                             <span class="material-symbols-outlined text-lg"><?= !empty($item['is_active']) ? 'visibility' : 'visibility_off' ?></span>
                         </button>
@@ -430,6 +432,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Bật/tắt hiển thị tiện ích
     const toggleAmenity = (chip, active) => {
+        if (active) {
+            const activeCount = root.querySelectorAll('.cms-amenity-chip[data-active="1"]').length;
+            if (activeCount >= 8) {
+                window.alert('Tối đa 8 tiện ích được hiển thị trên website. Hãy gỡ bớt tiện ích khác trước.');
+                return;
+            }
+        }
         const list = chip.closest('#cmsChipList') || chip.closest('#cmsAmenityList');
         const currentIndex = list
             ? Array.from(list.querySelectorAll('.cms-amenity-chip, .cms-amenity-row')).indexOf(chip)
@@ -545,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '.animate-bounce { animation: none !important; }',
             '[data-cms] { outline: 2px dashed #00685f; outline-offset: 3px; cursor: pointer; }',
             '[data-cms]:hover { outline-color: #4b41e1; background: rgba(0,104,95,.08); }',
-            '[data-amenity-dropzone] [data-amenity-id].cms-drop-target { outline: 2px dashed #00685f; outline-offset: 3px; background: rgba(0,104,95,.08); }'
+            '[data-amenity-dropzone] [data-amenity-id].cms-drop-target, [data-amenity-dropzone] .cms-amenity-slot.cms-drop-target { outline: 2px dashed #00685f; outline-offset: 3px; background: rgba(0,104,95,.08); }'
         ].join('\n');
         if (doc.head) { doc.head.appendChild(style); }
 
@@ -587,6 +596,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     clearDropTargets();
                     const card = event.target.closest('[data-amenity-id]');
                     if (card) { card.classList.add('cms-drop-target'); }
+                    const slot = event.target.closest('.cms-amenity-slot');
+                    if (slot) { slot.classList.add('cms-drop-target'); }
                 });
                 dropzone.addEventListener('dragleave', (event) => {
                     if (!dropzone.contains(event.relatedTarget)) { clearDropTargets(); }
@@ -600,7 +611,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         .filter((n) => String(n.dataset.amenityId) !== String(payload.id));
                     let insertIndex = cards.length;
                     const targetCard = event.target.closest('[data-amenity-id]');
-                    if (targetCard) {
+                    const targetSlot = event.target.closest('.cms-amenity-slot');
+                    if (targetSlot) {
+                        const allChildren = Array.from(dropzone.querySelectorAll('[data-amenity-id], .cms-amenity-slot'));
+                        insertIndex = allChildren.indexOf(targetSlot);
+                        const payloadEl = allChildren.find((n) => n.dataset.amenityId === payload.id);
+                        if (payloadEl && allChildren.indexOf(payloadEl) < insertIndex) { insertIndex--; }
+                        insertIndex = Math.min(insertIndex, cards.length);
+                        if (!payload.active && cards.length >= 8) {
+                            window.alert('Tối đa 8 tiện ích được hiển thị trên website. Hãy gỡ bớt tiện ích khác trước.');
+                            return;
+                        }
+                    } else if (targetCard) {
                         const targetIndex = cards.indexOf(targetCard);
                         const rect = targetCard.getBoundingClientRect();
                         insertIndex = targetIndex === -1 ? cards.length : (event.clientY < rect.top + rect.height / 2 ? targetIndex : targetIndex + 1);
@@ -608,6 +630,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const orderedIds = cards.map((n) => n.dataset.amenityId);
                     orderedIds.splice(insertIndex, 0, payload.id);
                     saveAmenityOrder(orderedIds, payload.active ? 0 : payload.id, true);
+                });
+
+                // Nút gỡ tiện ích khỏi website (góc trên phải mỗi thẻ)
+                doc.querySelectorAll('.cms-amenity-remove').forEach((btn) => {
+                    btn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const id = btn.getAttribute('data-amenity-remove');
+                        const chip = root.querySelector('.cms-amenity-chip[data-id="' + id + '"], .cms-amenity-row[data-id="' + id + '"]');
+                        if (chip) { toggleAmenity(chip, false); }
+                    });
                 });
             }
         }
@@ -697,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Image fields: live thumb, clear, upload (hero_image + intro_image)
+    // Image fields: live thumb, clear, upload (hero_image)
     root.querySelectorAll('[data-cms-thumb]').forEach((thumb) => {
         const key = thumb.getAttribute('data-cms-thumb');
         const input = inputs[key];
@@ -802,6 +835,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = btn.closest('.cms-amenity-row');
             if (!row) { return; }
             toggleAmenity(row, row.dataset.active !== '1');
+        });
+    });
+    root.querySelectorAll('.cms-amenity-add').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const row = btn.closest('.cms-amenity-row');
+            if (!row) { return; }
+            if (row.dataset.active === '1') { return; }
+            toggleAmenity(row, true);
         });
     });
 

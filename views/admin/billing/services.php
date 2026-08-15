@@ -208,16 +208,25 @@ Dịch vụ sẽ được tắt từ tháng <?= str_pad((string)(int)($item['dea
 <?php endif; ?>
 </div>
 <div><label class="block text-sm font-semibold mb-2">Cách tính giá</label>
-<?php $formKind = $formService['kind'] ?? 'other'; ?>
-<?php $allowedModeValues = (isset($kindBillingModes) && is_array($kindBillingModes) && array_key_exists($formKind, $kindBillingModes)) ? $kindBillingModes[$formKind] : array_column($serviceBillingModes ?? [], 'value'); ?>
-<select name="billing_mode" id="svc-billing-mode" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-<?php foreach (($serviceBillingModes ?? []) as $mode): ?>
-<?php if (in_array($mode['value'], $allowedModeValues, true) && ($mode['value'] !== 'fixed' || ($isEditing && ($formService['billing_mode'] ?? '') === 'fixed'))): ?>
-<option value="<?= e($mode['value']) ?>" <?= ($formService['billing_mode'] ?? 'fixed') === $mode['value'] ? 'selected' : '' ?>><?= e($mode['label']) ?></option>
-<?php endif; ?>
-<?php endforeach; ?>
-</select>
-<?php if (ServiceModel::isLockedKind($formKind)): ?><p class="text-xs text-amber-700 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Cách tính đã khóa theo loại dịch vụ.</p><?php endif; ?></div>
+    <?php $formKind = $formService['kind'] ?? 'other'; ?>
+    <?php $allowedModeValues = (isset($kindBillingModes) && is_array($kindBillingModes) && array_key_exists($formKind, $kindBillingModes)) ? $kindBillingModes[$formKind] : array_column($serviceBillingModes ?? [], 'value'); ?>
+    <select name="billing_mode" id="svc-billing-mode" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+    <?php foreach (($serviceBillingModes ?? []) as $mode): ?>
+    <?php if (in_array($mode['value'], $allowedModeValues, true) && ($mode['value'] !== 'fixed' || ($isEditing && ($formService['billing_mode'] ?? '') === 'fixed'))): ?>
+    <option value="<?= e($mode['value']) ?>" <?= ($formService['billing_mode'] ?? 'fixed') === $mode['value'] ? 'selected' : '' ?>><?= e($mode['label']) ?></option>
+    <?php endif; ?>
+    <?php endforeach; ?>
+    </select>
+    <?php if (ServiceModel::isLockedKind($formKind)): ?><p class="text-xs text-amber-700 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Cách tính đã khóa theo loại dịch vụ.</p><?php endif; ?></div>
+<div id="applies-to-wrap" class="<?= ServiceModel::isLockedKind($formKind) ? 'hidden' : '' ?>">
+    <label class="block text-sm font-semibold mb-2">Đối tượng áp dụng</label>
+    <select name="applies_to" id="svc-applies-to" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+        <?php foreach ($serviceAppliesToOptions as $opt): ?>
+        <option value="<?= e($opt['value']) ?>" <?= ($formService['applies_to'] ?? 'room') === $opt['value'] ? 'selected' : '' ?>><?= e($opt['label']) ?></option>
+        <?php endforeach; ?>
+    </select>
+    <p class="text-xs text-gray-500 mt-1"><span class="material-symbols-outlined text-sm align-middle">info</span> "Theo phòng": admin gán cho phòng. "Theo người": cư dân tự đăng ký.</p>
+</div>
 <div id="unit-wrap" class="<?= (($formService['billing_mode'] ?? 'fixed') === 'meter') ? '' : 'hidden' ?>">
 <label class="block text-sm font-semibold mb-2">Đơn vị tính</label>
 <input type="text" name="unit" id="svc-unit-input" value="<?= e($formService['unit'] ?? '') ?>" placeholder="VD: kWh, m3" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>

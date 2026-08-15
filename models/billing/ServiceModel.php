@@ -593,6 +593,34 @@ public static function getAssignmentsByRoom($roomId) {
     }
 
     /**
+     * Trả các dịch vụ đang mở mà tenant chưa dùng (theo phòng & theo người, không tính bắt buộc)
+     * để tenant tự đăng ký thêm.
+     */
+    public static function getAvailableServicesForTenant($userId, $roomId) {
+        $usedIds = array_map(
+            static fn($service) => (int)($service['id'] ?? 0),
+            self::getByUser((int)$userId)
+        );
+
+        $roomId = (int)$roomId;
+        if ($roomId > 0) {
+            foreach (self::getAssignmentsByRoom($roomId) as $service) {
+                $usedIds[] = (int)($service['id'] ?? 0);
+            }
+        }
+
+        $usedIds = array_unique($usedIds);
+
+        return array_values(array_filter(
+            self::getAll([
+                'active_only' => true,
+                'exclude_required' => true,
+            ]),
+            static fn($service) => !in_array((int)($service['id'] ?? 0), $usedIds, true)
+        ));
+    }
+
+    /**
      * Đăng ký dịch vụ cá nhân cho tenant, nếu đã có thì cập nhật số lượng.
      */
     public static function registerForUser($userId, $serviceId, $quantity = 1) {

@@ -23,6 +23,13 @@ class AmenityModel {
         usort($rows, static fn($a, $b) => (int)($a['sort_order'] ?? 0) <=> (int)($b['sort_order'] ?? 0));
         return array_values(array_map([self::class, 'normalizeAmenity'], $rows));
     }
+
+    /**
+     * Đếm số tiện ích đang hiển thị trên website (giới hạn tối đa 8).
+     */
+    public static function countActive() {
+        return count(self::getAllActive());
+    }
     
     public static function getAll() {
         $rows = Database::hasConnection()
@@ -50,10 +57,10 @@ class AmenityModel {
     }
 
     /**
-     * Trả dữ liệu tiện ích tối ưu cho trang chủ, chỉ gồm các mục đang hoạt động.
+     * Trả dữ liệu tiện ích tối ưu cho trang chủ, chỉ gồm các mục đang hoạt động (tối đa 8).
      */
     public static function getHomepageItems() {
-        return self::getAllActive();
+        return array_slice(self::getAllActive(), 0, 8);
     }
 
     /**

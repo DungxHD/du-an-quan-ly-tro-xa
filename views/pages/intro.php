@@ -27,7 +27,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
             <div class="reveal-left">
-                <img src="<?= e($introImage) ?>" alt="<?= e($siteName) ?>" data-cms="intro_image" class="w-full rounded-3xl shadow-2xl object-cover min-h-[320px]">
+                <img src="<?= e($introImage) ?>" alt="<?= e($siteName) ?>" data-cms="hero_image" class="w-full rounded-3xl shadow-2xl object-cover min-h-[320px]">
             </div>
             <div class="reveal-right">
                 <h2 class="text-3xl md:text-4xl font-bold mb-5"><?= e($introStory['title'] ?? '') ?></h2>

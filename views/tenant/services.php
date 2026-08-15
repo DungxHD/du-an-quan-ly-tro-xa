@@ -60,7 +60,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 Dịch vụ phòng (bắt buộc & gán phòng)
             </h3>
             <span class="px-3 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-semibold">Tự động áp dụng</span>
-            <p class="text-sm text-gray-500 ml-auto">Không thể hủy - admin quản lý qua bảng dịch vụ phòng</p>
+            <p class="text-sm text-gray-500 ml-auto">Dịch vụ bắt buộc không thể hủy; dịch vụ gán phòng bạn có thể hủy</p>
         </div>
 
         <div class="p-6">
@@ -111,6 +111,14 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <?php else: ?>
                             <p class="text-lg font-bold text-primary"><?= $formatMoney((float)($service['price'] ?? 0)) ?><span class="text-sm text-gray-500">/<?= e($service['unit'] ?? 'tháng') ?></span></p>
                             <p class="text-sm text-gray-500">Tự động tính vào hóa đơn phòng</p>
+                            <?php endif; ?>
+                            <?php if (($service['source'] ?? '') === 'room_assignment'): ?>
+                            <form method="POST" action="<?= BASE_URL ?>?page=tenant-register-service">
+<?= csrf_field() ?>
+                                <input type="hidden" name="service_id" value="<?= (int)($service['id'] ?? 0) ?>">
+                                <input type="hidden" name="service_action" value="cancel">
+                                <button type="submit" class="px-4 py-2 rounded-xl border border-red-200 text-red-600 font-semibold hover:bg-red-50 transition">Hủy</button>
+                            </form>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -193,15 +201,15 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-secondary">add_circle</span>
-                Dịch vụ cá nhân có thể đăng ký thêm
+                Dịch vụ có thể đăng ký thêm
             </h3>
-            <p class="text-sm text-gray-500 mt-1">Chỉ hiển thị dịch vụ đang mở đăng ký, áp dụng theo người (per_person), chưa được dùng.</p>
+            <p class="text-sm text-gray-500 mt-1">Các dịch vụ đang mở mà phòng/tài khoản bạn chưa dùng. Dịch vụ theo phòng sẽ gán vào phòng, theo người sẽ đăng ký cho tài khoản.</p>
         </div>
 
         <div class="p-6">
             <?php if (empty($availableServices)): ?>
             <div class="rounded-2xl border border-dashed border-gray-200 px-6 py-10 text-center text-gray-500">
-                Hiện không còn dịch vụ cá nhân nào khả dụng để đăng ký thêm.
+                Hiện không còn dịch vụ nào khả dụng để đăng ký thêm.
             </div>
             <?php else: ?>
             <div class="space-y-4">
@@ -214,7 +222,11 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         <div class="flex-1">
                             <div class="flex flex-wrap items-center gap-2">
                                 <h4 class="font-bold text-gray-900"><?= e($service['name'] ?? '') ?></h4>
+                                <?php if (($service['applies_to'] ?? '') === 'room'): ?>
+                                <span class="px-3 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-semibold">Theo phòng</span>
+                                <?php else: ?>
                                 <span class="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">Theo người</span>
+                                <?php endif; ?>
                             </div>
                             <p class="text-sm text-gray-500 mt-1"><?= e(fallbackText($service['description'] ?? '')) ?></p>
 

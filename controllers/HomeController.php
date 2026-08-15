@@ -306,9 +306,9 @@ class HomeController extends BaseController {
         $areaCount = count($areas);
         $roomCount = RoomModel::count();
         $residentCount = $this->countResidents();
-        $introImage = SettingModel::get('intro_image', '');
+        $introImage = SettingModel::get('hero_image', '');
         if ($introImage === '') {
-            $introImage = SettingModel::get('hero_image', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600');
+            $introImage = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600';
             foreach ($areas as $area) {
                 if (!empty($area['image'])) {
                     $introImage = $area['image'];
@@ -324,14 +324,9 @@ class HomeController extends BaseController {
             if ($cmsSiteName !== '') {
                 $siteName = $cmsSiteName;
             }
-            $cmsIntroImage = trim((string)($cmsOverrides['intro_image'] ?? ''));
-            if ($cmsIntroImage !== '') {
-                $introImage = $cmsIntroImage;
-            } else {
-                $cmsHeroImage = trim((string)($cmsOverrides['hero_image'] ?? ''));
-                if ($cmsHeroImage !== '') {
-                    $introImage = $cmsHeroImage;
-                }
+            $cmsHeroImage = trim((string)($cmsOverrides['hero_image'] ?? ''));
+            if ($cmsHeroImage !== '') {
+                $introImage = $cmsHeroImage;
             }
         }
 

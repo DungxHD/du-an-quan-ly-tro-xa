@@ -37,13 +37,16 @@ class TenantController {
     public function dashboard() {
         $user = $this->getAuthenticatedTenant();
         
+        $myServices = ServiceModel::getByUser((int)($user['id'] ?? 0));
         if ($user['room_id']) {
             $room = RoomModel::getById($user['room_id']);
-            $services = ServiceModel::getByRoom($user['room_id']);
+            $roomServices = ServiceModel::getByRoom($user['room_id']);
+            $services = $roomServices;
             $serviceCost = ServiceModel::getTotalServiceCost($user['room_id']);
             $totalBill = $room['price'] + $serviceCost;
         } else {
             $room = null;
+            $roomServices = [];
             $services = [];
             $serviceCost = 0;
             $totalBill = 0;
@@ -88,7 +91,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         
         $room = RoomModel::getById($user['room_id']);
         $myServices = ServiceModel::getByUser((int)($user['id'] ?? 0));
-        $availableServices = ServiceModel::getAvailablePersonalServices((int)($user['id'] ?? 0));
+        $availableServices = ServiceModel::getAvailableServicesForTenant((int)($user['id'] ?? 0), (int)($user['room_id'] ?? 0));
         $roomServices = $room ? ServiceModel::getServicesForRoom((int)$room['id']) : [];
         $tenantServiceMessage = pullFlash('tenant_service_message', '');
         $tenantServiceError = pullFlash('tenant_service_error', '');
@@ -271,21 +274,41 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $serviceAction = trim((string)($_POST['service_action'] ?? 'register'));
 
         try {
+            $service = ServiceModel::getById($serviceId);
+            if (!$service) {
+                throw new RuntimeException('Dịch vụ không tồn tại.');
+            }
+
             if ($serviceAction === 'cancel') {
-                ServiceModel::unregisterForUser((int)($user['id'] ?? 0), $serviceId);
-                setFlash('tenant_service_message', 'Đã hủy đăng ký dịch vụ cá nhân.');
+                if (($service['applies_to'] ?? '') === 'room') {
+                    ServiceModel::removeFromRoom((int)($user['room_id'] ?? 0), $serviceId);
+                    setFlash('tenant_service_message', 'Đã hủy đăng ký dịch vụ phòng.');
+                } else {
+                    ServiceModel::unregisterForUser((int)($user['id'] ?? 0), $serviceId);
+                    setFlash('tenant_service_message', 'Đã hủy đăng ký dịch vụ cá nhân.');
+                }
             } else {
                 if ($quantity <= 0) {
                     throw new RuntimeException('Số lượng đăng ký phải lớn hơn 0.');
                 }
 
-                $result = ServiceModel::registerForUser((int)($user['id'] ?? 0), $serviceId, $quantity);
-                setFlash(
-                    'tenant_service_message',
-                    $result === 'updated'
-                        ? 'Dịch vụ đã đăng ký trước đó, hệ thống đã cập nhật lại số lượng.'
-                        : 'Đăng ký dịch vụ thành công.'
-                );
+                if (($service['applies_to'] ?? '') === 'room') {
+                    $result = ServiceModel::assignToRoom((int)($user['room_id'] ?? 0), $serviceId, $quantity);
+                    setFlash(
+                        'tenant_service_message',
+                        $result === 'updated'
+                            ? 'Dịch vụ phòng đã đăng ký trước đó, hệ thống đã cập nhật lại số lượng.'
+                            : 'Đăng ký dịch vụ phòng thành công.'
+                    );
+                } else {
+                    $result = ServiceModel::registerForUser((int)($user['id'] ?? 0), $serviceId, $quantity);
+                    setFlash(
+                        'tenant_service_message',
+                        $result === 'updated'
+                            ? 'Dịch vụ đã đăng ký trước đó, hệ thống đã cập nhật lại số lượng.'
+                            : 'Đăng ký dịch vụ thành công.'
+                    );
+                }
             }
         } catch (Throwable $exception) {
             setFlash('tenant_service_error', $exception->getMessage());

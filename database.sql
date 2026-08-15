@@ -761,44 +761,27 @@ INSERT INTO `room_services` (`id`, `room_id`, `service_id`, `quantity`, `registe
 	(1, 3, 1, 1, '2026-01-15 03:00:00'),
 	(2, 3, 2, 3, '2026-01-15 03:00:00'),
 	(3, 3, 3, 3, '2026-01-15 03:00:00'),
-	(4, 3, 4, 3, '2026-01-15 03:00:00'),
-	(5, 3, 5, 2, '2026-01-15 03:00:00'),
-	(6, 3, 7, 3, '2026-01-15 03:00:00'),
 	(7, 5, 1, 1, '2026-01-20 07:00:00'),
 	(8, 5, 2, 2, '2026-01-20 07:00:00'),
 	(9, 5, 3, 2, '2026-01-20 07:00:00'),
-	(10, 5, 4, 2, '2026-01-20 07:00:00'),
-	(11, 5, 5, 1, '2026-01-20 07:00:00'),
 	(12, 8, 1, 1, '2026-02-01 02:00:00'),
 	(13, 8, 2, 3, '2026-02-01 02:00:00'),
 	(14, 8, 3, 3, '2026-02-01 02:00:00'),
-	(15, 8, 4, 3, '2026-02-01 02:00:00'),
-	(16, 8, 5, 2, '2026-02-01 02:00:00'),
-	(17, 8, 7, 3, '2026-02-01 02:00:00'),
 	(18, 11, 1, 1, '2026-02-10 04:00:00'),
 	(19, 11, 2, 2, '2026-02-10 04:00:00'),
 	(20, 11, 3, 2, '2026-02-10 04:00:00'),
-	(21, 11, 4, 2, '2026-02-10 04:00:00'),
 	(22, 15, 1, 1, '2026-02-15 08:00:00'),
 	(23, 15, 2, 3, '2026-02-15 08:00:00'),
 	(24, 15, 3, 3, '2026-02-15 08:00:00'),
-	(25, 15, 4, 3, '2026-02-15 08:00:00'),
-	(26, 15, 5, 3, '2026-02-15 08:00:00'),
-	(27, 15, 7, 3, '2026-02-15 08:00:00'),
 	(28, 17, 1, 1, '2026-03-01 03:00:00'),
 	(29, 17, 2, 2, '2026-03-01 03:00:00'),
 	(30, 17, 3, 2, '2026-03-01 03:00:00'),
-	(31, 17, 4, 2, '2026-03-01 03:00:00'),
 	(32, 20, 1, 1, '2026-03-05 02:00:00'),
 	(33, 20, 2, 2, '2026-03-05 02:00:00'),
 	(34, 20, 3, 2, '2026-03-05 02:00:00'),
-	(35, 20, 4, 2, '2026-03-05 02:00:00'),
-	(36, 20, 5, 1, '2026-03-05 02:00:00'),
 	(37, 24, 1, 1, '2026-03-10 07:00:00'),
 	(38, 24, 2, 2, '2026-03-10 07:00:00'),
-	(39, 24, 3, 2, '2026-03-10 07:00:00'),
-	(40, 24, 4, 2, '2026-03-10 07:00:00'),
-	(41, 24, 5, 1, '2026-03-10 07:00:00');
+	(39, 24, 3, 2, '2026-03-10 07:00:00');
 
 -- Dumping structure for table manage.services
 CREATE TABLE IF NOT EXISTS `services` (
@@ -825,10 +808,10 @@ INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `i
 	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tính theo chỉ số công tơ, giá nhà nước', 1, 'meter', 'electricity', 'room', 1, NULL, NULL, NULL, NULL),
 	(2, 'Tiền nước', 30000.00, 'người/tháng', 'water_drop', 'Mặc định theo đầu người', 1, 'per_person', 'water', 'room', 1, NULL, NULL, NULL, NULL),
 	(3, 'Tiền rác', 20000.00, 'người/tháng', 'delete', 'Phí thu gom rác theo đầu người', 1, 'per_person', 'trash', 'room', 1, NULL, NULL, NULL, NULL),
-	(4, 'Wifi', 51000.00, 'người/tháng', 'wifi', 'Internet cáp quang tốc độ cao 200Mbps', 0, 'per_person', 'other', 'room', 1, NULL, NULL, NULL, NULL),
-	(5, 'Giữ xe', 100000.00, 'xe/tháng', 'two_wheeler', 'Phí giữ xe máy có mái che', 0, 'fixed', 'other', 'room', 1, NULL, NULL, NULL, NULL),
-	(6, 'Vệ sinh', 50000.00, 'phòng/tháng', 'cleaning_services', 'Dọn vệ sinh hành lang, cầu thang 2 lần/tuần', 0, 'fixed', 'other', 'room', 1, NULL, NULL, NULL, NULL),
-	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Máy giặt chung, sử dụng không giới hạn', 0, 'per_person', 'other', 'room', 1, NULL, NULL, NULL, NULL);
+	(4, 'Wifi', 51000.00, 'người/tháng', 'wifi', 'Internet cáp quang tốc độ cao 200Mbps', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL),
+	(5, 'Giữ xe', 100000.00, 'xe/tháng', 'two_wheeler', 'Phí giữ xe máy có mái che', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
+	(6, 'Vệ sinh', 50000.00, 'phòng/tháng', 'cleaning_services', 'Dọn vệ sinh hành lang, cầu thang 2 lần/tuần', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
+	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Máy giặt chung, sử dụng không giới hạn', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL);
 
 -- Dumping structure for table manage.settings
 CREATE TABLE IF NOT EXISTS `settings` (
@@ -856,7 +839,6 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('hero_headline_2', 'Chọn Chỗ Ở Dễ', 'hero', '2026-08-13 04:41:09'),
 	('hero_image', '/.uploads/image_page_home/home-hero-20260813-155451-f7859cd4.jpg', 'hero', '2026-08-13 15:55:02'),
 	('hero_subheadline', 'Trải nghiệm hệ thống trọ cao cấp dành riêng cho sinh viên FPT và giới trẻ hiện đại.', 'hero', '2026-01-01 01:00:00'),
-	('intro_image', '/.uploads/image_page_home/home-hero-20260815-132750-34d021e3.jpg', 'hero', '2026-08-15 13:28:24'),
 	('max_comment_attempts', '3', 'moderation', '2026-01-01 01:00:00'),
 	('min_days_to_review', '15', 'moderation', '2026-01-01 01:00:00'),
 	('otp_length', '4', 'auth', '2026-08-14 04:34:14'),

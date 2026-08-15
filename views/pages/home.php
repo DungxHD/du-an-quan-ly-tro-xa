@@ -151,14 +151,20 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
             <p class="text-gray-600 max-w-2xl mx-auto">Danh sách này chỉ hiển thị các tiện ích đang hoạt động để khách xem không bị nhiễu thông tin.</p>
         </div>
 
-        <?php if (empty($amenities)): ?>
+        <?php if (empty($amenities) && empty($GLOBALS['cmsPreviewAdmin'])): ?>
             <div class="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
                 Chưa có tiện ích nào được bật hiển thị.
             </div>
         <?php else: ?>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
                 <?php foreach ($amenities as $item): ?>
-                    <div class="group bg-white p-6 rounded-2xl border border-gray-100 text-center card-hover hover:border-primary/30 transition" data-amenity-id="<?= (int)($item['id'] ?? 0) ?>">
+                    <div class="relative group bg-white p-6 rounded-2xl border border-gray-100 text-center card-hover hover:border-primary/30 transition" data-amenity-id="<?= (int)($item['id'] ?? 0) ?>">
+                        <?php if (!empty($GLOBALS['cmsPreviewAdmin'])): ?>
+                            <button type="button"
+                                class="cms-amenity-remove absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center text-lg font-bold shadow hover:bg-red-600 transition"
+                                title="Gỡ tiện ích khỏi website"
+                                data-amenity-remove="<?= (int)($item['id'] ?? 0) ?>">−</button>
+                        <?php endif; ?>
                         <div class="w-20 h-20 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4 transition group-hover:bg-primary group-hover:text-white">
                             <span class="material-symbols-outlined text-4xl"><?= e($item['icon'] ?? 'apartment') ?></span>
                         </div>
@@ -166,6 +172,18 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
                         <p class="text-sm text-gray-500"><?= e($item['description'] ?? '') ?></p>
                     </div>
                 <?php endforeach; ?>
+
+                <?php if (!empty($GLOBALS['cmsPreviewAdmin'])): ?>
+                    <?php $slotCount = 8 - (int)count($amenities); ?>
+                    <?php for ($i = 0; $i < $slotCount; $i++): ?>
+                        <div class="cms-amenity-slot rounded-2xl border-2 border-dashed border-gray-300 min-h-[180px] flex flex-col items-center justify-center text-gray-400"
+                            data-drop-slot="<?= (int)count($amenities) + $i ?>"
+                            title="Kéo tiện ích vào đây để hiển thị">
+                            <span class="material-symbols-outlined text-3xl">add_circle</span>
+                            <span class="text-xs mt-1">Thả tiện ích vào đây</span>
+                        </div>
+                    <?php endfor; ?>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
