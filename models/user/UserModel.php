@@ -458,4 +458,26 @@ class UserModel {
         }
         return $count;
     }
+
+    /**
+     * Trả danh sách tenant đang gán vào một phòng cụ thể.
+     */
+    public static function getTenantsByRoomId($roomId) {
+        $resolvedRoomId = (int)$roomId;
+        if ($resolvedRoomId <= 0) {
+            return [];
+        }
+
+        $tenants = [];
+        foreach (self::getAll() as $user) {
+            if ((int)($user['role'] ?? -1) !== 0) {
+                continue;
+            }
+            if ((int)($user['room_id'] ?? 0) === $resolvedRoomId) {
+                $tenants[] = $user;
+            }
+        }
+
+        return $tenants;
+    }
 }

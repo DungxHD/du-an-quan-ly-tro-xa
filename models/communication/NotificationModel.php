@@ -5,11 +5,14 @@
  */
 class NotificationModel {
     private const TYPES = [
+        'service' => 'Dịch vụ',
+        'rental_request' => 'Yêu cầu thuê',
         'price_change' => 'Đổi giá dịch vụ',
-        'payment' => 'Thanh toán',
-        'general' => 'Chung',
+        'payment' => 'Hóa đơn',
+        'invoice' => 'Hóa đơn',
         'feedback' => 'Phản ánh',
         'review' => 'Đánh giá',
+        'general' => 'Chung',
     ];
 
 
@@ -18,6 +21,32 @@ class NotificationModel {
      */
     public static function getTypeOptions() {
         return self::TYPES;
+    }
+
+    /**
+     * Các nhóm (tab lọc) dành cho giao diện admin.
+     * Mỗi nhóm gồm nhãn + danh sách type nội bộ thuộc nhóm đó.
+     */
+    public static function getAdminCategories() {
+        return [
+            'service' => ['label' => 'Dịch vụ', 'types' => ['price_change', 'service']],
+            'rental_request' => ['label' => 'Yêu cầu thuê', 'types' => ['rental_request']],
+            'payment' => ['label' => 'Hóa đơn', 'types' => ['payment', 'invoice']],
+            'feedback' => ['label' => 'Phản ánh', 'types' => ['feedback']],
+            'other' => ['label' => 'Khác', 'types' => ['general', 'review']],
+        ];
+    }
+
+    /**
+     * Các nhóm (tab lọc) dành cho giao diện tenant.
+     */
+    public static function getTenantCategories() {
+        return [
+            'service' => ['label' => 'Dịch vụ', 'types' => ['price_change', 'service']],
+            'payment' => ['label' => 'Hóa đơn', 'types' => ['payment', 'invoice']],
+            'feedback' => ['label' => 'Phản hồi', 'types' => ['feedback']],
+            'other' => ['label' => 'Khác', 'types' => ['general', 'review']],
+        ];
     }
 
     /**
@@ -76,11 +105,45 @@ class NotificationModel {
     }
 
     /**
+     * Tạo thông báo cho từng tenant thuộc danh sách phòng.
+     * Mỗi tenant nhận một bản ghi riêng (user_id cụ thể).
+     */
+    public static function createForRoomUsers(array $roomIds, array $data) {
+        $sent = 0;
+        $seenUserIds = [];
+        foreach ($roomIds as $roomId) {
+            $roomId = (int)$roomId;
+            if ($roomId <= 0) {
+                continue;
+            }
+            foreach (UserModel::getTenantsByRoomId($roomId) as $tenant) {
+                $tenantId = (int)($tenant['id'] ?? 0);
+                if ($tenantId <= 0 || isset($seenUserIds[$tenantId])) {
+                    continue;
+                }
+                $seenUserIds[$tenantId] = true;
+                self::create(array_merge($data, ['user_id' => $tenantId]));
+                $sent++;
+            }
+        }
+        return $sent;
+    }
+
+    /**
      * Trả lịch sử thông báo admin đã gửi, có thể lọc theo loại hoặc đối tượng.
      */
     public static function getAdminHistory(array $filters = []) {
         $type = trim((string)($filters['type'] ?? ''));
+        $category = trim((string)($filters['category'] ?? ''));
         $userId = (int)($filters['user_id'] ?? 0);
+
+        $categoryTypes = [];
+        if ($category !== '' && $type === '') {
+            $cats = self::getAdminCategories();
+            if (isset($cats[$category])) {
+                $categoryTypes = $cats[$category]['types'];
+            }
+        }
 
         if (Database::hasConnection()) {
             $sql = "
@@ -96,6 +159,9 @@ class NotificationModel {
             if ($type !== '' && isset(self::TYPES[$type])) {
                 $sql .= ' AND n.type = ?';
                 $params[] = $type;
+            } elseif (!empty($categoryTypes)) {
+                $sql .= ' AND n.type IN (' . str_repeat('?,', count($categoryTypes) - 1) . '?)';
+                $params = array_merge($params, $categoryTypes);
             }
             if ($userId > 0) {
                 $sql .= ' AND n.user_id = ?';
@@ -118,8 +184,11 @@ class NotificationModel {
                 return $row;
             }, Database::getTable('notifications'));
 
-            $rows = array_values(array_filter($rows, static function ($row) use ($type, $userId, $filters) {
+            $rows = array_values(array_filter($rows, static function ($row) use ($type, $categoryTypes, $userId, $filters) {
                 if ($type !== '' && ($row['type'] ?? '') !== $type) {
+                    return false;
+                }
+                if (!empty($categoryTypes) && !in_array((string)($row['type'] ?? ''), $categoryTypes, true)) {
                     return false;
                 }
                 if ($userId > 0 && (int)($row['user_id'] ?? 0) !== $userId) {
@@ -160,6 +229,14 @@ class NotificationModel {
         $limit = isset($options['limit']) ? max(1, (int)$options['limit']) : null;
         $order = strtolower(trim((string)($options['order'] ?? 'desc'))) === 'asc' ? 'asc' : 'desc';
         $onlyUnread = !empty($options['only_unread']);
+        $category = trim((string)($options['category'] ?? ''));
+        $categoryTypes = [];
+        if ($category !== '') {
+            $cats = self::getTenantCategories();
+            if (isset($cats[$category])) {
+                $categoryTypes = $cats[$category]['types'];
+            }
+        }
 
         if (Database::hasConnection()) {
             $limitSql = $limit !== null ? ' LIMIT ' . $limit : '';
@@ -184,6 +261,11 @@ class NotificationModel {
                 $params[] = $resolvedUserId;
             }
 
+            if (!empty($categoryTypes)) {
+                $sql .= ' AND n.type IN (' . str_repeat('?,', count($categoryTypes) - 1) . '?)';
+                $params = array_merge($params, $categoryTypes);
+            }
+
             $sql .= ' ORDER BY n.created_at ' . strtoupper($order) . ', n.id ' . strtoupper($order) . $limitSql;
             $rows = Database::fetchAll($sql, $params);
         } else {
@@ -200,6 +282,13 @@ class NotificationModel {
                     : 0;
                 return $row;
             }, $rows);
+
+            $rows = array_values(array_filter($rows, static function ($row) use ($categoryTypes) {
+                if (!empty($categoryTypes) && !in_array((string)($row['type'] ?? ''), $categoryTypes, true)) {
+                    return false;
+                }
+                return true;
+            }));
 
             if ($onlyUnread) {
                 $rows = array_values(array_filter($rows, static fn($row) => empty($row['resolved_is_read'])));

@@ -225,10 +225,10 @@ trait AdminTenantTrait
         }
         $requests = RentalRequestModel::getAllWithDetails(['status' => $statusFilter]);
 
-        $roommateStatusFilter = trim((string)($_GET['rstatus'] ?? 'pending'));
-        $allowedRoommateStatuses = ['pending', 'approved', 'rejected', 'admin_rejected'];
+        $roommateStatusFilter = trim((string)($_GET['rstatus'] ?? 'pending_admin'));
+        $allowedRoommateStatuses = ['pending_admin', 'pending', 'approved', 'rejected', 'cancelled', 'admin_rejected'];
         if (!in_array($roommateStatusFilter, $allowedRoommateStatuses, true)) {
-            $roommateStatusFilter = 'pending';
+            $roommateStatusFilter = 'pending_admin';
         }
         $roommateRequests = RoommateRequestModel::getAll(['status' => $roommateStatusFilter]);
         foreach ($roommateRequests as &$row) {
@@ -358,7 +358,131 @@ trait AdminTenantTrait
         redirectTo('admin-rent-requests');
     }
 /**
-     * Admin veto yêu cầu ở ghép: nếu đã duyệt (B đã vào phòng) thì gỡ B ra.
+     * Admin duyệt yêu cầu ở ghép: tạo contract cho người B, đồng bộ phòng.
+     */
+    public function approveRoommate()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-rent-requests');
+        }
+        verify_csrf();
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $request = RoommateRequestModel::getById($requestId);
+        if (!$request) {
+            setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+        $status = (string)$request['status'];
+        if ($status !== 'pending_admin') {
+            setFlash('roommate_admin_error', 'Yêu cầu này không ở trạng thái chờ duyệt.');
+            redirectTo('admin-rent-requests');
+        }
+
+        $requesterId = (int)$request['requester_id']; // người B
+        $hostUserId = (int)$request['host_user_id'];  // người A
+        $roomId = (int)$request['room_id'];
+        $room = RoomModel::getById($roomId);
+        if (!$room) {
+            setFlash('roommate_admin_error', 'Phòng không tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+
+        // Kiểm tra người B đã có phòng/hợp đồng chưa
+        if (!empty(UserModel::getById($requesterId)['room_id']) || ContractModel::getActiveByUserId($requesterId)) {
+            setFlash('roommate_admin_error', 'Người được mời đã có phòng/hợp đồng.');
+            redirectTo('admin-rent-requests');
+        }
+
+        // Kiểm tra phòng còn chỗ
+        $currentOcc = RoomModel::countOccupants($roomId);
+        $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
+        if ($currentOcc >= $maxOcc) {
+            setFlash('roommate_admin_error', 'Phòng đã đủ người, không thể duyệt.');
+            redirectTo('admin-rent-requests');
+        }
+
+        try {
+            ContractModel::create([
+                'user_id' => $requesterId,
+                'room_id' => $roomId,
+                'move_in_date' => date('Y-m-d'),
+                'rent_price' => (float)($room['price'] ?? 0),
+                'deposit_amount' => 0,
+                'initial_electricity_index' => null,
+                'initial_water_index' => null,
+                'contract_date' => date('Y-m-d'),
+            ]);
+            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $requesterId]);
+            ContractModel::syncRoomStatus($roomId);
+            RoommateRequestModel::setStatus($requestId, 'approved');
+            
+            // Thông báo cho người B
+            NotificationModel::create([
+                'user_id' => $requesterId,
+                'type' => 'general',
+                'title' => 'Yêu cầu ở ghép đã được duyệt',
+                'content' => 'Admin đã duyệt yêu cầu ở ghép của bạn tại phòng ' . ($room['name'] ?? '') . '.',
+            ]);
+            // Thông báo cho người A
+            NotificationModel::create([
+                'user_id' => $hostUserId,
+                'type' => 'general',
+                'title' => 'Yêu cầu mời ở ghép được duyệt',
+                'content' => 'Admin đã duyệt yêu cầu mời ' . (UserModel::getById($requesterId)['full_name'] ?? '') . ' ở ghép tại phòng ' . ($room['name'] ?? '') . '.',
+            ]);
+            setFlash('roommate_admin_message', 'Đã duyệt ở ghép thành công.');
+        } catch (Throwable $exception) {
+            setFlash('roommate_admin_error', 'Không duyệt được: ' . $exception->getMessage());
+        }
+        redirectTo('admin-rent-requests');
+    }
+
+    /**
+     * Admin từ chối yêu cầu ở ghép.
+     */
+    public function rejectRoommate()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-rent-requests');
+        }
+        verify_csrf();
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $request = RoommateRequestModel::getById($requestId);
+        if (!$request) {
+            setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+        $status = (string)$request['status'];
+        if ($status !== 'pending_admin') {
+            setFlash('roommate_admin_error', 'Yêu cầu này không ở trạng thái chờ duyệt.');
+            redirectTo('admin-rent-requests');
+        }
+
+        $requesterId = (int)$request['requester_id'];
+        $hostUserId = (int)$request['host_user_id'];
+        $roomId = (int)$request['room_id'];
+
+        RoommateRequestModel::setStatus($requestId, 'rejected');
+        // Thông báo cho người B
+        NotificationModel::create([
+            'user_id' => $requesterId,
+            'type' => 'general',
+            'title' => 'Yêu cầu ở ghép bị từ chối',
+            'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn.',
+        ]);
+        // Thông báo cho người A
+        NotificationModel::create([
+            'user_id' => $hostUserId,
+            'type' => 'general',
+            'title' => 'Yêu cầu mời ở ghép bị từ chối',
+            'content' => 'Admin đã từ chối yêu cầu mời ở ghép tại phòng ' . (RoomModel::getById($roomId)['name'] ?? '') . '.',
+        ]);
+        setFlash('roommate_admin_message', 'Đã từ chối yêu cầu ở ghép.');
+        redirectTo('admin-rent-requests');
+    }
+
+    /**
+     * Admin veto yêu cầu ở ghép đã duyệt: gỡ người B khỏi phòng.
      */
     public function vetoRoommate()
     {
@@ -393,12 +517,13 @@ trait AdminTenantTrait
             NotificationModel::create([
                 'user_id' => $requesterId,
                 'type' => 'general',
-                'title' => 'Yêu cầu ở ghép bị admin từ chối',
-                'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn và gỡ bạn khỏi phòng.',
+                'title' => 'Yêu cầu ở ghép bị admin gỡ bỏ',
+                'content' => 'Admin đã gỡ bạn khỏi phòng do yêu cầu ở ghép bị hủy bỏ.',
             ]);
-            setFlash('roommate_admin_message', 'Đã veto và gỡ người ở ghép khỏi phòng.');
-        } elseif ($status === 'pending') {
+            setFlash('roommate_admin_message', 'Đã gỡ người ở ghép khỏi phòng.');
+        } elseif ($status === 'pending_admin') {
             RoommateRequestModel::setStatus($requestId, 'admin_rejected');
+            $requesterId = (int)$request['requester_id'];
             NotificationModel::create([
                 'user_id' => $requesterId,
                 'type' => 'general',

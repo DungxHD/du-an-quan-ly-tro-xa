@@ -46,6 +46,23 @@ if (isset($_SESSION['role']) && $_SESSION['role'] == 1 && Database::hasConnectio
     }
 }
 
+// Đồng bộ session room_id với DB toàn cục — khi admin duyệt yêu cầu thuê/ở ghép,
+// người dùng sẽ thấy giao diện tenant ngay tại request tiếp theo (không cần logout/reload).
+if (isset($_SESSION['user_id']) && Database::hasConnection()) {
+    try {
+        $freshUser = UserModel::getById((int)$_SESSION['user_id']);
+        if ($freshUser) {
+            $dbRoomId = (int)($freshUser['room_id'] ?? 0);
+            $sessionRoomId = (int)($_SESSION['room_id'] ?? 0);
+            if ($sessionRoomId !== $dbRoomId) {
+                $_SESSION['room_id'] = $dbRoomId;
+            }
+        }
+    } catch (Throwable $e) {
+        // Silent fail - không block user
+    }
+}
+
 // Helper hiển thị và điều hướng dùng chung.
 function e($str)
 {
@@ -364,15 +381,20 @@ switch ($page) {
     case 'tenant-send-roommate-request':
         (new TenantController())->sendRoommateRequest();
         break;
-    case 'tenant-approve-roommate':
-        (new TenantController())->approveRoommate();
-        break;
-    case 'tenant-reject-roommate':
-        (new TenantController())->rejectRoommate();
+    case 'tenant-cancel-roommate-request':
+        (new TenantController())->cancelRoommateRequest();
         break;
     case 'admin-roommate-requests':
         requireAdmin();
         (new AdminController())->roommateRequests();
+        break;
+    case 'admin-approve-roommate':
+        requireAdmin();
+        (new AdminController())->approveRoommate();
+        break;
+    case 'admin-reject-roommate':
+        requireAdmin();
+        (new AdminController())->rejectRoommate();
         break;
     case 'admin-veto-roommate':
         requireAdmin();

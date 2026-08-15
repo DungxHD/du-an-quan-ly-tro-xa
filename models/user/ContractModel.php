@@ -260,7 +260,7 @@ class ContractModel {
 
     /**
      * Tính lại trạng thái phòng dựa trên số người đang được gán thực tế.
-     * Chưa đủ sức chứa thì vẫn để `available`, đủ hoặc vượt thì chuyển `rented`.
+     * Có người thuê (>=1) thì chuyển `rented`, hoàn toàn trống thì `available`.
      */
     public static function syncRoomStatus($roomId) {
         $resolvedRoomId = (int)$roomId;
@@ -271,8 +271,7 @@ class ContractModel {
         }
 
         $occupantCount = RoomModel::countOccupants($resolvedRoomId);
-        $maxOccupancy = max(1, (int)($room['max_occupancy'] ?? 1));
-        $nextStatus = $occupantCount >= $maxOccupancy ? 'rented' : 'available';
+        $nextStatus = $occupantCount >= 1 ? 'rented' : 'available';
 
         RoomModel::updateStatus($resolvedRoomId, $nextStatus);
     }

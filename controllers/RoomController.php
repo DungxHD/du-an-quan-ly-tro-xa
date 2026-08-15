@@ -70,6 +70,13 @@ class RoomController extends BaseController {
             redirectTo('detail', ['id' => (int)$id]);
         }
 
+        // Chặn tài khoản đã có phòng/hợp đồng đang thuê không được thuê thêm phòng khác
+        $currentUser = UserModel::getById($userId);
+        if (!empty($currentUser['room_id']) || ContractModel::getActiveByUserId($userId)) {
+            setFlash('rent_error', 'Tài khoản của bạn đang thuê phòng khác, không thể gửi yêu cầu thuê thêm phòng.');
+            redirectTo('rooms');
+        }
+
         $pending = RentalRequestModel::getPendingByUser($userId);
         if ($pending) {
             $pendingRoom = RoomModel::getById((int)($pending['room_id'] ?? 0));

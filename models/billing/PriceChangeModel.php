@@ -137,11 +137,17 @@ class PriceChangeModel {
             'applied' => 0,
             'created_by' => $createdBy !== null ? (int)$createdBy : null,
         ]);
-        NotificationModel::create([
-            'user_id' => null,
-            'title' => 'Thay đổi giá dịch vụ',
-            'content' => self::buildNotificationContent($service, $currentPrice, $hasPriceChange ? (float)$newPrice : $currentPrice, $period['month'], $period['year']),
-            'type' => 'price_change',
+        $roomsUsing = ServiceModel::getRoomsUsingService((int)$service['id']);
+        $affectedRoomIds = array_map(
+            static fn($roomRow) => (int)($roomRow['room_id'] ?? 0),
+            $roomsUsing
+        );
+        $affectedRoomIds = array_values(array_filter($affectedRoomIds, static fn($roomId) => $roomId > 0));
+        NotificationModel::createForRoomUsers($affectedRoomIds, [
+            'title' => 'Thay đổi giá/cách tính dịch vụ ' . trim((string)($service['name'] ?? 'Dịch vụ')),
+            'content' => self::buildNotificationContent($service, $currentPrice, $hasPriceChange ? (float)$newPrice : $currentPrice, $period['month'], $period['year'], $hasModeChange ? $newBillingMode : null),
+            'type' => 'service',
+            'link' => '?page=tenant-services',
         ]);
         return $priceChangeId;
     }
@@ -220,19 +226,34 @@ return $result;
         $service = ServiceModel::getById((int)$serviceId) ?? ['price' => $fallbackPrice, 'billing_mode' => 'fixed'];
         return self::getEffectiveConfigForPeriod($service, $month, $year)['price'];
     }
-    public static function buildNotificationContent(array $service, $oldPrice, $newPrice, $effectiveMonth, $effectiveYear) {
-        return trim((string)($service['name'] ?? 'Dịch vụ'))
-            . ': '
-            . number_format((float)$oldPrice, 0, ',', '.')
-            . 'đ → '
-            . number_format((float)$newPrice, 0, ',', '.')
-            . 'đ/'
-            . trim((string)($service['unit'] ?? 'tháng'))
-            . ', áp dụng từ tháng '
+    public static function buildNotificationContent(array $service, $oldPrice, $newPrice, $effectiveMonth, $effectiveYear, $newBillingMode = null) {
+        $serviceName = trim((string)($service['name'] ?? 'Dịch vụ'));
+        $modeLabels = ServiceModel::getBillingModeOptions();
+        $oldModeLabel = $modeLabels[(string)($service['billing_mode'] ?? '')] ?? (string)($service['billing_mode'] ?? '');
+        $newModeLabel = $newBillingMode !== null
+            ? ($modeLabels[(string)$newBillingMode] ?? (string)$newBillingMode)
+            : null;
+
+        $parts = ['Dịch vụ ' . $serviceName];
+        $priceChanged = $newPrice !== null && abs((float)$newPrice - (float)$oldPrice) > 0.001;
+        if ($priceChanged) {
+            $unit = trim((string)($service['unit'] ?? 'tháng'));
+            $parts[] = 'giá từ ' . number_format((float)$oldPrice, 0, ',', '.') . 'đ thành ' . number_format((float)$newPrice, 0, ',', '.') . 'đ/' . ($unit !== '' ? $unit : 'tháng');
+        }
+        if ($newBillingMode !== null && $newModeLabel !== null) {
+            $parts[] = 'cách tính từ "' . $oldModeLabel . '" thành "' . $newModeLabel . '"';
+        }
+        if ($priceChanged && $newBillingMode !== null) {
+            $parts = ['Dịch vụ ' . $serviceName . ' sẽ thay đổi: giá ' . number_format((float)$oldPrice, 0, ',', '.') . 'đ → ' . number_format((float)$newPrice, 0, ',', '.') . 'đ, cách tính "' . $oldModeLabel . '" → "' . $newModeLabel . '"'];
+        }
+
+        $parts[] = 'áp dụng từ tháng '
             . str_pad((string)(int)$effectiveMonth, 2, '0', STR_PAD_LEFT)
             . '/'
             . (int)$effectiveYear
             . '.';
+
+        return implode(', ', $parts);
     }
 
     /**

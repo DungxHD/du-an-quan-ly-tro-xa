@@ -180,6 +180,7 @@ public function notifications()
 
         $notificationFilters = [
             'type' => trim((string)($_GET['type'] ?? '')),
+            'category' => trim((string)($_GET['category'] ?? '')),
             'user_id' => (int)($_GET['user_id'] ?? 0),
             'recipient_scope' => trim((string)($_GET['recipient_scope'] ?? '')),
         ];
@@ -194,6 +195,8 @@ public function notifications()
 
         $notificationHistory = NotificationModel::getAdminHistory($notificationFilters);
         $notificationTypeOptions = NotificationModel::getTypeOptions();
+        $notificationCategories = NotificationModel::getAdminCategories();
+        $selectedNotificationCategory = $notificationFilters['category'];
         $notificationMessage = pullFlash('admin_notification_message');
         $notificationError = pullFlash('admin_notification_error');
         $pageTitle = 'Quản lý Thông báo - NhaTroA';
@@ -452,6 +455,16 @@ public function notifications()
                     }
                     ServiceModel::scheduleDeactivate($id, $dm, $dy);
                     $data['is_active'] = 1;
+                    $affectedRoomIds = array_values(array_filter(
+                        array_map(static fn($roomRow) => (int)($roomRow['room_id'] ?? 0), ServiceModel::getRoomsUsingService($id)),
+                        static fn($roomId) => $roomId > 0
+                    ));
+                    NotificationModel::createForRoomUsers($affectedRoomIds, [
+                        'title' => 'Dịch vụ ' . trim((string)($existing['name'] ?? '')) . ' sẽ ngừng hoạt động',
+                        'content' => 'Dịch vụ ' . trim((string)($existing['name'] ?? '')) . ' sẽ ngừng được sử dụng từ tháng ' . str_pad((string)$dm, 2, '0', STR_PAD_LEFT) . '/' . $dy . '.',
+                        'type' => 'service',
+                        'link' => '?page=tenant-services',
+                    ]);
                     setFlash('admin_service_message', 'Dich vu dang co ' . $usingCount . ' phong su dung. Se tat tu thang ' . str_pad((string)$dm, 2, '0', STR_PAD_LEFT) . '/' . $dy . '.');
                     redirectTo('admin-services');
                 } else {
@@ -587,6 +600,11 @@ public function cancelPriceChange($id)
         ServiceModel::clearAllPendingChanges($serviceId);
 
         $using = ServiceModel::countRoomsUsing($serviceId);
+        $roomsUsing = ServiceModel::getRoomsUsingService($serviceId);
+        $affectedRoomIds = array_values(array_filter(
+            array_map(static fn($roomRow) => (int)($roomRow['room_id'] ?? 0), $roomsUsing),
+            static fn($roomId) => $roomId > 0
+        ));
         if ($using > 0) {
             $nextMonth = (int)date('n') + 1;
             $nextYear  = (int)date('Y');
@@ -595,6 +613,12 @@ public function cancelPriceChange($id)
                 $nextYear++;
             }
             ServiceModel::scheduleDelete($serviceId, $nextMonth, $nextYear);
+            NotificationModel::createForRoomUsers($affectedRoomIds, [
+                'title' => 'Dịch vụ ' . trim((string)($service['name'] ?? '')) . ' sẽ bị xóa',
+                'content' => 'Dịch vụ ' . trim((string)($service['name'] ?? '')) . ' sẽ bị xóa khỏi phòng của bạn kể từ tháng ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '.',
+                'type' => 'service',
+                'link' => '?page=tenant-services',
+            ]);
             setFlash('admin_service_message', 'Da huy moi thay doi cho. Dich vu se bi xoa vao thang ' . str_pad((string)$nextMonth, 2, '0', STR_PAD_LEFT) . '/' . $nextYear . '.');
         } else {
             try {

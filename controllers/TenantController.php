@@ -3,6 +3,7 @@ class TenantController {
     /**
      * Lấy thông tin cư dân đang đăng nhập.
      * Nếu session không còn hợp lệ thì tự đưa người dùng về trang đăng nhập.
+     * Đồng bộ session room_id với DB để phản ánh thay đổi ngay khi admin duyệt yêu cầu.
      */
     private function getAuthenticatedTenant() {
         $userId = (int)($_SESSION['user_id'] ?? 0);
@@ -11,6 +12,11 @@ class TenantController {
         if (!$user) {
             session_destroy();
             redirectTo('login');
+        }
+
+        // Đồng bộ session room_id với DB (khi admin duyệt yêu cầu thuê/ở ghép)
+        if ((int)($_SESSION['room_id'] ?? -1) !== (int)($user['room_id'] ?? 0)) {
+            $_SESSION['room_id'] = (int)($user['room_id'] ?? 0);
         }
 
         return $user;
@@ -151,9 +157,12 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
             }
         }
 
+        $selectedCategory = trim((string)($_GET['category'] ?? ''));
         $tenantNotifications = NotificationModel::getForUser((int)($user['id'] ?? 0), [
             'order' => 'asc',
+            'category' => $selectedCategory,
         ]);
+        $tenantNotificationCategories = NotificationModel::getTenantCategories();
 
         $pageTitle = 'Thông báo - NhaTroA';
         require_once BASE_PATH . 'views/tenant/notifications.php';
@@ -534,30 +543,79 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
     }
 
     /**
-     * Trang "Ở ghép": người B (chưa phòng) tìm kiếm + gửi yêu cầu;
-     * người A (có phòng) xem và duyệt/từ chối yêu cầu.
+     * Trang "Ở ghép": 
+     * - Người A (có phòng) nhập SĐT người B để mời ở ghép
+     * - Nếu B đã có tài khoản, hiện thông tin B để xác nhận
+     * - Gửi yêu cầu lên admin duyệt
+     * - Người A xem danh sách yêu cầu đã gửi
      */
     public function roommate() {
         $user = $this->getAuthenticatedTenant();
         $message = pullFlash('roommate_message', '');
         $error = pullFlash('roommate_error', '');
 
-        if (!empty($user['room_id'])) {
-            $pendingRequests = RoommateRequestModel::getPendingByHost((int)$user['id']);
-            $myRoom = RoomModel::getById((int)$user['room_id']);
-            $pageTitle = 'Yêu cầu ở ghép - NhaTroA';
-            require_once BASE_PATH . 'views/tenant/roommate_requests.php';
-            return;
+        if (empty($user['room_id'])) {
+            setFlash('roommate_error', 'Bạn cần có phòng mới có thể mời người ở ghép.');
+            redirectTo('tenant');
         }
 
-        $searchQuery = trim((string)($_GET['q'] ?? ''));
-        $hosts = $this->searchHostCandidates($searchQuery);
-        $pendingRequest = null;
-        foreach (RoommateRequestModel::getByRequester((int)$user['id']) as $mr) {
-            if ((string)($mr['status'] ?? '') === 'pending') { $pendingRequest = $mr; break; }
+        $myRoom = RoomModel::getById((int)$user['room_id']);
+        if (!$myRoom) {
+            setFlash('roommate_error', 'Phòng không tồn tại.');
+            redirectTo('tenant');
         }
-        $pageTitle = 'Tìm người ở ghép - NhaTroA';
-        require_once BASE_PATH . 'views/tenant/find_roommate.php';
+
+        $maxOcc = max(1, (int)($myRoom['max_occupancy'] ?? 1));
+        $currentOcc = RoomModel::countOccupants((int)$myRoom['id']);
+        if ($currentOcc >= $maxOcc) {
+            setFlash('roommate_error', 'Phòng đã đủ người, không thể mời thêm.');
+            redirectTo('tenant');
+        }
+
+        // Lấy danh sách yêu cầu ở ghép đã gửi của người A
+        $myRequests = RoommateRequestModel::getByRequester((int)$user['id']);
+        
+        $searchQuery = trim((string)($_GET['q'] ?? ''));
+        $inviteCandidate = null;
+        if ($searchQuery !== '') {
+            $inviteCandidate = $this->findInviteCandidate($searchQuery, $user['id']);
+        }
+
+        $pageTitle = 'Mời ở ghép - NhaTroA';
+        require_once BASE_PATH . 'views/tenant/invite_roommate.php';
+    }
+
+    /**
+     * Tìm người B theo SĐT/email để mời ở ghép.
+     * Chỉ trả về người B CHƯA CÓ PHÒNG (room_id IS NULL).
+     */
+    private function findInviteCandidate($query, $hostUserId) {
+        $q = trim((string)$query);
+        if ($q === '') { return null; }
+        
+        $qPhone = preg_replace('/\s+/', '', $q);
+        $qEmail = mb_strtolower($q);
+        
+        foreach (UserModel::getAll() as $candidate) {
+            if ((int)($candidate['role'] ?? 1) !== 0) { continue; } // chỉ tenant
+            if (!empty($candidate['room_id'])) { continue; } // đã có phòng
+            if ((int)$candidate['id'] === $hostUserId) { continue; } // không tự mời mình
+
+            $email = mb_strtolower(trim((string)($candidate['email'] ?? '')));
+            $phone = preg_replace('/\s+/', '', (string)($candidate['phone'] ?? ''));
+            $matchEmail = $email !== '' && $email === $qEmail;
+            $matchPhone = $phone !== '' && $phone === $qPhone;
+            
+            if (!$matchEmail && !$matchPhone) { continue; }
+
+            return [
+                'id' => (int)$candidate['id'],
+                'name' => (string)($candidate['full_name'] ?? ''),
+                'email' => $email,
+                'phone' => $phone,
+            ];
+        }
+        return null;
     }
 
     public function sendRoommateRequest() {
@@ -565,122 +623,112 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         verify_csrf();
         $user = $this->getAuthenticatedTenant();
 
-        if (!empty($user['room_id'])) {
-            setFlash('roommate_error', 'Bạn đã có phòng nên không thể gửi yêu cầu ở ghép.');
-            redirectTo('tenant-roommate');
-        }
-        if (RoommateRequestModel::hasPendingByRequester((int)$user['id'])) {
-            setFlash('roommate_error', 'Bạn đang có yêu cầu ở ghép chờ duyệt.');
+        if (empty($user['room_id'])) {
+            setFlash('roommate_error', 'Bạn cần có phòng mới có thể mời người ở ghép.');
             redirectTo('tenant-roommate');
         }
 
-        $hostId = (int)($_POST['host_user_id'] ?? 0);
-        $host = UserModel::getById($hostId);
-        if (!$host || (int)($host['role'] ?? 1) !== 0 || empty($host['room_id'])) {
-            setFlash('roommate_error', 'Người ở ghép không hợp lệ.');
+        $myRoom = RoomModel::getById((int)$user['room_id']);
+        if (!$myRoom) {
+            setFlash('roommate_error', 'Phòng không tồn tại.');
             redirectTo('tenant-roommate');
         }
-        $room = RoomModel::getById((int)$host['room_id']);
+
+        $maxOcc = max(1, (int)($myRoom['max_occupancy'] ?? 1));
+        $currentOcc = RoomModel::countOccupants((int)$myRoom['id']);
+        if ($currentOcc >= $maxOcc) {
+            setFlash('roommate_error', 'Phòng đã đủ người, không thể mời thêm.');
+            redirectTo('tenant-roommate');
+        }
+
+        // Kiểm tra xem người A đã có yêu cầu pending nào chưa (yêu cầu do A gửi đi)
+        foreach (RoommateRequestModel::getByHost((int)$user['id']) as $mr) {
+            if ((string)($mr['status'] ?? '') === 'pending_admin') {
+                setFlash('roommate_error', 'Bạn đang có yêu cầu mời ở ghép chờ admin duyệt.');
+                redirectTo('tenant-roommate');
+            }
+        }
+
+        $guestId = (int)($_POST['guest_user_id'] ?? 0);
+        $guest = UserModel::getById($guestId);
+        
+        if (!$guest || (int)($guest['role'] ?? 1) !== 0 || !empty($guest['room_id'])) {
+            setFlash('roommate_error', 'Người được mời không hợp lệ hoặc đã có phòng.');
+            redirectTo('tenant-roommate');
+        }
+        
+        if ((int)$guest['id'] === (int)$user['id']) {
+            setFlash('roommate_error', 'Không thể tự mời chính mình.');
+            redirectTo('tenant-roommate');
+        }
+
+        $room = RoomModel::getById((int)$user['room_id']);
         if (!$room) {
             setFlash('roommate_error', 'Phòng không tồn tại.');
             redirectTo('tenant-roommate');
         }
-        if (RoomModel::countOccupants((int)$room['id']) >= max(1, (int)($room['max_occupancy'] ?? 1))) {
-            setFlash('roommate_error', 'Phòng này đã đủ người, không thể ở ghép.');
-            redirectTo('tenant-roommate');
-        }
 
+        // Tạo yêu cầu ở ghép - host_user_id = người A, requester_id = người B
+        // Trạng thái: pending_admin (chờ admin duyệt)
         RoommateRequestModel::create([
-            'requester_id' => (int)$user['id'],
-            'host_user_id' => $hostId,
+            'requester_id' => (int)$guest['id'],      // người B
+            'host_user_id' => (int)$user['id'],       // người A
             'room_id' => (int)$room['id'],
             'gender' => trim((string)($_POST['gender'] ?? 'other')),
             'relationship' => trim((string)($_POST['relationship'] ?? '')),
+            'status' => 'pending_admin', // chờ admin duyệt
         ]);
+
+        // Thông báo cho admin
+        foreach (UserModel::getAll() as $admin) {
+            if ((int)($admin['role'] ?? 1) === 1) {
+                NotificationModel::create([
+                    'user_id' => (int)$admin['id'],
+                    'type' => 'general',
+                    'title' => 'Yêu cầu ở ghép mới',
+                    'content' => ($user['full_name'] ?? '') . ' mời ' . ($guest['full_name'] ?? '') . ' ở ghép tại phòng ' . ($room['name'] ?? '') . '. Cần admin duyệt.',
+                ]);
+            }
+        }
+
+        // Thông báo cho người B
         NotificationModel::create([
-            'user_id' => $hostId,
+            'user_id' => (int)$guest['id'],
             'type' => 'general',
-            'title' => 'Yêu cầu ở ghép mới',
-            'content' => ($user['full_name'] ?? '') . ' muốn ở ghép cùng bạn tại phòng ' . ($room['name'] ?? '') . '. Vào mục "Ở ghép" để duyệt hoặc từ chối.',
+            'title' => 'Lời mời ở ghép',
+            'content' => ($user['full_name'] ?? '') . ' đã mời bạn ở ghép tại phòng ' . ($room['name'] ?? '') . '. Yêu cầu đang chờ admin duyệt.',
         ]);
-        setFlash('roommate_message', 'Đã gửi yêu cầu ở ghép tới ' . ($host['full_name'] ?? '') . '.');
+
+        setFlash('roommate_message', 'Đã gửi yêu cầu mời ' . ($guest['full_name'] ?? '') . ' ở ghép. Đang chờ admin duyệt.');
         redirectTo('tenant-roommate');
     }
 
-    public function approveRoommate() {
+    /**
+     * Người A hủy yêu cầu mời ở ghép (chỉ khi chưa được duyệt).
+     */
+    public function cancelRoommateRequest() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('tenant-roommate'); }
         verify_csrf();
         $user = $this->getAuthenticatedTenant();
         $requestId = (int)($_POST['request_id'] ?? 0);
         $request = RoommateRequestModel::getById($requestId);
 
-        if (!$request || (int)$request['host_user_id'] !== (int)$user['id'] || (string)$request['status'] !== 'pending') {
-            setFlash('roommate_error', 'Yêu cầu không hợp lệ hoặc đã xử lý.');
-            redirectTo('tenant-roommate');
-        }
-        $requesterId = (int)$request['requester_id'];
-        $roomId = (int)$request['room_id'];
-        $requester = UserModel::getById($requesterId);
-        $room = RoomModel::getById($roomId);
-        if (!$requester || !$room) {
-            setFlash('roommate_error', 'Dữ liệu yêu cầu không còn hợp lệ.');
-            redirectTo('tenant-roommate');
-        }
-        if (!empty($requester['room_id']) || ContractModel::getActiveByUserId($requesterId)) {
-            RoommateRequestModel::setStatus($requestId, 'rejected');
-            setFlash('roommate_error', 'Người này đã có phòng/hợp đồng.');
-            redirectTo('tenant-roommate');
-        }
-        if (RoomModel::countOccupants($roomId) >= max(1, (int)($room['max_occupancy'] ?? 1))) {
-            setFlash('roommate_error', 'Phòng đã đủ người, không thể duyệt.');
+        if (!$request || (int)$request['host_user_id'] !== (int)$user['id'] || (string)$request['status'] !== 'pending_admin') {
+            setFlash('roommate_error', 'Yêu cầu không hợp lệ hoặc đã được xử lý.');
             redirectTo('tenant-roommate');
         }
 
-        try {
-            ContractModel::create([
-                'user_id' => $requesterId,
-                'room_id' => $roomId,
-                'move_in_date' => date('Y-m-d'),
-                'rent_price' => (float)($room['price'] ?? 0),
-                'deposit_amount' => 0,
-                'initial_electricity_index' => null,
-                'initial_water_index' => null,
-                'contract_date' => date('Y-m-d'),
-            ]);
-            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $requesterId]);
-            ContractModel::syncRoomStatus($roomId);
-            RoommateRequestModel::setStatus($requestId, 'approved');
+        RoommateRequestModel::setStatus($requestId, 'cancelled');
+        $guest = UserModel::getById((int)$request['requester_id']);
+        if ($guest) {
             NotificationModel::create([
-                'user_id' => $requesterId,
+                'user_id' => (int)$guest['id'],
                 'type' => 'general',
-                'title' => 'Yêu cầu ở ghép đã được duyệt',
-                'content' => 'Bạn đã được duyệt ở ghép tại phòng ' . ($room['name'] ?? '') . '.',
+                'title' => 'Yêu cầu ở ghép bị hủy',
+                'content' => ($user['full_name'] ?? '') . ' đã hủy lời mời ở ghép.',
             ]);
-            setFlash('roommate_message', 'Đã duyệt ở ghép cho ' . ($requester['full_name'] ?? '') . '.');
-        } catch (Throwable $exception) {
-            setFlash('roommate_error', 'Không duyệt được: ' . $exception->getMessage());
         }
-        redirectTo('tenant-roommate');
-    }
-
-    public function rejectRoommate() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('tenant-roommate'); }
-        verify_csrf();
-        $user = $this->getAuthenticatedTenant();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RoommateRequestModel::getById($requestId);
-        if (!$request || (int)$request['host_user_id'] !== (int)$user['id'] || (string)$request['status'] !== 'pending') {
-            setFlash('roommate_error', 'Yêu cầu không hợp lệ hoặc đã xử lý.');
-            redirectTo('tenant-roommate');
-        }
-        RoommateRequestModel::setStatus($requestId, 'rejected');
-        NotificationModel::create([
-            'user_id' => (int)$request['requester_id'],
-            'type' => 'general',
-            'title' => 'Yêu cầu ở ghép bị từ chối',
-            'content' => 'Yêu cầu ở ghép của bạn đã bị từ chối.',
-        ]);
-        setFlash('roommate_message', 'Đã từ chối yêu cầu ở ghép.');
+        setFlash('roommate_message', 'Đã hủy yêu cầu mời ở ghép.');
         redirectTo('tenant-roommate');
     }
 

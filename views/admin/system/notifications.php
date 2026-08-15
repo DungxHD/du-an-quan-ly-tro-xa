@@ -129,9 +129,28 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </section>
 
         <section class="2xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100">
+            <div class="px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <h3 class="font-bold text-lg">Lịch sử thông báo đã gửi</h3>
                 <p class="text-sm text-gray-500 mt-1">Danh sách này giúp admin tra lại thông báo broadcast, thông báo riêng và các bản tin tự sinh từ đổi giá.</p>
+            </div>
+
+            <div class="px-6 pt-4 pb-3 border-b border-gray-100 overflow-x-auto">
+                <ul class="flex flex-wrap gap-2">
+                    <li>
+                        <a href="<?= BASE_URL ?>?page=admin-notifications"
+                            class="px-4 py-2 rounded-xl text-sm font-semibold <?= empty($selectedNotificationCategory) ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">
+                            Tất cả
+                        </a>
+                    </li>
+                    <?php foreach (($notificationCategories ?? []) as $catKey => $catLabel): ?>
+                    <li>
+                        <a href="<?= BASE_URL ?>?page=admin-notifications&category=<?= e($catKey) ?>"
+                            class="px-4 py-2 rounded-xl text-sm font-semibold <?= (string)$selectedNotificationCategory === (string)$catKey ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">
+                            <?= e($catLabel['label'] ?? '') ?>
+                        </a>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
 
             <?php if (empty($notificationHistory)): ?>

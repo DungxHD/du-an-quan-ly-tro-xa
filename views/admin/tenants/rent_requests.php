@@ -26,8 +26,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <div>
                 <label for="roommate-status" class="block text-sm font-semibold mb-2">Trạng thái ở ghép</label>
                 <select id="roommate-status" name="rstatus" onchange="this.form.submit()" class="w-full sm:w-48 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                    <?php foreach (['pending' => 'Chờ host duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Host từ chối', 'admin_rejected' => 'Admin từ chối'] as $val => $label): ?>
-                    <option value="<?= $val ?>" <?= ($roommateStatusFilter ?? 'pending') === $val ? 'selected' : '' ?>><?= $label ?></option>
+                    <?php foreach (['pending_admin' => 'Chờ admin duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối', 'cancelled' => 'Đã hủy', 'admin_rejected' => 'Admin gỡ bỏ'] as $val => $label): ?>
+                    <option value="<?= $val ?>" <?= ($roommateStatusFilter ?? 'pending_admin') === $val ? 'selected' : '' ?>><?= $label ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -178,11 +178,13 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <?php foreach ($roommateRequests as $rr): ?>
                     <?php
                     $rrId = (int)($rr['id'] ?? 0);
-                    $rrStatus = (string)($rr['status'] ?? 'pending');
+                    $rrStatus = (string)($rr['status'] ?? 'pending_admin');
                     $rrMeta = [
-                        'pending'        => ['label' => 'Chờ host duyệt', 'class' => 'bg-amber-100 text-amber-700'],
+                        'pending_admin'  => ['label' => 'Chờ admin duyệt', 'class' => 'bg-amber-100 text-amber-700'],
+                        'pending'        => ['label' => 'Chờ admin duyệt', 'class' => 'bg-amber-100 text-amber-700'],
                         'approved'       => ['label' => 'Đã duyệt', 'class' => 'bg-green-100 text-green-700'],
-                        'rejected'       => ['label' => 'Host từ chối', 'class' => 'bg-red-100 text-red-700'],
+                        'rejected'       => ['label' => 'Đã từ chối', 'class' => 'bg-red-100 text-red-700'],
+                        'cancelled'      => ['label' => 'Đã hủy', 'class' => 'bg-slate-100 text-slate-700'],
                         'admin_rejected' => ['label' => 'Admin từ chối', 'class' => 'bg-slate-100 text-slate-700'],
                     ];
                     $rmeta = $rrMeta[$rrStatus] ?? ['label' => $rrStatus, 'class' => 'bg-slate-100 text-slate-700'];
@@ -205,20 +207,25 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <span class="px-3 py-1.5 rounded-full text-sm font-semibold <?= $rmeta['class'] ?>"><?= $rmeta['label'] ?></span>
                         </td>
                         <td class="px-6 py-4 align-top">
-                            <?php if ($rrStatus === 'pending' || $rrStatus === 'approved'): ?>
-                            <?php if ($rrStatus === 'approved'): ?>
+                            <?php if ($rrStatus === 'pending_admin' || $rrStatus === 'pending'): ?>
+                            <div class="flex flex-col gap-2">
+                                <form method="POST" action="<?= BASE_URL ?>?page=admin-approve-roommate" class="inline">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="request_id" value="<?= $rrId ?>">
+                                    <button type="submit" class="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition">Duyệt & xếp phòng</button>
+                                </form>
+                                <form method="POST" action="<?= BASE_URL ?>?page=admin-reject-roommate" class="inline" onsubmit="return confirm('Xác nhận từ chối yêu cầu ở ghép này?');">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="request_id" value="<?= $rrId ?>">
+                                    <button type="submit" class="px-3 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition">Từ chối</button>
+                                </form>
+                            </div>
+                            <?php elseif ($rrStatus === 'approved'): ?>
                             <form method="POST" action="<?= BASE_URL ?>?page=admin-veto-roommate" class="inline" onsubmit="return confirm('Xác nhận veto và gỡ người ở ghép khỏi phòng?');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="request_id" value="<?= $rrId ?>">
                                 <button type="submit" class="px-3 py-2 bg-orange-600 text-white rounded-lg font-semibold text-sm hover:bg-orange-700 transition">Veto & gỡ</button>
                             </form>
-                            <?php else: ?>
-                            <form method="POST" action="<?= BASE_URL ?>?page=admin-veto-roommate" class="inline" onsubmit="return confirm('Xác nhận từ chối yêu cầu ở ghép này?');">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="request_id" value="<?= $rrId ?>">
-                                <button type="submit" class="px-3 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition">Từ chối</button>
-                            </form>
-                            <?php endif; ?>
                             <?php else: ?>
                             <span class="text-sm text-gray-400">Đã xử lý</span>
                             <?php endif; ?>

@@ -31,6 +31,11 @@ trait AdminSystemTrait
         ];
         $recentRooms = array_slice($availableRooms, 0, 6);
         $recentTenants = array_slice($tenantRows, 0, 6);
+        $allRooms = RoomModel::getAll();
+        $tenantsWithRooms = array_values(array_filter(
+            $tenantRows,
+            static fn($user) => !empty($user['room_id'])
+        ));
         $settingSections = $this->populateAdminSettingSections();
         $heroImagePreview = $this->getSettingFieldValue($settingSections, 'hero_image');
         $dashboardMessage = pullFlash('admin_dashboard_message');

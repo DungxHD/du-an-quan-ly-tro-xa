@@ -41,11 +41,29 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
     <?php endif; ?>
 
-    <div class="flex justify-end">
+    <div class="flex justify-between items-center gap-4 flex-wrap">
+        <ul class="flex flex-wrap gap-2">
+            <li>
+                <a href="<?= BASE_URL ?>?page=tenant-notifications"
+                    class="px-4 py-2 rounded-xl text-sm font-semibold <?= empty($selectedCategory) ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">
+                    Tất cả
+                </a>
+            </li>
+            <?php foreach (($tenantNotificationCategories ?? []) as $catKey => $catLabel): ?>
+            <li>
+                <a href="<?= BASE_URL ?>?page=tenant-notifications&category=<?= e($catKey) ?>"
+                    class="px-4 py-2 rounded-xl text-sm font-semibold <?= (string)$selectedCategory === (string)$catKey ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">
+                    <?= e($catLabel['label'] ?? '') ?>
+                </a>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+
         <form method="POST" action="<?= BASE_URL ?>?page=tenant-mark-notification-read">
 <?= csrf_field() ?>
             <input type="hidden" name="mark_all" value="1">
             <input type="hidden" name="redirect_page" value="tenant-notifications">
+            <input type="hidden" name="category" value="<?= e($selectedCategory ?? '') ?>">
             <button type="submit" class="px-5 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
                 Đánh dấu tất cả đã đọc
             </button>
