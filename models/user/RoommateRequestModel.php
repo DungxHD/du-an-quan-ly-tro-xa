@@ -85,21 +85,39 @@ class RoommateRequestModel {
     /** Danh sách cho admin theo dõi / duyệt. */
     public static function getAll($filters = []) {
         if (!Database::hasConnection()) { return []; }
-        $sql = 'SELECT * FROM roommate_requests';
+        $sql = "SELECT rr.*,
+                       rq.full_name AS requester_name, rq.email AS requester_email, rq.phone AS requester_phone,
+                       hs.full_name AS host_name, hs.email AS host_email, hs.phone AS host_phone,
+                       rm.name AS room_name
+                FROM roommate_requests rr
+                INNER JOIN users rq ON rq.id = rr.requester_id
+                INNER JOIN users hs ON hs.id = rr.host_user_id
+                INNER JOIN rooms rm ON rm.id = rr.room_id";
         $params = [];
         $conditions = [];
         if (!empty($filters['status'])) {
-            $conditions[] = 'status = ?';
+            $conditions[] = 'rr.status = ?';
             $params[] = $filters['status'];
         }
         if (!empty($filters['room_id'])) {
-            $conditions[] = 'room_id = ?';
+            $conditions[] = 'rr.room_id = ?';
             $params[] = (int)$filters['room_id'];
+        }
+        if (!empty($filters['keyword'])) {
+            $keyword = '%' . $filters['keyword'] . '%';
+            $conditions[] = '(rq.full_name LIKE ? OR rm.name LIKE ? OR rq.email LIKE ? OR rq.phone LIKE ? OR hs.full_name LIKE ? OR hs.email LIKE ? OR hs.phone LIKE ?)';
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
         }
         if ($conditions) {
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         }
-        $sql .= ' ORDER BY id DESC';
+        $sql .= ' ORDER BY rr.id DESC';
         $rows = Database::fetchAll($sql, $params);
         return is_array($rows) ? $rows : [];
     }

@@ -480,6 +480,33 @@ class RoomModel
     }
 
     /**
+     * Tổng số người đang ở (hợp đồng active) trong các phòng đang thuê (status=rented).
+     * Dùng cho dashboard stats "Người thuê" - tính theo số người thực tế chứ không phải distinct user.
+     */
+    public static function countTotalOccupantsInRentedRooms()
+    {
+        if (Database::hasConnection()) {
+            $row = Database::fetchOne(
+                "SELECT COUNT(*) AS total FROM contracts c
+                JOIN rooms r ON c.room_id = r.id
+                WHERE c.status = 'active' AND r.status = 'rented'"
+            );
+            return (int)($row['total'] ?? 0);
+        }
+
+        // Fallback
+        $total = 0;
+        foreach (Database::getTable('contracts') as $contract) {
+            if (($contract['status'] ?? '') !== 'active') continue;
+            $room = Database::find('rooms', (int)($contract['room_id'] ?? 0));
+            if ($room && ($room['status'] ?? '') === 'rented') {
+                $total++;
+            }
+        }
+        return $total;
+    }
+
+    /**
      * Cập nhật nhanh trạng thái phòng cho dropdown thao tác tại danh sách admin.
      */
     public static function updateStatus($id, $status)

@@ -144,13 +144,7 @@ function getPanelNavigation($role, $active = '')
         'admin' => [
             ['id' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=admin'],
             ['id' => 'rent-requests', 'label' => 'Yêu cầu thuê & ở ghép', 'icon' => 'inbox', 'url' => BASE_URL . '?page=admin-rent-requests'],
-            [
-                'id' => 'group-settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune',
-                'children' => [
-                    ['id' => 'settings', 'label' => 'Cấu hình chung', 'icon' => 'settings', 'url' => BASE_URL . '?page=admin-settings'],
-                    ['id' => 'amenities', 'label' => 'Tiện ích', 'icon' => 'apps', 'url' => BASE_URL . '?page=admin-amenities'],
-                ],
-            ],
+            ['id' => 'settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune', 'url' => BASE_URL . '?page=admin-settings'],
             ['id' => 'areas', 'label' => 'Quản lý khu', 'icon' => 'apartment', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
             ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
@@ -293,10 +287,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->rooms();
         break;
-    case 'admin-amenities':
-        requireAdmin();
-        (new AdminController())->amenities();
-        break;
     case 'admin-services':
         requireAdmin();
         (new AdminController())->services();
@@ -328,6 +318,10 @@ switch ($page) {
     case 'admin-delete-amenity':
         requireAdmin();
         (new AdminController())->deleteAmenity($id);
+        break;
+    case 'admin-save-amenity-order':
+        requireAdmin();
+        (new AdminController())->saveAmenityOrder();
         break;
     case 'admin-delete-service':
         requireAdmin();

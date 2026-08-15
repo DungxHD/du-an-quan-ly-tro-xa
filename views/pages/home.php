@@ -145,7 +145,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 <?php endif; ?>
 
 <section class="py-20 bg-surface">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-amenity-dropzone>
         <div class="text-center mb-14 reveal">
             <h2 class="text-4xl md:text-5xl font-bold mb-4">Tiện ích đang có tại <span class="gradient-text" data-cms="site_name"><?= e($siteName) ?></span></h2>
             <p class="text-gray-600 max-w-2xl mx-auto">Danh sách này chỉ hiển thị các tiện ích đang hoạt động để khách xem không bị nhiễu thông tin.</p>
@@ -158,7 +158,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php else: ?>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
                 <?php foreach ($amenities as $item): ?>
-                    <div class="group bg-white p-6 rounded-2xl border border-gray-100 text-center card-hover hover:border-primary/30 transition">
+                    <div class="group bg-white p-6 rounded-2xl border border-gray-100 text-center card-hover hover:border-primary/30 transition" data-amenity-id="<?= (int)($item['id'] ?? 0) ?>">
                         <div class="w-20 h-20 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4 transition group-hover:bg-primary group-hover:text-white">
                             <span class="material-symbols-outlined text-4xl"><?= e($item['icon'] ?? 'apartment') ?></span>
                         </div>

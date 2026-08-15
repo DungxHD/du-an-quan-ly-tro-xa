@@ -4,27 +4,11 @@
 trait AdminModerationTrait
 {
 /**
-     * Quản lý tiện ích landing page, cho phép thêm/sửa/xóa/bật-tắt ngay trên một màn hình.
+     * Quản lý tiện ích đã được gộp vào trang Cấu hình hệ thống (admin-settings).
      */
     public function amenities()
     {
-        $amenities = AmenityModel::getAll();
-        $editId = (int)($_GET['edit'] ?? 0);
-        $editAmenity = $editId > 0 ? AmenityModel::getById($editId) : null;
-        $oldAmenityInput = pullFlash('admin_amenity_old');
-        $formAmenity = is_array($oldAmenityInput) ? $oldAmenityInput : ($editAmenity ?? [
-            'id' => 0,
-            'icon' => 'apartment',
-            'title' => '',
-            'description' => '',
-            'sort_order' => count($amenities) + 1,
-            'is_active' => 1,
-        ]);
-        $amenityIcons = $this->getAmenityIconOptions();
-        $amenityMessage = pullFlash('admin_amenity_message');
-        $amenityError = pullFlash('admin_amenity_error');
-        $pageTitle = 'Quản lý Tiện ích - NhaTroA';
-        require_once BASE_PATH . 'views/admin/content/amenities.php';
+        redirectTo('admin-settings');
     }
 public function services()
     {
@@ -864,7 +848,7 @@ public function deleteService($id)
     public function saveAmenity()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-amenities');
+            redirectTo('admin-settings');
         }
         verify_csrf();
 
@@ -872,26 +856,31 @@ public function deleteService($id)
         $data = $this->normalizeAmenityInput($_POST);
         $iconKeys = $this->getAllowedAmenityIconKeys();
 
+        if ($id <= 0 && count(AmenityModel::getAll()) >= 10) {
+            setFlash('admin_amenity_error', 'Đã đạt giới hạn tối đa 10 tiện ích. Hãy xóa bớt tiện ích cũ trước khi thêm mới.');
+            redirectTo('admin-settings');
+        }
+
         if ($id > 0 && !AmenityModel::getById($id)) {
             setFlash('admin_amenity_error', 'Tiện ích cần cập nhật không tồn tại.');
-            redirectTo('admin-amenities');
+            redirectTo('admin-settings');
         }
 
         if ($data['title'] === '') {
             setFlash('admin_amenity_error', 'Tên tiện ích là bắt buộc.');
             setFlash('admin_amenity_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-amenities', $id > 0 ? ['edit' => $id] : []);
+            redirectTo('admin-settings');
         }
 
         if (!in_array($data['icon'], $iconKeys, true)) {
             setFlash('admin_amenity_error', 'Icon tiện ích không hợp lệ.');
             setFlash('admin_amenity_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-amenities', $id > 0 ? ['edit' => $id] : []);
+            redirectTo('admin-settings');
         }
 
         $savedId = AmenityModel::save($data, $id > 0 ? $id : null);
         setFlash('admin_amenity_message', $id > 0 ? 'Đã cập nhật tiện ích thành công.' : 'Đã thêm tiện ích mới thành công.');
-        redirectTo('admin-amenities', ['edit' => (int)$savedId]);
+        redirectTo('admin-settings');
     }
 /**
      * Xóa một tiện ích khỏi danh sách quản trị.
@@ -899,18 +888,56 @@ public function deleteService($id)
     public function deleteAmenity($id)
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-amenities');
+            redirectTo('admin-settings');
         }
         verify_csrf();
         $amenity = AmenityModel::getById($id);
         if (!$amenity) {
             setFlash('admin_amenity_error', 'Tiện ích không tồn tại hoặc đã bị xóa trước đó.');
-            redirectTo('admin-amenities');
+            redirectTo('admin-settings');
         }
 
         AmenityModel::delete($id);
         setFlash('admin_amenity_message', 'Đã xóa tiện ích thành công.');
-        redirectTo('admin-amenities');
+        redirectTo('admin-settings');
+    }
+
+    /**
+     * Lưu thứ tự mới của danh sách tiện ích sau khi kéo thả sắp xếp.
+     * Nếu có activate_id: bật hiển thị tiện ích đó (kéo từ danh sách vào bản xem trước).
+     */
+    public function saveAmenityOrder()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-settings');
+        }
+        verify_csrf();
+
+        $orderedIds = array_values(array_filter(array_map('intval', explode(',', (string)($_POST['ordered_ids'] ?? '')))));
+        if (!$orderedIds) {
+            setFlash('admin_amenity_error', 'Danh sách thứ tự tiện ích trống.');
+            redirectTo('admin-settings');
+        }
+
+        $activateId = (int)($_POST['activate_id'] ?? 0);
+        $existing = AmenityModel::getAll();
+        $existingIds = array_flip(array_map(static fn($item) => (int)$item['id'], $existing));
+        $nextOrder = 0;
+        $updated = 0;
+        foreach ($orderedIds as $amenityId) {
+            if (!isset($existingIds[$amenityId])) {
+                continue;
+            }
+            Database::update('amenities', ['sort_order' => $nextOrder], 'id = :id', ['id' => $amenityId]);
+            $updated++;
+            $nextOrder++;
+        }
+        if ($activateId > 0 && isset($existingIds[$activateId])) {
+            Database::update('amenities', ['is_active' => 1], 'id = :id', ['id' => $activateId]);
+        }
+
+        setFlash('admin_amenity_message', $updated > 0 ? 'Đã sắp xếp lại tiện ích thành công.' : 'Không có tiện ích nào được sắp xếp.');
+        redirectTo('admin-settings');
     }
 /**
      * Bộ icon Material dùng cố định cho tiện ích để admin chọn nhanh và tránh nhập icon sai.

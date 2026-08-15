@@ -28,18 +28,18 @@ CREATE TABLE IF NOT EXISTS `amenities` (
   `sort_order` int DEFAULT '0',
   `is_active` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.amenities: ~8 rows (approximately)
 INSERT INTO `amenities` (`id`, `icon`, `title`, `description`, `sort_order`, `is_active`) VALUES
-	(1, 'wifi', 'Wifi cáp quang', 'Tốc độ 200Mbps, không gián đoạn, phủ sóng toàn bộ khu trọ', 1, 1),
-	(2, 'security', 'An ninh 24/7', 'Camera giám sát HD, hệ thống vân tay ra vào, bảo vệ trực đêm', 2, 1),
-	(3, 'local_parking', 'Chỗ để xe rộng', 'Bãi xe có mái che, sức chứa 50 xe máy, miễn phí', 3, 1),
+	(1, 'wifi', 'Wifi cáp quang', '', 7, 1),
+	(2, 'security', 'An ninh 24/7', 'Camera giám sát HD, hệ thống vân tay ra vào, bảo vệ trực đêm', 6, 1),
+	(3, 'local_parking', 'Chỗ để xe rộng', 'Bãi xe có mái che, sức chứa 50 xe máy, miễn phí', 5, 1),
 	(4, 'local_laundry_service', 'Máy giặt Free', 'Máy giặt công nghiệp, sử dụng không giới hạn, có máy sấy', 4, 1),
-	(5, 'ac_unit', 'Điều hòa mát lạnh', 'Điều hòa Inverter tiết kiệm điện, bảo trì định kỳ 3 tháng/lần', 5, 1),
-	(6, 'kitchen', 'Bếp chung hiện đại', 'Bếp từ, lò vi sóng, tủ lạnh, đầy đủ dụng cụ nấu nướng', 6, 1),
-	(7, 'elevator', 'Thang máy', 'Thang máy tải trọng 450kg, di chuyển thuận tiện, an toàn', 7, 1),
-	(8, 'water_heater', 'Nóng lạnh 24/7', 'Máy nước nóng năng lượng mặt trời, tiết kiệm điện', 8, 1);
+	(5, 'ac_unit', 'Điều hòa mát lạnh', 'Điều hòa Inverter tiết kiệm điện, bảo trì định kỳ 3 tháng/lần', 3, 1),
+	(6, 'kitchen', 'Bếp chung hiện đại', 'Bếp từ, lò vi sóng, tủ lạnh, đầy đủ dụng cụ nấu nướng', 2, 1),
+	(7, 'elevator', 'Thang máy', 'Thang máy tải trọng 450kg, di chuyển thuận tiện, an toàn', 2, 1),
+	(8, 'water_heater', 'Nóng lạnh 24/7', 'Máy nước nóng năng lượng mặt trời, tiết kiệm điện', 0, 0);
 
 -- Dumping structure for table manage.areas
 CREATE TABLE IF NOT EXISTS `areas` (
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `areas` (
 -- Dumping data for table manage.areas: ~2 rows (approximately)
 INSERT INTO `areas` (`id`, `name`, `address`, `description`, `image`, `created_at`) VALUES
 	(1, 'Khu A - Sinh viên Cao cấp', '123 Đường ABC, Quận 9, TP.HCM', 'Khu cao cấp dành cho sinh viên FPT, an ninh tuyệt đối, đầy đủ tiện nghi, gần trường học và các tiện ích. Có 5 tầng với 15 phòng.', '/.uploads/image_khu_1/khu-20260813-051846-bd5f4c57.jpg', '2026-01-01 01:00:00'),
-	(2, 'Khu B - Tiết kiệm', '125 Đường ABC, Quận 9, TP.HCM', 'Khu nhà trệt giá mềm, phù hợp sinh viên có ngân sách hạn chế. Phòng nằm ngang, thoáng mát, có sân vườn. Có 3 tầng với 12 phòng.', '/.uploads/image_khu_2/khu-20260813-051834-f82edd68.jpg', '2026-01-01 01:00:00');
+	(2, 'Khu B - Tiết kiệm', '125 Đường ABC, Quận 9, TP.HCM', 'Khu nhà giá hợp lý, phòng diện tích vừa phải, có sân để xe và không gian sinh hoạt chung.', '/.uploads/image_khu_2/khu-20260813-051834-f82edd68.jpg', '2026-01-01 01:00:00');
 
 -- Dumping structure for table manage.banned_words
 CREATE TABLE IF NOT EXISTS `banned_words` (
@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS `floors` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã tầng',
   `area_id` int unsigned NOT NULL COMMENT 'FK → areas',
   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `floor_number` int NOT NULL DEFAULT '1' COMMENT '0 = tầng trệt',
+  `floor_number` int NOT NULL DEFAULT '1' COMMENT '0 = Tầng 1',
   `room_limit` int NOT NULL DEFAULT '0' COMMENT 'Giới hạn số phòng (0 = không giới hạn)',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -225,7 +225,7 @@ INSERT INTO `floors` (`id`, `area_id`, `name`, `floor_number`, `room_limit`, `cr
 	(3, 1, 'Tầng 3 Khu A', 3, 0, '2026-01-01 01:00:00'),
 	(4, 1, 'Tầng 4 Khu A', 4, 0, '2026-01-01 01:00:00'),
 	(5, 1, 'Tầng 5 Khu A', 5, 0, '2026-01-01 01:00:00'),
-	(6, 2, 'Tầng trệt Khu B', 0, 0, '2026-01-01 01:00:00'),
+	(6, 2, 'Tầng 1 Khu B', 0, 0, '2026-01-01 01:00:00'),
 	(7, 2, 'Tầng 2 Khu B', 2, 0, '2026-01-01 01:00:00'),
 	(8, 2, 'Tầng 3 Khu B', 3, 0, '2026-01-01 01:00:00');
 
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   PRIMARY KEY (`id`),
   KEY `fk_noti_user` (`user_id`),
   CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=75 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.notifications: ~38 rows (approximately)
 INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`, `is_read`, `created_at`) VALUES
@@ -353,7 +353,13 @@ INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`
 	(71, 3, 'Phản ánh mới từ người thuê', 'Huyền đã gửi phản ánh: ddddd', '?page=admin-feedbacks', 'feedback', 0, '2026-08-15 11:02:25'),
 	(72, 2, 'Phản ánh mới từ người thuê', 'Huyền đã gửi phản ánh: ddddd', '?page=admin-feedbacks', 'feedback', 0, '2026-08-15 11:02:25'),
 	(73, 1, 'Phản ánh mới từ người thuê', 'Huyền đã gửi phản ánh: ddddd', '?page=admin-feedbacks', 'feedback', 0, '2026-08-15 11:02:25'),
-	(74, 83, 'Chủ trọ đã phản hồi phản ánh của bạn', 'Phản ánh "ddddd": OKkkkk', '?page=tenant-feedback', 'feedback', 1, '2026-08-15 11:03:11');
+	(74, 83, 'Chủ trọ đã phản hồi phản ánh của bạn', 'Phản ánh "ddddd": OKkkkk', '?page=tenant-feedback', 'feedback', 1, '2026-08-15 11:03:11'),
+	(75, 4, 'Yêu cầu ở ghép bị từ chối', 'Admin đã từ chối yêu cầu ở ghép của bạn.', '', 'general', 0, '2026-08-15 11:14:55'),
+	(76, 82, 'Yêu cầu mời ở ghép bị từ chối', 'Admin đã từ chối yêu cầu mời ở ghép tại phòng Phòng A501 - Penthouse.', '', 'general', 0, '2026-08-15 11:14:55'),
+	(77, 1, 'Yêu cầu ở ghép mới', 'Lương Văn Dũng mời Trần Văn Bình ở ghép tại phòng Phòng A501 - Penthouse. Cần admin duyệt.', '', 'general', 0, '2026-08-15 11:16:27'),
+	(78, 2, 'Lời mời ở ghép', 'Lương Văn Dũng đã mời bạn ở ghép tại phòng Phòng A501 - Penthouse. Yêu cầu đang chờ admin duyệt.', '', 'general', 0, '2026-08-15 11:16:27'),
+	(79, 2, 'Yêu cầu ở ghép bị từ chối', 'Admin đã từ chối yêu cầu ở ghép của bạn.', '', 'general', 0, '2026-08-15 13:02:40'),
+	(80, 82, 'Yêu cầu mời ở ghép bị từ chối', 'Admin đã từ chối yêu cầu mời ở ghép tại phòng Phòng A501 - Penthouse.', '', 'general', 0, '2026-08-15 13:02:40');
 
 -- Dumping structure for table manage.notification_reads
 CREATE TABLE IF NOT EXISTS `notification_reads` (
@@ -566,13 +572,14 @@ CREATE TABLE IF NOT EXISTS `roommate_requests` (
   CONSTRAINT `fk_rm_host` FOREIGN KEY (`host_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rm_requester` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rm_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.roommate_requests: ~0 rows (approximately)
 INSERT INTO `roommate_requests` (`id`, `requester_id`, `host_user_id`, `room_id`, `gender`, `relationship`, `status`, `created_at`, `updated_at`) VALUES
 	(3, 2, 82, 13, 'male', 'Ai biết', 'rejected', '2026-08-15 08:32:47', '2026-08-15 08:54:40'),
 	(4, 83, 82, 13, 'female', 'Ai biết', 'approved', '2026-08-15 09:03:01', '2026-08-15 09:03:08'),
-	(5, 4, 82, 13, 'other', 'ban be', 'pending_admin', '2026-08-15 10:20:10', '2026-08-15 10:20:10');
+	(5, 4, 82, 13, 'other', 'ban be', 'rejected', '2026-08-15 10:20:10', '2026-08-15 11:14:55'),
+	(6, 2, 82, 13, 'male', 'bạn bè', 'rejected', '2026-08-15 11:16:27', '2026-08-15 13:02:40');
 
 -- Dumping structure for table manage.rooms
 CREATE TABLE IF NOT EXISTS `rooms` (
@@ -614,7 +621,7 @@ INSERT INTO `rooms` (`id`, `floor_id`, `name`, `position`, `price`, `area`, `max
 	(13, 5, 'Phòng A501 - Penthouse', 1, 6500000.00, 40.00, 4, 'Phòng penthouse 40m² trên tầng cao nhất, view toàn cảnh. Thiết kế luxury với nội thất cao cấp: 2 giường đôi, sofa lớn, tủ quần áo walk-in. Sàn gỗ cao cấp, tường ốp đá trang trí. Nhà vệ sinh rộng với bồn tắm và vòi sen riêng. Có máy lạnh, bình nóng lạnh, tủ lạnh, lò vi sóng. Không gian sang trọng, riêng tư.', '["wifi","security","local_parking","local_laundry_service","ac_unit","kitchen","elevator","water_heater"]', '/.uploads/image_phong_3/phong-3-20260813-052016-ea3e3628.jpg', 'rented', 0, NULL, 410, '2026-01-01 01:00:00'),
 	(14, 5, 'Phòng A502 - Studio View', 2, 4800000.00, 30.00, 2, 'Phòng studio 30m² với view đẹp từ tầng 5. Nội thất đầy đủ: giường đôi, tủ, bàn làm việc. Sàn gỗ, tường sơn pastel. Nhà vệ sinh khép kín. Có máy lạnh, bình nóng lạnh. Không gian yên tĩnh, phù hợp làm việc.', '["wifi","security","local_parking","ac_unit","water_heater"]', '/.uploads/image_phong_3/phong-3-20260813-052016-ea3e3628.jpg', 'available', 0, NULL, 201, '2026-01-01 01:00:00'),
 	(15, 5, 'Phòng A503 - Family Plus', 3, 5500000.00, 35.00, 3, 'Phòng gia đình 35m², phù hợp cho 3-4 người. Nội thất: giường đôi + giường đơn, tủ lớn, bàn học. Sàn gỗ cao cấp, tường trang trí. Nhà vệ sinh rộng. Có máy lạnh, bình nóng lạnh, tủ lạnh. Không gian rộng rãi, tiện nghi.', '["wifi","security","local_parking","local_laundry_service","ac_unit","kitchen","water_heater"]', '/.uploads/image_phong_3/phong-3-20260813-052016-ea3e3628.jpg', 'rented', 0, NULL, 278, '2026-01-01 01:00:00'),
-	(16, 6, 'Phòng B001 - Budget', 1, 2500000.00, 18.00, 2, 'Phòng tiết kiệm 18m² ở tầng trệt, giá mềm. Nội thất cơ bản: giường tầng, tủ cá nhân. Sàn gạch men, tường sơn trắng. Nhà vệ sinh khép kín đơn giản. Có quạt trần, ổ cắm. Phù hợp cho sinh viên có ngân sách hạn chế.', '["wifi","security","local_parking"]', '/.uploads/image_phong_3/phong-3-20260813-052016-ea3e3628.jpg', 'available', 0, NULL, 134, '2026-01-01 01:00:00'),
+	(16, 6, 'Phòng B001 - Budget', 1, 2500000.00, 18.00, 2, 'Phòng tiết kiệm 18m² ở Tầng 1, giá mềm. Nội thất cơ bản: giường tầng, tủ cá nhân. Sàn gạch men, tường sơn trắng. Nhà vệ sinh khép kín đơn giản. Có quạt trần, ổ cắm. Phù hợp cho sinh viên có ngân sách hạn chế.', '["wifi","security","local_parking"]', '/.uploads/image_phong_3/phong-3-20260813-052016-ea3e3628.jpg', 'available', 0, NULL, 134, '2026-01-01 01:00:00'),
 	(17, 6, 'Phòng B002 - Economy', 2, 2800000.00, 20.00, 2, 'Phòng economy 20m², thiết kế gọn gàng. Nội thất: giường đôi, tủ nhỏ. Sàn gạch men, tường sơn trắng. Nhà vệ sinh khép kín. Có quạt trần, bình nóng lạnh. Không gian sạch sẽ, thoáng mát.', 'nong_lanh, giuong, ban_ghe, ["wifi", "security", "local_parking", "water_heater"]', '/.uploads/image_phong_17/phong-17-20260813-051949-f66cce68.jpg', 'rented', 0, NULL, 167, '2026-01-01 01:00:00'),
 	(18, 6, 'Phòng B003 - Standard', 3, 3000000.00, 22.00, 2, 'Phòng tiêu chuẩn 22m² với sân nhỏ phía trước. Nội thất: giường đôi, tủ quần áo, bàn học. Sàn gạch men, tường sơn nước. Nhà vệ sinh khép kín. Có quạt trần, bình nóng lạnh. Không gian thoáng đãng, có chỗ phơi đồ.', 'dieu_hoa, nong_lanh, giuong, ban_ghe', '/.uploads/image_phong_18/phong-18-20260813-155542-25b9dccd.jpg', 'available', 0, NULL, 147, '2026-01-01 01:00:00'),
 	(19, 7, 'Phòng B201 - Budget Plus', 1, 2700000.00, 20.00, 2, 'Phòng budget 20m² ở tầng 2. Nội thất cơ bản: giường đôi, tủ nhỏ, bàn học. Sàn gạch men, tường sơn trắng. Nhà vệ sinh khép kín. Có quạt trần, bình nóng lạnh. Không gian yên tĩnh, phù hợp học tập.', '["wifi","security","local_parking","water_heater"]', '/.uploads/image_phong_3/phong-3-20260813-052016-ea3e3628.jpg', 'available', 0, NULL, 125, '2026-01-01 01:00:00'),
@@ -849,6 +856,7 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('hero_headline_2', 'Chọn Chỗ Ở Dễ', 'hero', '2026-08-13 04:41:09'),
 	('hero_image', '/.uploads/image_page_home/home-hero-20260813-155451-f7859cd4.jpg', 'hero', '2026-08-13 15:55:02'),
 	('hero_subheadline', 'Trải nghiệm hệ thống trọ cao cấp dành riêng cho sinh viên FPT và giới trẻ hiện đại.', 'hero', '2026-01-01 01:00:00'),
+	('intro_image', '/.uploads/image_page_home/home-hero-20260815-132750-34d021e3.jpg', 'hero', '2026-08-15 13:28:24'),
 	('max_comment_attempts', '3', 'moderation', '2026-01-01 01:00:00'),
 	('min_days_to_review', '15', 'moderation', '2026-01-01 01:00:00'),
 	('otp_length', '4', 'auth', '2026-08-14 04:34:14'),

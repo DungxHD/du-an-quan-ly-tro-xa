@@ -114,7 +114,7 @@ class FloorModel
         $floorNumber = (int)($data['floor_number'] ?? 1);
         $payload = [
             'area_id'      => (int)($data['area_id'] ?? 0),
-            'name'         => trim((string)($data['name'] ?? '')) ?: ($floorNumber === 0 ? 'Tầng trệt' : 'Tầng ' . $floorNumber),
+            'name'         => trim((string)($data['name'] ?? '')) ?: ($floorNumber === 0 ? 'Tầng 1' : 'Tầng ' . $floorNumber),
             'floor_number' => $floorNumber,
             'room_limit'   => max(0, (int)($data['room_limit'] ?? 0)),
         ];

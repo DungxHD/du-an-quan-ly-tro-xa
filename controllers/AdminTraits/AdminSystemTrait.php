@@ -26,12 +26,36 @@ trait AdminSystemTrait
             'available_rooms' => RoomModel::countByStatus('available'),
             'rented_rooms' => RoomModel::countByStatus('rented'),
             'draft_rooms' => RoomModel::countByStatus('draft'),
-            'total_tenants' => UserModel::countByRole(0),
+            'total_tenants' => RoomModel::countTotalOccupantsInRentedRooms(),
             'total_revenue' => RoomModel::getTotalRevenue(),
         ];
         $recentRooms = array_slice($availableRooms, 0, 6);
         $recentTenants = array_slice($tenantRows, 0, 6);
         $allRooms = RoomModel::getAll();
+
+        // Compute occupants for each rented room
+        $rentedRoomOccupants = [];
+        foreach ($allRooms as $room) {
+            if (($room['status'] ?? '') === 'rented') {
+                $rentedRoomOccupants[$room['id']] = RoomModel::countOccupants($room['id']);
+            }
+        }
+
+        // Danh sách người đang thuê = các hợp đồng active trong phòng đang thuê.
+        // Đếm theo từng người ở (1 hợp đồng = 1 người), không theo distinct user.
+        $rentedRoomIdSet = [];
+        foreach ($allRooms as $room) {
+            if (($room['status'] ?? '') === 'rented') {
+                $rentedRoomIdSet[(int)$room['id']] = true;
+            }
+        }
+        $occupantsList = array_values(array_filter(
+            ContractModel::getAll(['status' => 'active']),
+            static function ($contract) use ($rentedRoomIdSet) {
+                return !empty($contract['room_name']) && isset($rentedRoomIdSet[(int)($contract['room_id'] ?? 0)]);
+            }
+        ));
+
         $tenantsWithRooms = array_values(array_filter(
             $tenantRows,
             static fn($user) => !empty($user['room_id'])
@@ -143,10 +167,16 @@ public function stats()
     }
 /**
      * Trang cấu hình hệ thống: xem trước thu nhỏ website (home + intro) trước khi áp dụng.
+     * Gộp quản lý tiện ích: admin có thể kéo thả sắp xếp tiện ích (tối đa 10) trong bản xem trước.
      */
     public function settingsEditor()
     {
         $settingSections = $this->populateAdminSettingSections();
+        $amenities = AmenityModel::getAll();
+        $amenityIcons = $this->getAmenityIconOptions();
+        $amenityMessage = pullFlash('admin_amenity_message');
+        $amenityError = pullFlash('admin_amenity_error');
+        $amenityOld = pullFlash('admin_amenity_old');
         $dashboardMessage = pullFlash('admin_dashboard_message');
         $dashboardError = pullFlash('admin_dashboard_error');
         $pageTitle = 'Cấu hình hệ thống - NhaTroA';

@@ -214,33 +214,58 @@ trait AdminTenantTrait
         }
     }
 /**
-     * Trang quản lý yêu cầu thuê phòng (hàng đợi pending + lịch sử).
+     * Trang quản lý yêu cầu thuê phòng và ở ghép (hai cột: thuê / ở ghép).
+     * Mỗi cột có button filter: Tất cả, Cần xử lý, Đã duyệt, Từ chối + ô tìm kiếm tên phòng/user/email/phone.
      */
     public function rentRequests()
     {
-        $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
-        $allowedStatuses = ['pending', 'approved', 'rejected', 'cancelled'];
-        if (!in_array($statusFilter, $allowedStatuses, true)) {
-            $statusFilter = 'pending';
+        // ===== CỘT 1: YÊU CẦU THUÊ PHÒNG =====
+        // Button filter: all, pending, approved, rejected
+        $rentFilter = trim((string)($_GET['rent_filter'] ?? 'all'));
+        $rentAllowed = ['all', 'pending', 'approved', 'rejected'];
+        if (!in_array($rentFilter, $rentAllowed, true)) {
+            $rentFilter = 'all';
         }
-        $requests = RentalRequestModel::getAllWithDetails(['status' => $statusFilter]);
+        $rentStatus = $rentFilter === 'all' ? '' : $rentFilter;
+        $rentKeyword = trim((string)($_GET['rent_keyword'] ?? ''));
+        $rentParams = [];
+        if ($rentStatus !== '') {
+            $rentParams['status'] = $rentStatus;
+        }
+        if ($rentKeyword !== '') {
+            $rentParams['keyword'] = $rentKeyword;
+        }
+        $requests = RentalRequestModel::getAllWithDetails($rentParams);
 
-        $roommateStatusFilter = trim((string)($_GET['rstatus'] ?? 'pending_admin'));
-        $allowedRoommateStatuses = ['pending_admin', 'pending', 'approved', 'rejected', 'cancelled', 'admin_rejected'];
-        if (!in_array($roommateStatusFilter, $allowedRoommateStatuses, true)) {
-            $roommateStatusFilter = 'pending_admin';
-        }
-        $roommateRequests = RoommateRequestModel::getAll(['status' => $roommateStatusFilter]);
-        foreach ($roommateRequests as &$row) {
-            $requester = UserModel::getById((int)$row['requester_id']);
-            $host = UserModel::getById((int)$row['host_user_id']);
-            $room = RoomModel::getById((int)$row['room_id']);
-            $row['requester_name'] = (string)($requester['full_name'] ?? '');
-            $row['host_name'] = (string)($host['full_name'] ?? '');
-            $row['room_name'] = (string)($room['name'] ?? '');
-        }
-        unset($row);
+        // Đếm số yêu cầu đang chờ xử lý (pending) cho badge "Cần xử lý"
+        $pendingRentParams = ['status' => 'pending'];
+        $pendingRentAll = RentalRequestModel::getAllWithDetails($pendingRentParams);
+        $pendingRentCount = count($pendingRentAll);
 
+        // ===== CỘT 2: YÊU CẦU Ở GHÉP =====
+        // Button filter: all, pending_admin, approved, rejected
+        $roommateFilter = trim((string)($_GET['roommate_filter'] ?? 'all'));
+        $roommateAllowed = ['all', 'pending_admin', 'approved', 'rejected'];
+        if (!in_array($roommateFilter, $roommateAllowed, true)) {
+            $roommateFilter = 'all';
+        }
+        $roommateStatus = $roommateFilter === 'all' ? '' : $roommateFilter;
+        $roommateKeyword = trim((string)($_GET['roommate_keyword'] ?? ''));
+        $roommateParams = [];
+        if ($roommateStatus !== '') {
+            $roommateParams['status'] = $roommateStatus;
+        }
+        if ($roommateKeyword !== '') {
+            $roommateParams['keyword'] = $roommateKeyword;
+        }
+        $roommateRequests = RoommateRequestModel::getAll($roommateParams);
+
+        // Đếm số yêu cầu ở ghép đang chờ admin duyệt (pending_admin) cho badge "Cần xử lý"
+        $pendingRoommateParams = ['status' => 'pending_admin'];
+        $pendingRoommateAll = RoommateRequestModel::getAll($pendingRoommateParams);
+        $pendingRoommateCount = count($pendingRoommateAll);
+
+        // Flash messages
         $message = pullFlash('rent_request_message', '');
         $error = pullFlash('rent_request_error', '');
         $roommateMessage = pullFlash('roommate_admin_message', '');

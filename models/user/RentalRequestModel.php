@@ -88,6 +88,14 @@ class RentalRequestModel {
             $conditions[] = 'rr.status = ?';
             $params[] = $filters['status'];
         }
+        if (!empty($filters['keyword'])) {
+            $keyword = '%' . $filters['keyword'] . '%';
+            $conditions[] = '(u.full_name LIKE ? OR r.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)';
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
+        }
         if ($conditions) {
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         }
