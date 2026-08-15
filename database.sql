@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS `floors` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã tầng',
   `area_id` int unsigned NOT NULL COMMENT 'FK → areas',
   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `floor_number` int NOT NULL DEFAULT '1' COMMENT '0 = Tầng 1',
+  `floor_number` int NOT NULL DEFAULT '1' COMMENT 'Số tầng: 1 = Tầng 1, 2 = Tầng 2,...'
   `room_limit` int NOT NULL DEFAULT '0' COMMENT 'Giới hạn số phòng (0 = không giới hạn)',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -225,7 +225,7 @@ INSERT INTO `floors` (`id`, `area_id`, `name`, `floor_number`, `room_limit`, `cr
 	(3, 1, 'Tầng 3 Khu A', 3, 0, '2026-01-01 01:00:00'),
 	(4, 1, 'Tầng 4 Khu A', 4, 0, '2026-01-01 01:00:00'),
 	(5, 1, 'Tầng 5 Khu A', 5, 0, '2026-01-01 01:00:00'),
-	(6, 2, 'Tầng 1 Khu B', 0, 0, '2026-01-01 01:00:00'),
+	(6, 2, 'Tầng 1 Khu B', 1, 0, '2026-01-01 01:00:00'),
 	(7, 2, 'Tầng 2 Khu B', 2, 0, '2026-01-01 01:00:00'),
 	(8, 2, 'Tầng 3 Khu B', 3, 0, '2026-01-01 01:00:00');
 

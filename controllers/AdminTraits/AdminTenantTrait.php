@@ -562,4 +562,282 @@ trait AdminTenantTrait
         redirectTo('admin-rent-requests');
     }
 
+    /**
+     * Quản lý tài khoản: admin (không thêm/xóa) + người dùng (tenant/khách vãng lai).
+     * Bộ lọc theo trạng thái thuê phòng, tìm kiếm theo tên, phân trang 10/trang.
+     */
+    public function accounts()
+    {
+        $keyword = trim((string)($_GET['search'] ?? ''));
+        $statusFilter = trim((string)($_GET['status'] ?? 'all'));
+        if (!in_array($statusFilter, ['all', 'renting', 'not_renting'], true)) {
+            $statusFilter = 'all';
+        }
+        $page = max(1, (int)($_GET['p'] ?? 1));
+        $perPage = 10;
+
+        $activeContractByUserId = [];
+        foreach (ContractModel::getAll(['status' => 'active']) as $contract) {
+            $activeContractByUserId[(int)($contract['user_id'] ?? 0)] = $contract;
+        }
+
+        $admins = [];
+        $users = [];
+        foreach (UserModel::getAll() as $userRow) {
+            $isAdmin = (int)($userRow['role'] ?? 0) === 1;
+            $userRow['account_status'] = $isAdmin
+                ? 'admin'
+                : (!empty($activeContractByUserId[(int)($userRow['id'] ?? 0)]) ? 'renting' : 'not_renting');
+            $userRow['active_contract'] = $activeContractByUserId[(int)($userRow['id'] ?? 0)] ?? null;
+            if ($isAdmin) {
+                $admins[] = $userRow;
+            } else {
+                $users[] = $userRow;
+            }
+        }
+        $allUsersStatus = array_map(
+            static fn($userRow) => ['account_status' => (string)($userRow['account_status'] ?? 'not_renting')],
+            $users
+        );
+
+        $filtered = $users;
+        if ($keyword !== '') {
+            $normalizedKeyword = mb_strtolower($keyword);
+            $filtered = array_values(array_filter(
+                $filtered,
+                static fn($userRow) => mb_strpos(mb_strtolower((string)($userRow['full_name'] ?? '')), $normalizedKeyword) !== false
+            ));
+        }
+        if ($statusFilter === 'renting') {
+            $filtered = array_values(array_filter($filtered, static fn($userRow) => ($userRow['account_status'] ?? '') === 'renting'));
+        } elseif ($statusFilter === 'not_renting') {
+            $filtered = array_values(array_filter($filtered, static fn($userRow) => ($userRow['account_status'] ?? '') === 'not_renting'));
+        }
+
+        $totalUsers = count($filtered);
+        $totalPages = max(1, (int)ceil($totalUsers / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+        $pagedUsers = array_slice($filtered, $offset, $perPage);
+
+        $accountMessage = pullFlash('admin_account_message');
+        $accountError = pullFlash('admin_account_error');
+        $oldAccountInput = pullFlash('admin_account_old', []);
+        $accountForm = array_merge([
+            'full_name' => '',
+            'phone' => '',
+            'email' => '',
+        ], is_array($oldAccountInput) ? $oldAccountInput : []);
+
+        $buildAccountPageUrl = static function ($pageNumber, $statusOverride = null) use ($keyword, $statusFilter) {
+            $params = [
+                'page' => 'admin-accounts',
+                'search' => $keyword,
+                'status' => $statusOverride !== null ? $statusOverride : $statusFilter,
+            ];
+            if ($pageNumber > 1) {
+                $params['p'] = $pageNumber;
+            }
+            return BASE_URL . '?' . http_build_query(array_filter($params, static fn($value) => $value !== '' && $value !== null));
+        };
+
+        $pageTitle = 'Quản lý tài khoản - NhaTroA';
+        require_once BASE_PATH . 'views/admin/system/accounts.php';
+    }
+
+    /**
+     * Thêm tài khoản người dùng mới (luôn là tenant/khách vãng lai, không tạo admin).
+     */
+    public function saveAccount()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-accounts');
+        }
+        verify_csrf();
+
+        $payload = [
+            'full_name' => trim((string)($_POST['full_name'] ?? '')),
+            'phone' => trim((string)($_POST['phone'] ?? '')),
+            'email' => mb_strtolower(trim((string)($_POST['email'] ?? ''))),
+            'password' => (string)($_POST['password'] ?? ''),
+        ];
+        setFlash('admin_account_old', $payload);
+
+        if ($payload['full_name'] === '') {
+            setFlash('admin_account_error', 'Tên người dùng là bắt buộc.');
+            redirectTo('admin-accounts');
+        }
+        $normalizedPhone = UserModel::normalizePhone($payload['phone']);
+        if (!$normalizedPhone) {
+            setFlash('admin_account_error', 'Số điện thoại không hợp lệ. Vui lòng nhập số 10 chữ số dạng 0xxxxxxxxx.');
+            redirectTo('admin-accounts');
+        }
+        if (UserModel::phoneExists($normalizedPhone)) {
+            setFlash('admin_account_error', 'Số điện thoại này đã được đăng ký.');
+            redirectTo('admin-accounts');
+        }
+        if (!UserModel::validateEmailStrict($payload['email'])) {
+            setFlash('admin_account_error', 'Email không đúng định dạng.');
+            redirectTo('admin-accounts');
+        }
+        if (UserModel::emailExists($payload['email'])) {
+            setFlash('admin_account_error', 'Email này đã được đăng ký.');
+            redirectTo('admin-accounts');
+        }
+        if (mb_strlen($payload['password']) < 6) {
+            setFlash('admin_account_error', 'Mật khẩu phải có ít nhất 6 ký tự.');
+            redirectTo('admin-accounts');
+        }
+
+        try {
+            UserModel::create([
+                'full_name' => $payload['full_name'],
+                'phone' => $normalizedPhone,
+                'email' => $payload['email'],
+                'password' => $payload['password'],
+                'role' => 0,
+            ]);
+            setFlash('admin_account_message', 'Đã thêm tài khoản "' . e($payload['full_name']) . '" thành công.');
+        } catch (Throwable $exception) {
+            setFlash('admin_account_error', 'Không tạo được tài khoản: ' . $exception->getMessage());
+        }
+        redirectTo('admin-accounts');
+    }
+
+    /**
+     * Xóa tài khoản người dùng. Chặn cứng: admin không xóa được, người đang thuê phòng không xóa được.
+     */
+    public function deleteAccount($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-accounts');
+        }
+        verify_csrf();
+
+        $userId = (int)$id;
+        $user = $userId > 0 ? UserModel::getById($userId) : null;
+        if (!$user) {
+            setFlash('admin_account_error', 'Tài khoản không tồn tại hoặc đã bị xóa.');
+            redirectTo('admin-accounts');
+        }
+        if ((int)($user['role'] ?? 0) === 1) {
+            setFlash('admin_account_error', 'Không thể xóa tài khoản quản trị viên.');
+            redirectTo('admin-accounts');
+        }
+        $activeContract = ContractModel::getActiveByUserId($userId);
+        if ($activeContract) {
+            setFlash('admin_account_error', 'Không thể xóa tài khoản đang thuê phòng "' . e($activeContract['room_name'] ?? '') . '". Hãy kết thúc hợp đồng trước khi xóa.');
+            redirectTo('admin-accounts');
+        }
+
+        $connection = Database::hasConnection() ? Database::getInstance() : null;
+        $useTransaction = $connection instanceof PDO;
+
+        if ($useTransaction) {
+            $connection->beginTransaction();
+        }
+
+        try {
+            Database::query('DELETE FROM payment_items WHERE payment_id IN (SELECT id FROM payments WHERE user_id = ?)', [$userId]);
+            Database::query('DELETE FROM payments WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM notifications WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM notification_reads WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM comments WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM comment_reports WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM comment_moderation WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM feedbacks WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM contracts WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM rental_requests WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM roommate_requests WHERE host_user_id = ?', [$userId]);
+            Database::query('DELETE FROM user_services WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM password_reset_otps WHERE user_id = ?', [$userId]);
+            Database::query('DELETE FROM password_reset_send_attempts WHERE user_id = ?', [$userId]);
+            Database::update('maintenance_requests', ['rejected_by_user_id' => null], 'rejected_by_user_id = :rejected_by_user_id', ['rejected_by_user_id' => $userId]);
+            Database::delete('users', 'id = :id', ['id' => $userId]);
+
+            if ($useTransaction && $connection->inTransaction()) {
+                $connection->commit();
+            }
+            setFlash('admin_account_message', 'Đã xóa tài khoản "' . e($user['full_name'] ?? '') . '" thành công.');
+        } catch (Throwable $exception) {
+            if ($useTransaction && $connection->inTransaction()) {
+                $connection->rollBack();
+            }
+            setFlash('admin_account_error', 'Không xóa được tài khoản: ' . $exception->getMessage());
+        }
+        redirectTo('admin-accounts');
+    }
+
+    /**
+     * Cập nhật tài khoản người dùng (admin có thể đổi mật khẩu không cần mật khẩu cũ/OTP).
+     */
+    public function updateAccount()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-accounts');
+        }
+        verify_csrf();
+
+        $userId = (int)($_POST['id'] ?? 0);
+        $user = $userId > 0 ? UserModel::getById($userId) : null;
+        if (!$user) {
+            setFlash('admin_account_error', 'Tài khoản không tồn tại hoặc đã bị xóa.');
+            redirectTo('admin-accounts');
+        }
+        if ((int)($user['role'] ?? 0) === 1) {
+            setFlash('admin_account_error', 'Không thể sửa tài khoản quản trị viên.');
+            redirectTo('admin-accounts');
+        }
+
+        $payload = [
+            'full_name' => trim((string)($_POST['full_name'] ?? '')),
+            'phone' => trim((string)($_POST['phone'] ?? '')),
+            'email' => mb_strtolower(trim((string)($_POST['email'] ?? ''))),
+            'password' => (string)($_POST['password'] ?? ''),
+        ];
+        setFlash('admin_account_old', array_merge($payload, ['id' => $userId]));
+
+        if ($payload['full_name'] === '') {
+            setFlash('admin_account_error', 'Tên người dùng là bắt buộc.');
+            redirectTo('admin-accounts');
+        }
+        $normalizedPhone = UserModel::normalizePhone($payload['phone']);
+        if (!$normalizedPhone) {
+            setFlash('admin_account_error', 'Số điện thoại không hợp lệ. Vui lòng nhập số 10 chữ số dạng 0xxxxxxxxx.');
+            redirectTo('admin-accounts');
+        }
+        if (UserModel::phoneExists($normalizedPhone) && $normalizedPhone !== ($user['phone'] ?? '')) {
+            setFlash('admin_account_error', 'Số điện thoại này đã được đăng ký.');
+            redirectTo('admin-accounts');
+        }
+        if (!UserModel::validateEmailStrict($payload['email'])) {
+            setFlash('admin_account_error', 'Email không đúng định dạng.');
+            redirectTo('admin-accounts');
+        }
+        if (UserModel::emailExists($payload['email']) && $payload['email'] !== ($user['email'] ?? '')) {
+            setFlash('admin_account_error', 'Email này đã được đăng ký.');
+            redirectTo('admin-accounts');
+        }
+        if ($payload['password'] !== '' && mb_strlen($payload['password']) < 6) {
+            setFlash('admin_account_error', 'Mật khẩu phải có ít nhất 6 ký tự.');
+            redirectTo('admin-accounts');
+        }
+
+        try {
+            $updateData = [
+                'full_name' => $payload['full_name'],
+                'phone' => $normalizedPhone,
+                'email' => $payload['email'],
+            ];
+            if ($payload['password'] !== '') {
+                $updateData['password'] = $payload['password'];
+            }
+            UserModel::update($userId, $updateData);
+            setFlash('admin_account_message', 'Đã cập nhật tài khoản "' . e($payload['full_name']) . '" thành công.');
+        } catch (Throwable $exception) {
+            setFlash('admin_account_error', 'Không cập nhật được tài khoản: ' . $exception->getMessage());
+        }
+        redirectTo('admin-accounts');
+    }
+
 }

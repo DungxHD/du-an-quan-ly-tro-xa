@@ -185,7 +185,7 @@ public function generateInvoice()
         // Params
         $month = (int)($_GET['month'] ?? date('n'));
         $year = (int)($_GET['year'] ?? date('Y'));
-        $page = max(1, (int)($_GET['page'] ?? 1));
+        $page = max(1, (int)($_GET['p'] ?? 1));
         $perPage = 20;
         $search = trim((string)($_GET['search'] ?? ''));
         $areaId = (int)($_GET['area_id'] ?? 0);
@@ -255,15 +255,18 @@ public function generateInvoice()
         $period = MeterReadingModel::normalizePeriod($_POST['month'] ?? null, $_POST['year'] ?? null);
         $submittedReadings = $_POST['readings'] ?? [];
         $saveRoomId = (int)($_POST['save_room_id'] ?? 0);
+        $generateRoomId = (int)($_POST['generate_room_id'] ?? 0);
         $result = MeterReadingModel::saveReadings(
             $period['month'],
             $period['year'],
             is_array($submittedReadings) ? $submittedReadings : [],
-            ['room_id' => $saveRoomId > 0 ? $saveRoomId : null]
+            ['room_id' => $saveRoomId > 0 ? $saveRoomId : ($generateRoomId > 0 ? $generateRoomId : null)]
         );
 
+        $generateRequested = $generateRoomId > 0 && empty($result['errors'][$generateRoomId]);
+
         if (!empty($result['saved_count'])) {
-            $prefix = $saveRoomId > 0 ? 'Đã lưu chỉ số cho dòng phòng đã chọn.' : 'Đã lưu chỉ số thành công.';
+            $prefix = $saveRoomId > 0 || $generateRoomId > 0 ? 'Đã lưu chỉ số cho dòng phòng đã chọn.' : 'Đã lưu chỉ số thành công.';
             $detail = [];
             if (!empty($result['created_count'])) {
                 $detail[] = 'Thêm mới ' . (int)$result['created_count'] . ' dòng';
@@ -275,14 +278,31 @@ public function generateInvoice()
         }
 
         if (!empty($result['form_error']) || !empty($result['errors'])) {
-            $errorMessage = $result['form_error'] ?? 'Một số dòng chưa hợp lệ. Hệ thống đã tô đỏ các ô cần kiểm tra.';
-            if (empty($result['form_error']) && !empty($result['saved_count'])) {
-                $errorMessage = 'Một số dòng chưa hợp lệ. Hệ thống đã lưu phần đúng và giữ lại phần lỗi để bạn sửa tiếp.';
-            }
+            if (!($generateRequested && empty($result['errors']) && empty($result['form_error']))) {
+                $errorMessage = $result['form_error'] ?? 'Một số dòng chưa hợp lệ. Hệ thống đã tô đỏ các ô cần kiểm tra.';
+                if (empty($result['form_error']) && !empty($result['saved_count'])) {
+                    $errorMessage = 'Một số dòng chưa hợp lệ. Hệ thống đã lưu phần đúng và giữ lại phần lỗi để bạn sửa tiếp.';
+                }
 
-            setFlash('admin_meter_error', $errorMessage);
-            setFlash('admin_meter_row_errors', $result['errors']);
-            setFlash('admin_meter_old', is_array($submittedReadings) ? $submittedReadings : []);
+                setFlash('admin_meter_error', $errorMessage);
+                setFlash('admin_meter_row_errors', $result['errors']);
+                setFlash('admin_meter_old', is_array($submittedReadings) ? $submittedReadings : []);
+            }
+        }
+
+        // Tạo hóa đơn ngay cho phòng khi chỉ số đã hợp lệ.
+        if ($generateRequested) {
+            try {
+                $invoiceResult = PaymentModel::generateInvoices($period['month'], $period['year'], $generateRoomId);
+                if (!empty($invoiceResult['created_count'])) {
+                    setFlash('admin_invoice_message', 'Đã tạo hóa đơn cho phòng và gửi thông báo tới cư dân.');
+                } else {
+                    $blockedPreview = !empty($invoiceResult['blocked']) ? ' ' . implode(' || ', array_slice($invoiceResult['blocked'], 0, 3)) : '';
+                    setFlash('admin_invoice_error', 'Chưa tạo được hóa đơn.' . $blockedPreview);
+                }
+            } catch (Throwable $exception) {
+                setFlash('admin_invoice_error', $exception->getMessage());
+            }
         }
 
         // Preserve filter params on redirect

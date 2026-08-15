@@ -68,7 +68,7 @@ if ($room) {
         foreach ($parts as $p) { $p = trim((string)$p); if ($p !== '') $amenityLabels[] = $p; }
     }
     $roomExtra = [
-        'floor_name' => (string)($floorRow['name'] ?? ('Tầng ' . ($room['floor'] ?? ''))),
+        'floor_name' => (string)($floorRow['name'] ?? ((int)($room['floor'] ?? 0) > 0 ? 'Tầng ' . ($room['floor'] ?? '') : 'Tầng 1')),
         'area_name' => (string)($areaRow['name'] ?? ($room['building_name'] ?? '')),
         'occupants' => $occupantsNow,
         'max' => $maxOcc,

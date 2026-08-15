@@ -247,6 +247,20 @@ class PaymentModel {
                     'payment_id' => $paymentId,
                     'room_name' => $roomName,
                 ];
+
+                // Thông báo cho cư dân của phòng để tiến hành thanh toán.
+                try {
+                    NotificationModel::createForRoomUsers([(int)($room['id'] ?? 0)], [
+                        'title' => 'Hóa đơn ' . $period['label'] . ' đã được tạo',
+                        'content' => 'Phòng ' . $roomName . ' có hóa đơn tháng ' . $period['label']
+                            . ' với tổng tiền ' . number_format((float)($preview['total_amount'] ?? 0), 0, ',', '.')
+                            . 'đ. Vui lòng kiểm tra và tiến hành thanh toán.',
+                        'link' => BASE_URL . '?page=tenant-invoice',
+                        'type' => 'payment',
+                    ]);
+                } catch (Throwable $notificationException) {
+                    // Không làm hỏng luồng tạo hóa đơn nếu gửi thông báo thất bại.
+                }
             }
 
             if ($useTransaction) {

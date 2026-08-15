@@ -543,6 +543,12 @@ public function notifications()
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
             redirectTo('admin-services');
         }
+        // Đối tượng áp dụng bị khóa theo cách tính giá: chỉ số → phòng, theo người → người, theo số lượng → phòng.
+        // (Khối locked-kind bên dưới sẽ ép về 'room' cho điện/nước/rác bắt buộc.)
+        $appliesToByBillingMode = ['meter' => 'room', 'per_person' => 'person', 'per_unit' => 'room'];
+        if (isset($appliesToByBillingMode[$data['billing_mode']])) {
+            $data['applies_to'] = $appliesToByBillingMode[$data['billing_mode']];
+        }
         if (ServiceModel::isLockedKind($kind)) {
             $data['applies_to'] = 'room';
             $data['is_required'] = 1;

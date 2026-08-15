@@ -586,7 +586,7 @@ class RoomModel
         $room['area_name'] = $room['area_name'] ?? ($room['building_name'] ?? 'Chưa có khu');
         $room['area_image'] = self::normalizeImageUrl($room['area_image'] ?? '');
         $room['building_name'] = $room['building_name'] ?? $room['area_name'];
-        $room['floor_name'] = $room['floor_name'] ?? ('Tầng ' . $room['floor_number']);
+        $room['floor_name'] = $room['floor_name'] ?? ((int)($room['floor_number'] ?? 0) > 0 ? 'Tầng ' . $room['floor_number'] : 'Tầng 1');
         $room['building_type'] = $room['building_type'] ?? 'area';
         return $room;
     }

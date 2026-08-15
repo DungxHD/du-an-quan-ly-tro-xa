@@ -225,6 +225,7 @@ Dịch vụ sẽ được tắt từ tháng <?= str_pad((string)(int)($item['dea
         <option value="<?= e($opt['value']) ?>" <?= ($formService['applies_to'] ?? 'room') === $opt['value'] ? 'selected' : '' ?>><?= e($opt['label']) ?></option>
         <?php endforeach; ?>
     </select>
+    <p id="applies-lock-note" class="hidden text-xs text-amber-700 mt-1.5 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Đối tượng áp dụng đã khóa theo cách tính giá.</p>
     <p class="text-xs text-gray-500 mt-1"><span class="material-symbols-outlined text-sm align-middle">info</span> "Theo phòng": admin gán cho phòng. "Theo người": cư dân tự đăng ký.</p>
 </div>
 <div id="unit-wrap" class="<?= (($formService['billing_mode'] ?? 'fixed') === 'meter') ? '' : 'hidden' ?>">
@@ -342,6 +343,30 @@ backdrop.addEventListener('click', closeDrawer);
 document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeDrawer(); } });
 var bm = document.getElementById('svc-billing-mode');
 var unitWrap = document.getElementById('unit-wrap');
+var at = document.getElementById('svc-applies-to');
+var atLockNote = document.getElementById('applies-lock-note');
+var appliesToByMode = { meter: 'room', per_person: 'person', per_unit: 'room' };
+var atLocked = false;
+if (bm) {
+    var syncAppliesTo = function() {
+        if (!at || !atLockNote) return;
+        var lockedValue = appliesToByMode[bm.value] || null;
+        if (lockedValue) {
+            at.value = lockedValue;
+            at.disabled = true;
+            atLockNote.classList.remove('hidden');
+            atLockNote.classList.add('flex');
+            atLocked = true;
+        } else {
+            at.disabled = false;
+            atLockNote.classList.add('hidden');
+            atLockNote.classList.remove('flex');
+            atLocked = false;
+        }
+    };
+    bm.addEventListener('change', syncAppliesTo);
+    syncAppliesTo();
+}
 if (bm && unitWrap) { var sync = function(){ unitWrap.classList.toggle('hidden', bm.value !== 'meter'); }; bm.addEventListener('change', sync); sync(); }
 var iconToggle = document.getElementById('icon-picker-toggle');
 var iconPanel = document.getElementById('icon-picker-panel');

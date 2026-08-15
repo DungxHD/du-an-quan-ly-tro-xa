@@ -160,6 +160,7 @@ function getPanelNavigation($role, $active = '')
             ],
 
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=admin-notifications'],
+            ['id' => 'accounts', 'label' => 'Quản lý tài khoản', 'icon' => 'manage_accounts', 'url' => BASE_URL . '?page=admin-accounts'],
         ],
         'tenant' => [
             ['id' => 'dashboard', 'label' => 'Thông tin phòng', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=tenant'],
@@ -470,6 +471,22 @@ switch ($page) {
     case 'admin-send-notification':
         requireAdmin();
         (new AdminController())->sendNotification();
+        break;
+    case 'admin-accounts':
+        requireAdmin();
+        (new AdminController())->accounts();
+        break;
+    case 'admin-save-account':
+        requireAdmin();
+        (new AdminController())->saveAccount();
+        break;
+    case 'admin-update-account':
+        requireAdmin();
+        (new AdminController())->updateAccount();
+        break;
+    case 'admin-delete-account':
+        requireAdmin();
+        (new AdminController())->deleteAccount($id);
         break;
     case 'admin-toggle-comment':
         requireAdmin();

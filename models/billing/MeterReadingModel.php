@@ -596,17 +596,17 @@ class MeterReadingModel {
                 ];
             }
             return [
-                'old_index' => null,
+                'old_index' => 0.0,
                 'source' => 'missing_initial',
-                'note' => null,
-                'error' => 'Tháng đầu chưa có chỉ số đầu kỳ trong hợp đồng. Hãy nhập tay chỉ số cũ ở ô màu vàng.',
+                'note' => 'Chưa có chỉ số đầu kỳ, mặc định bắt đầu từ 0.',
+                'error' => null,
                 'allow_manual_old_index' => true,
             ];
         }
         return [
-            'old_index' => null,
+            'old_index' => 0.0,
             'source' => 'manual_fallback',
-            'note' => 'Không có mốc tự động (tháng trước thiếu chỉ số). Nhập tay chỉ số cũ ở ô màu vàng.',
+            'note' => 'Không có mốc tự động (tháng trước thiếu chỉ số), mặc định bắt đầu từ 0.',
             'error' => null,
             'allow_manual_old_index' => true,
         ];

@@ -29,7 +29,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
 <h2 class="text-3xl font-bold">Hóa đơn</h2>
-    <p class="text-gray-500 mt-2">Nhập chỉ số công tơ cho dịch vụ tính theo chỉ số. Khi tất cả dòng chỉ số trong kỳ đã điền, nút Tạo hóa đơn hàng loạt sẽ kích hoạt.</p>
+    <p class="text-gray-500 mt-2">Nhập chỉ số mới cho dịch vụ tính theo chỉ số (chỉ số cũ mặc định 0, khóa cứng và có thể mở khóa chỉnh sửa). Điền đủ chỉ số cho một phòng sẽ làm sáng nút Tạo hóa đơn của phòng đó.</p>
         </div>
         <form method="GET" action="<?= BASE_URL ?>" class="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-end gap-3 shadow-sm">
             <input type="hidden" name="page" value="admin-meter-readings">
@@ -53,6 +53,39 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     max="2100"
                     value="<?= $yearValue ?>"
                     class="w-full sm:w-36 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
+                >
+            </div>
+            <div>
+                <label for="meter-area-filter" class="block text-sm font-semibold mb-2">Khu</label>
+                <select id="meter-area-filter" name="area_id" class="w-full sm:w-44 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+                    <option value="">Tất cả khu</option>
+                    <?php foreach (($areas ?? []) as $area): ?>
+                    <option value="<?= (int)($area['id'] ?? 0) ?>" <?= (int)($areaId ?? 0) === (int)($area['id'] ?? 0) ? 'selected' : '' ?>>
+                        <?= e($area['name'] ?? '') ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label for="meter-floor-filter" class="block text-sm font-semibold mb-2">Tầng</label>
+                <select id="meter-floor-filter" name="floor_id" class="w-full sm:w-44 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+                    <option value="">Tất cả tầng</option>
+                    <?php foreach (($filterFloors ?? []) as $floor): ?>
+                    <option value="<?= (int)($floor['id'] ?? 0) ?>" <?= (int)($floorId ?? 0) === (int)($floor['id'] ?? 0) ? 'selected' : '' ?>>
+                        <?= e($floor['name'] ?? '') ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label for="meter-search-filter" class="block text-sm font-semibold mb-2">Tìm kiếm</label>
+                <input
+                    id="meter-search-filter"
+                    type="text"
+                    name="search"
+                    value="<?= e(trim((string)($search ?? ''))) ?>"
+                    placeholder="Tên phòng..."
+                    class="w-full sm:w-52 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                 >
             </div>
             <button type="submit" class="px-5 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition">
@@ -119,7 +152,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <div class="px-6 py-4 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
             <div>
                 <h3 class="text-lg font-bold">Bảng nhập liệu tháng <?= e($meterPeriod['label'] ?? '') ?></h3>
-                <p class="text-sm text-gray-500 mt-1">Ô chỉ số cũ luôn readonly. Nếu tháng trước chưa có dữ liệu hoặc hợp đồng thiếu mốc đầu kỳ, hệ thống sẽ khóa lưu đúng ô đó.</p>
+                <p class="text-sm text-gray-500 mt-1">Chỉ số cũ luôn khóa. Bấm "Chỉnh sửa" để mở khóa, sửa xong bấm "Xác nhận" để khóa lại. Khi chưa có mốc chỉ số, hệ thống mặc định bắt đầu từ 0.</p>
             </div>
             <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600">
                 <p class="font-semibold text-slate-900">Mẹo thao tác nhanh</p>
@@ -229,24 +262,25 @@ if ($cell && $rawNewIndex !== null && $cell["old_index"] !== null) {
                             <?php else: ?>
                             <td class="px-4 py-4 align-top border-l border-gray-100">
                                 <div class="space-y-2 min-w-[170px]">
-                                                                        <?php if (!empty($cell['allow_manual_old_index']) && empty($cell['has_reading'])): ?>
-<input
-type="number"
-step="0.01"
-min="0"
-name="readings[<?= $roomId ?>][<?= $serviceId ?>][old_index]"
-value="<?= e(array_key_exists('old_index', $oldInputCell) ? trim((string)$oldInputCell['old_index']) : ($cell['old_index'] ?? '')) ?>"
-placeholder="Nhập chỉ số cũ"
-class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 <?= $cellError !== '' ? 'border-red-300 bg-red-50 focus:ring-red-200' : 'border-amber-300 bg-amber-50 focus:ring-amber-200' ?>"
->
-<?php else: ?>
-<input
-type="text"
-readonly
-value="<?= e($formatIndex($cell['old_index'] ?? 0)) ?>"
-class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-700 font-semibold"
->
-<?php endif; ?>
+                                    <div class="flex gap-2">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            name="readings[<?= $roomId ?>][<?= $serviceId ?>][old_index]"
+                                            value="<?= e(array_key_exists('old_index', $oldInputCell) ? trim((string)$oldInputCell['old_index']) : $formatIndex($cell['old_index'] ?? 0)) ?>"
+                                            readonly
+                                            data-old-index-input="<?= $roomId ?>-<?= $serviceId ?>"
+                                            class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-700 font-semibold outline-none <?= $cellError !== '' ? 'border-red-300 bg-red-50 focus:ring-red-200' : '' ?>"
+                                        >
+                                        <input type="hidden" name="readings[<?= $roomId ?>][<?= $serviceId ?>][old_index_editable]" value="1">
+                                        <button
+                                            type="button"
+                                            data-toggle-old-index="<?= $roomId ?>-<?= $serviceId ?>"
+                                            class="shrink-0 px-3 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-100 transition text-xs whitespace-nowrap"
+                                            title="Mở khóa để chỉnh sửa chỉ số cũ"
+                                        >Chỉnh sửa</button>
+                                    </div>
                                     <?php if (!empty($cell['baseline_note'])): ?>
                                     <p class="text-xs <?= !empty($cell['baseline_error']) ? 'text-red-600' : 'text-gray-500' ?>">
                                         <?= e($cell['baseline_note']) ?>
@@ -267,6 +301,7 @@ class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-
                                         name="readings[<?= $roomId ?>][<?= $serviceId ?>][new_index]"
                                         value="<?= e($displayValue) ?>"
                                         placeholder="Nhập chỉ số mới"
+                                        data-new-index-input="<?= $roomId ?>"
                                         class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 <?= $cellError !== '' ? 'border-red-300 bg-red-50 focus:ring-red-200' : 'border-gray-200 focus:ring-primary' ?>"
                                         <?= !empty($cell['baseline_error']) ? 'disabled' : '' ?>
                                     >
@@ -304,14 +339,30 @@ class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-
                             <?php endforeach; ?>
 
                             <td class="px-4 py-4 align-top">
-                                <button
-                                    type="submit"
-                                    name="save_room_id"
-                                    value="<?= $roomId ?>"
-                                    class="px-4 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition whitespace-nowrap"
-                                >
-                                    Lưu từng dòng
-                                </button>
+                                <div class="flex flex-col gap-2 min-w-[150px]">
+                                    <button
+                                        type="submit"
+                                        name="save_room_id"
+                                        value="<?= $roomId ?>"
+                                        class="px-4 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition whitespace-nowrap"
+                                    >
+                                        Lưu từng dòng
+                                    </button>
+                                    <?php $roomHasInvoice = !empty($row['existing_payment_id']); ?>
+                                    <button
+                                        type="submit"
+                                        name="generate_room_id"
+                                        value="<?= $roomId ?>"
+                                        data-generate-invoice="<?= $roomId ?>"
+                                        data-has-invoice="<?= $roomHasInvoice ? '1' : '0' ?>"
+                                        <?= $roomHasInvoice ? 'disabled' : 'disabled' ?>
+                                        class="px-4 py-3 rounded-xl font-semibold transition whitespace-nowrap inline-flex items-center justify-center gap-1 <?= $roomHasInvoice ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed' ?>"
+                                        title="<?= $roomHasInvoice ? 'Phòng này đã có hóa đơn trong kỳ' : 'Điền đủ chỉ số cho phòng để tạo hóa đơn' ?>"
+                                    >
+                                        <span class="material-symbols-outlined text-base">receipt_long</span>
+                                        Tạo hóa đơn
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -325,6 +376,47 @@ class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-
                 </button>
             </div>
         </form>
+
+        <?php $pagination = $meterData['pagination'] ?? null; ?>
+        <?php if ($pagination && (int)($pagination['total_pages'] ?? 1) > 1): ?>
+        <?php
+        $buildPageUrl = static function (int $pageNumber) use ($monthValue, $yearValue, $search, $areaId, $floorId) {
+            $params = [
+                'page' => 'admin-meter-readings',
+                'month' => $monthValue,
+                'year' => $yearValue,
+                'search' => trim((string)($search ?? '')),
+                'area_id' => (int)($areaId ?? 0) > 0 ? (int)$areaId : '',
+                'floor_id' => (int)($floorId ?? 0) > 0 ? (int)$floorId : '',
+            ];
+            if ($pageNumber > 1) {
+                $params['page'] = 'admin-meter-readings';
+                $params['p'] = $pageNumber;
+            }
+            $params = array_filter($params, static fn($v) => $v !== '' && $v !== null);
+            return BASE_URL . '?' . http_build_query($params);
+        };
+        ?>
+        <div class="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-center gap-2">
+            <?php $currentPage = (int)($pagination['current_page'] ?? 1); ?>
+            <?php $totalPages = (int)($pagination['total_pages'] ?? 1); ?>
+            <?php if ($currentPage > 1): ?>
+            <a href="<?= e($buildPageUrl(1)) ?>" class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition" title="Trang đầu">&laquo;</a>
+            <a href="<?= e($buildPageUrl($currentPage - 1)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition">&lsaquo; Trước</a>
+            <?php endif; ?>
+            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+            <?php if ($i === $currentPage): ?>
+            <span class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold shadow-sm"><?= $i ?></span>
+            <?php else: ?>
+            <a href="<?= e($buildPageUrl($i)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition"><?= $i ?></a>
+            <?php endif; ?>
+            <?php endfor; ?>
+            <?php if ($currentPage < $totalPages): ?>
+            <a href="<?= e($buildPageUrl($currentPage + 1)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition">Sau &rsaquo;</a>
+            <a href="<?= e($buildPageUrl($totalPages)) ?>" class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition" title="Trang cuối">&raquo;</a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
@@ -398,4 +490,93 @@ class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-
 </div>
 <?php endif; ?>
 </div>
+<script>
+(function() {
+    // 1. Khóa / mở khóa chỉ số cũ: mặc định khóa, nút Chỉnh sửa mở khóa, Xác nhận khóa lại.
+    document.querySelectorAll('[data-toggle-old-index]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var key = this.getAttribute('data-toggle-old-index');
+            var input = document.querySelector('[data-old-index-input="' + key + '"]');
+            if (!input) return;
+            var unlocking = input.readOnly;
+            input.readOnly = !unlocking;
+            if (unlocking) {
+                input.classList.remove('bg-gray-100', 'text-gray-700', 'font-semibold');
+                input.classList.add('bg-white', 'text-gray-900', 'border-amber-300');
+                this.textContent = 'Xác nhận';
+                this.classList.add('bg-amber-100', 'border-amber-300', 'text-amber-700');
+                this.removeAttribute('title');
+                input.focus();
+            } else {
+                input.classList.add('bg-gray-100', 'text-gray-700', 'font-semibold');
+                input.classList.remove('bg-white', 'text-gray-900', 'border-amber-300');
+                this.textContent = 'Chỉnh sửa';
+                this.classList.remove('bg-amber-100', 'border-amber-300', 'text-amber-700');
+                this.setAttribute('title', 'Mở khóa để chỉnh sửa chỉ số cũ');
+            }
+        });
+    });
+
+    // 2. Nút "Tạo hóa đơn" chỉ sáng khi phòng đã điền đủ chỉ số mới và chưa có hóa đơn trong kỳ.
+    var generateButtons = Array.prototype.slice.call(document.querySelectorAll('[data-generate-invoice]'));
+    if (generateButtons.length) {
+        function updateGenerateButton(btn, roomId) {
+            if (btn.getAttribute('data-has-invoice') === '1') return;
+            var inputs = document.querySelectorAll('[data-new-index-input="' + roomId + '"]');
+            var allFilled = inputs.length > 0;
+            inputs.forEach(function(inp) {
+                if (inp.value.trim() === '') allFilled = false;
+            });
+            if (allFilled) {
+                btn.disabled = false;
+                btn.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                btn.classList.add('bg-primary', 'text-white', 'hover:bg-opacity-90', 'cursor-pointer');
+                btn.setAttribute('title', 'Điền đủ chỉ số, bấm để tạo hóa đơn cho phòng này');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                btn.classList.remove('bg-primary', 'text-white', 'hover:bg-opacity-90', 'cursor-pointer');
+                btn.setAttribute('title', 'Điền đủ chỉ số cho phòng để tạo hóa đơn');
+            }
+        }
+        var roomIds = [];
+        generateButtons.forEach(function(btn) {
+            var roomId = btn.getAttribute('data-generate-invoice');
+            if (roomIds.indexOf(roomId) === -1) roomIds.push(roomId);
+        });
+        roomIds.forEach(function(roomId) {
+            var btn = document.querySelector('[data-generate-invoice="' + roomId + '"]');
+            if (!btn) return;
+            updateGenerateButton(btn, roomId);
+            document.querySelectorAll('[data-new-index-input="' + roomId + '"]').forEach(function(inp) {
+                inp.addEventListener('input', function() { updateGenerateButton(btn, roomId); });
+                inp.addEventListener('change', function() { updateGenerateButton(btn, roomId); });
+            });
+        });
+    }
+
+    // 3. Chọn khu → cập nhật danh sách tầng tương ứng.
+    var areaSelect = document.getElementById('meter-area-filter');
+    var floorSelect = document.getElementById('meter-floor-filter');
+    if (areaSelect && floorSelect) {
+        var allFloors = <?= json_encode($allFloors ?? [], JSON_UNESCAPED_UNICODE) ?> || [];
+        function renderFloorOptions(areaId, keepSelected) {
+            var current = keepSelected ? floorSelect.value : '';
+            floorSelect.innerHTML = '<option value="">Tất cả tầng</option>';
+            allFloors.forEach(function(floor) {
+                if (areaId !== '' && String(floor.area_id) !== String(areaId)) return;
+                var opt = document.createElement('option');
+                opt.value = String(floor.id);
+                opt.textContent = floor.name || '';
+                if (String(floor.id) === String(current)) opt.selected = true;
+                floorSelect.appendChild(opt);
+            });
+        }
+        areaSelect.addEventListener('change', function() {
+            renderFloorOptions(this.value, false);
+        });
+        renderFloorOptions(areaSelect.value, true);
+    }
+})();
+</script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>
