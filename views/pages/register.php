@@ -51,7 +51,7 @@ $old = $old ?? [];
                     <p id="email_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['email']) ? 'hidden' : '' ?>">
                         <?= e($errors['email'] ?? '') ?>
                     </p>
-                    <p class="field-hint mt-1 text-xs text-gray-500 hidden" id="email_hint">Email không bắt buộc. Nếu nhập, phải đúng định dạng.</p>
+                    <p class="field-hint mt-1 text-xs text-gray-500" id="email_hint">Email không bắt buộc. Nếu nhập, phải đúng định dạng.</p>
                 </div>
 
                 <div class="auth-field">
@@ -71,7 +71,7 @@ $old = $old ?? [];
                     <p id="phone_error" class="field-error mt-2 text-sm text-red-600 <?= empty($errors['phone']) ? 'hidden' : '' ?>">
                         <?= e($errors['phone'] ?? '') ?>
                     </p>
-                    <p class="field-hint mt-1 text-xs text-gray-500 hidden" id="phone_hint">Chỉ số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.</p>
+                    <p class="field-hint mt-1 text-xs text-gray-500" id="phone_hint">Chỉ số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.</p>
                 </div>
 
                 <div class="auth-field">
@@ -256,31 +256,46 @@ $old = $old ?? [];
     input.classList.toggle('bg-red-50', !!message);
   }
 
-  function validateEmailStrict(email) {
+function validateEmailStrict(email) {
     if (!email) return { valid: true }; // Email không bắt buộc
     email = email.trim();
-    if (email.length > 150) return { valid: false, message: 'Email không được vượt quá 150 ký tự.' };
+    if (email.length > 254) return { valid: false, message: 'Email không được vượt quá 254 ký tự.' };
     if (email.split('@').length !== 2) return { valid: false, message: 'Email phải có đúng một dấu @.' };
     if (email.includes(' ')) return { valid: false, message: 'Email không được chứa khoảng trắng.' };
-    
+
     var parts = email.split('@');
     var localPart = parts[0];
     var domain = parts[1];
-    
+
     if (!localPart || !domain) return { valid: false, message: 'Email không hợp lệ.' };
+    
+    // Local-part checks (phần trước @)
+    if (localPart.length > 64) return { valid: false, message: 'Phần trước @ không được vượt quá 64 ký tự.' };
     if (localPart[0] === '.' || localPart[localPart.length - 1] === '.') return { valid: false, message: 'Phần trước @ không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
     if (localPart.includes('..')) return { valid: false, message: 'Phần trước @ không được có hai dấu chấm liên tiếp.' };
-    if (!domain.includes('.')) return { valid: false, message: 'Domain phải có ít nhất một dấu chấm.' };
-    if (domain[0] === '.' || domain[domain.length - 1] === '.') return { valid: false, message: 'Domain không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
-    if (domain.includes('..')) return { valid: false, message: 'Domain không được có hai dấu chấm liên tiếp.' };
-    if (localPart.endsWith('.') || domain.startsWith('.')) return { valid: false, message: 'Không được có dấu chấm ngay trước hoặc sau @.' };
+    if (!/^[A-Za-z0-9._%+-]+$/.test(localPart)) return { valid: false, message: 'Phần trước @ chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, . _ % + -' };
+
+    // Domain checks (phần sau @)
+    if (domain.length > 255) return { valid: false, message: 'Tên miền không được vượt quá 255 ký tự.' };
+    if (!domain.includes('.')) return { valid: false, message: 'Tên miền phải có ít nhất một dấu chấm.' };
+    if (domain[0] === '.' || domain[domain.length - 1] === '.') return { valid: false, message: 'Tên miền không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
+    if (domain.includes('..')) return { valid: false, message: 'Tên miền không được có hai dấu chấm liên tiếp.' };
     
-    var tld = domain.substring(domain.lastIndexOf('.') + 1);
-    if (!/^[a-zA-Z]{2,}$/.test(tld)) return { valid: false, message: 'TLD phải có ít nhất 2 ký tự chữ.' };
+    // Check each domain label (parts separated by dots)
+    var domainLabels = domain.split('.');
+    for (var i = 0; i < domainLabels.length; i++) {
+        var label = domainLabels[i];
+        if (!label) return { valid: false, message: 'Tên miền có nhãn rỗng.' };
+        if (label.length > 63) return { valid: false, message: 'Nhãn tên miền không được vượt quá 63 ký tự.' };
+        if (label[0] === '-' || label[label.length - 1] === '-') return { valid: false, message: 'Nhãn tên miền không được bắt đầu hoặc kết thúc bằng dấu gạch ngang.' };
+        if (!/^[A-Za-z0-9-]+$/.test(label)) return { valid: false, message: 'Tên miền chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, dấu gạch ngang.' };
+    }
+    
+    // TLD check (last label)
+    var tld = domainLabels[domainLabels.length - 1];
+    if (!/^[a-zA-Z]{2,63}$/.test(tld)) return { valid: false, message: 'Đuôi tên miền (TLD) phải từ 2-63 ký tự chữ.' };
     if (domain.toLowerCase() === 'localhost') return { valid: false, message: 'Không chấp nhận localhost.' };
-    if (!/^[A-Za-z0-9._%+-]+$/.test(localPart)) return { valid: false, message: 'Phần trước @ chứa ký tự không hợp lệ.' };
-    if (!/^[A-Za-z0-9.-]+$/.test(domain)) return { valid: false, message: 'Domain chứa ký tự không hợp lệ.' };
-    
+
     return { valid: true };
   }
 
@@ -428,7 +443,29 @@ $old = $old ?? [];
       } else {
         var normalized = normalizePhoneInput(input.value);
         if (!normalized) {
-          setFieldError(input, 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.');
+          // More specific error messages
+          var raw = input.value.trim();
+          if (!/^[0-9\s+]+$/.test(raw)) {
+            setFieldError(input, 'Số điện thoại chỉ được chứa số, khoảng trắng và dấu +.');
+          } else if (raw.startsWith('+') && raw.indexOf('+') !== 0) {
+            setFieldError(input, 'Dấu + chỉ được phép ở đầu số.');
+          } else if (raw.startsWith('+84')) {
+            var suffix = raw.substring(3);
+            if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+              setFieldError(input, 'Số điện thoại +84 không hợp lệ. Phải có 9 số sau +84 và số đầu không được là 0.');
+            }
+          } else if (raw.startsWith('84') && !raw.startsWith('+')) {
+            var suffix = raw.substring(2);
+            if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+              setFieldError(input, 'Số điện thoại 84 không hợp lệ. Phải có 9 số sau 84 và số đầu không được là 0.');
+            }
+          } else if (raw.startsWith('0')) {
+            if (raw.length !== 10 || !/^\d+$/.test(raw)) {
+              setFieldError(input, 'Số điện thoại 0xxxxxxxxx phải có đúng 10 chữ số.');
+            }
+          } else {
+            setFieldError(input, 'Số điện thoại phải bắt đầu bằng 0, +84 hoặc 84.');
+          }
         } else {
           setFieldError(input, '');
         }

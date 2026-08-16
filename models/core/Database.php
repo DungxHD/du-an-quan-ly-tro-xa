@@ -1,10 +1,12 @@
 <?php
+
 /**
  * Lớp truy cập dữ liệu:
  * - Ưu tiên kết nối MySQL thật khi có sẵn.
  * - Nếu thiếu DB, toàn hệ thống vẫn chạy bằng bộ dữ liệu fallback trong bộ nhớ.
  */
-class Database {
+class Database
+{
     private static $instance = null;
     private static $fallbackData = null;
     private static $lastInsertIds = [];
@@ -15,10 +17,11 @@ class Database {
 
     private $host = 'localhost';
     private $db_name = 'manage';
-    private $username = 'root';
-    private $password = '';
+    private $username = 'xqppuafuhosting_duanmau';
+    private $password = 'LuongVanDung@2k7';
 
-    private function __construct() {
+    private function __construct()
+    {
         $this->bootConnection();
         self::bootFallbackData();
     }
@@ -26,7 +29,8 @@ class Database {
     /**
      * Thử kết nối DB thật. Nếu thất bại chỉ ghi nhận lỗi, không dừng ứng dụng.
      */
-    private function bootConnection() {
+    private function bootConnection()
+    {
         try {
             $this->conn = new PDO(
                 "mysql:host={$this->host};dbname={$this->db_name};charset=utf8mb4",
@@ -46,26 +50,31 @@ class Database {
         }
     }
 
-    private static function instance() {
+    private static function instance()
+    {
         if (self::$instance === null) {
             self::$instance = new self();
         }
         return self::$instance;
     }
 
-    public static function getInstance() {
+    public static function getInstance()
+    {
         return self::instance()->conn;
     }
 
-    public static function hasConnection() {
+    public static function hasConnection()
+    {
         return self::instance()->connected;
     }
 
-    public static function getConnectionError() {
+    public static function getConnectionError()
+    {
         return self::instance()->connectionError;
     }
 
-    public static function query($sql, $params = []) {
+    public static function query($sql, $params = [])
+    {
         if (!self::hasConnection()) {
             return new DatabaseArrayStatement();
         }
@@ -84,14 +93,16 @@ class Database {
         }
     }
 
-    public static function fetchAll($sql, $params = []) {
+    public static function fetchAll($sql, $params = [])
+    {
         if (!self::hasConnection()) {
             return [];
         }
         return self::query($sql, $params)->fetchAll();
     }
 
-    public static function fetchOne($sql, $params = []) {
+    public static function fetchOne($sql, $params = [])
+    {
         if (!self::hasConnection()) {
             return null;
         }
@@ -102,17 +113,20 @@ class Database {
     /**
      * Lấy toàn bộ dữ liệu của một bảng từ lớp fallback.
      */
-    public static function getTable($table) {
+    public static function getTable($table)
+    {
         self::bootFallbackData();
         return self::$fallbackData[$table] ?? [];
     }
 
-    public static function setTable($table, $rows) {
+    public static function setTable($table, $rows)
+    {
         self::bootFallbackData();
         self::$fallbackData[$table] = array_values($rows);
     }
 
-    public static function find($table, $id) {
+    public static function find($table, $id)
+    {
         foreach (self::getTable($table) as $row) {
             if ((int)($row['id'] ?? 0) === (int)$id) {
                 return $row;
@@ -124,7 +138,8 @@ class Database {
     /**
      * Ghi/upsert một setting để cả DB thật và fallback cùng hành xử giống nhau.
      */
-    public static function saveSetting($key, $value, $group = null) {
+    public static function saveSetting($key, $value, $group = null)
+    {
         if (self::hasConnection()) {
             if ($group === null) {
                 self::query(
@@ -170,7 +185,8 @@ class Database {
         return true;
     }
 
-    public static function insert($table, $data) {
+    public static function insert($table, $data)
+    {
         if (self::hasConnection()) {
             $columns = array_keys($data);
             $placeholders = array_map(static fn($column) => ':' . $column, $columns);
@@ -199,7 +215,8 @@ class Database {
         return $newRow['id'];
     }
 
-    public static function update($table, $data, $where, $params = []) {
+    public static function update($table, $data, $where, $params = [])
+    {
         if (self::hasConnection()) {
             $setFragments = [];
             foreach (array_keys($data) as $column) {
@@ -232,7 +249,8 @@ class Database {
         return true;
     }
 
-    public static function delete($table, $where, $params = []) {
+    public static function delete($table, $where, $params = [])
+    {
         if (self::hasConnection()) {
             $stmt = self::getInstance()->prepare(sprintf('DELETE FROM %s WHERE %s', $table, $where));
             return $stmt->execute($params);
@@ -246,7 +264,8 @@ class Database {
         return true;
     }
 
-    private static function bootFallbackData() {
+    private static function bootFallbackData()
+    {
         if (self::$fallbackData !== null) {
             return;
         }
@@ -415,13 +434,15 @@ class Database {
         }
     }
 
-    private static function nextId($table) {
+    private static function nextId($table)
+    {
         self::bootFallbackData();
         self::$lastInsertIds[$table] = (self::$lastInsertIds[$table] ?? 0) + 1;
         return self::$lastInsertIds[$table];
     }
 
-    private static function matchesWhere($row, $where, $params) {
+    private static function matchesWhere($row, $where, $params)
+    {
         $clauses = preg_split('/\s+AND\s+/i', trim($where));
         $positionalIndex = 0;
 
@@ -452,7 +473,8 @@ class Database {
         return true;
     }
 
-    private static function guessSettingGroup($key) {
+    private static function guessSettingGroup($key)
+    {
         if (str_starts_with($key, 'contact_')) {
             return 'contact';
         }
@@ -481,12 +503,15 @@ class Database {
 /**
  * Statement rỗng dùng khi hệ thống ở chế độ fallback để tránh fatal error.
  */
-class DatabaseArrayStatement {
-    public function fetchAll() {
+class DatabaseArrayStatement
+{
+    public function fetchAll()
+    {
         return [];
     }
 
-    public function fetch() {
+    public function fetch()
+    {
         return false;
     }
 }

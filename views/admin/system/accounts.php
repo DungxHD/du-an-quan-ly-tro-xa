@@ -174,16 +174,36 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <button type="button" id="account-drawer-close" class="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center" aria-label="Đóng form"><span class="material-symbols-outlined">close</span></button>
 </div>
 <p class="text-sm text-gray-500 -mt-3">Tài khoản tạo ra là người dùng thường (người thuê / khách vãng lai). Không thể tạo thêm tài khoản quản trị.</p>
-<form method="POST" action="<?= BASE_URL ?>?page=admin-save-account" class="space-y-4">
+<form method="POST" action="<?= BASE_URL ?>?page=admin-save-account" class="space-y-4" data-admin-add-form novalidate>
 <?= csrf_field() ?>
-<div><label class="block text-sm font-semibold mb-2">Họ và tên *</label>
-<input type="text" name="full_name" required value="<?= e($accountForm['full_name'] ?? '') ?>" placeholder="Ví dụ: Nguyễn Văn A" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
-<div><label class="block text-sm font-semibold mb-2">Số điện thoại *</label>
-<input type="tel" name="phone" required value="<?= e($accountForm['phone'] ?? '') ?>" placeholder="0xxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
-<div><label class="block text-sm font-semibold mb-2">Email *</label>
-<input type="email" name="email" required value="<?= e($accountForm['email'] ?? '') ?>" placeholder="example@email.com" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
-<div><label class="block text-sm font-semibold mb-2">Mật khẩu *</label>
-<input type="password" name="password" required minlength="6" placeholder="Ít nhất 6 ký tự" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
+<div class="admin-field">
+    <label for="add_full_name" class="block text-sm font-semibold mb-2">Họ và tên <span class="text-red-500">*</span></label>
+    <input type="text" name="full_name" id="add_full_name" required value="<?= e($accountForm['full_name'] ?? '') ?>" placeholder="Ví dụ: Nguyễn Văn A" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="add_full_name_error">
+    <p id="add_full_name_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+</div>
+<div class="admin-field">
+    <label for="add_phone" class="block text-sm font-semibold mb-2">Số điện thoại <span class="text-red-500">*</span></label>
+    <input type="tel" name="phone" id="add_phone" required value="<?= e($accountForm['phone'] ?? '') ?>" placeholder="0xxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="add_phone_error" inputmode="tel" autocomplete="tel">
+    <p id="add_phone_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+    <p class="field-hint mt-1 text-xs text-gray-500">Chỉ số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.</p>
+</div>
+<div class="admin-field">
+    <label for="add_email" class="block text-sm font-semibold mb-2">Email (Không bắt buộc)</label>
+    <input type="email" name="email" id="add_email" value="<?= e($accountForm['email'] ?? '') ?>" placeholder="example@email.com" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="add_email_error">
+    <p id="add_email_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+    <p class="field-hint mt-1 text-xs text-gray-500">Email không bắt buộc. Nếu nhập, phải đúng định dạng.</p>
+</div>
+<div class="admin-field">
+    <label for="add_password" class="block text-sm font-semibold mb-2">Mật khẩu <span class="text-red-500">*</span></label>
+    <div class="relative">
+        <input type="password" name="password" id="add_password" required minlength="6" placeholder="Ít nhất 6 ký tự" class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="add_password_error">
+        <button type="button" class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded transition-colors" aria-label="Hiện mật khẩu" aria-pressed="false">
+            <svg class="icon-eye w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="icon-eye-off hidden w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.6 6.6C3.6 8.3 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M14.12 14.12A3 3 0 1 1 9.9 9.9"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+        </button>
+    </div>
+    <p id="add_password_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+</div>
 <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">Thêm tài khoản</button>
 </form>
 </div>
@@ -198,17 +218,37 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <button type="button" id="account-edit-drawer-close" class="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center" aria-label="Đóng form"><span class="material-symbols-outlined">close</span></button>
 </div>
 <p class="text-sm text-gray-500 -mt-3">Admin có thể đổi mật khẩu người dùng mà không cần mật khẩu cũ hoặc xác thực OTP.</p>
-<form method="POST" action="<?= BASE_URL ?>?page=admin-update-account" class="space-y-4">
+<form method="POST" action="<?= BASE_URL ?>?page=admin-update-account" class="space-y-4" data-admin-edit-form novalidate>
 <?= csrf_field() ?>
 <input type="hidden" name="id" id="edit-account-id">
-<div><label class="block text-sm font-semibold mb-2">Họ và tên *</label>
-<input type="text" name="full_name" id="edit-full_name" required placeholder="Ví dụ: Nguyễn Văn A" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
-<div><label class="block text-sm font-semibold mb-2">Số điện thoại *</label>
-<input type="tel" name="phone" id="edit-phone" required placeholder="0xxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
-<div><label class="block text-sm font-semibold mb-2">Email *</label>
-<input type="email" name="email" id="edit-email" required placeholder="example@email.com" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
-<div><label class="block text-sm font-semibold mb-2">Mật khẩu mới (để trống nếu không đổi)</label>
-<input type="password" name="password" id="edit-password" minlength="6" placeholder="Ít nhất 6 ký tự" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
+<div class="admin-field">
+    <label for="edit-full_name" class="block text-sm font-semibold mb-2">Họ và tên <span class="text-red-500">*</span></label>
+    <input type="text" name="full_name" id="edit-full_name" required placeholder="Ví dụ: Nguyễn Văn A" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="edit_full_name_error">
+    <p id="edit_full_name_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+</div>
+<div class="admin-field">
+    <label for="edit-phone" class="block text-sm font-semibold mb-2">Số điện thoại <span class="text-red-500">*</span></label>
+    <input type="tel" name="phone" id="edit-phone" required placeholder="0xxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="edit_phone_error" inputmode="tel" autocomplete="tel">
+    <p id="edit_phone_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+    <p class="field-hint mt-1 text-xs text-gray-500">Chỉ số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.</p>
+</div>
+<div class="admin-field">
+    <label for="edit-email" class="block text-sm font-semibold mb-2">Email (Không bắt buộc)</label>
+    <input type="email" name="email" id="edit-email" placeholder="example@email.com" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="edit_email_error">
+    <p id="edit_email_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+    <p class="field-hint mt-1 text-xs text-gray-500">Email không bắt buộc. Nếu nhập, phải đúng định dạng.</p>
+</div>
+<div class="admin-field">
+    <label for="edit-password" class="block text-sm font-semibold mb-2">Mật khẩu mới (để trống nếu không đổi)</label>
+    <div class="relative">
+        <input type="password" name="password" id="edit-password" minlength="6" placeholder="Ít nhất 6 ký tự" class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none transition" aria-describedby="edit_password_error">
+        <button type="button" class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded transition-colors" aria-label="Hiện mật khẩu" aria-pressed="false">
+            <svg class="icon-eye w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="icon-eye-off hidden w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.6 6.6C3.6 8.3 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M14.12 14.12A3 3 0 1 1 9.9 9.9"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+        </button>
+    </div>
+    <p id="edit_password_error" class="field-error mt-2 text-sm text-red-600 hidden"></p>
+</div>
 <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">Cập nhật</button>
 </form>
 </div>
@@ -259,6 +299,513 @@ if (editDrawer && editBackdrop) {
     });
 }
 <?php if (!empty($accountError) && !empty($oldAccountInput['id'])): ?>openEditDrawer(<?= json_encode($oldAccountInput, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>);<?php endif; ?>
+
+// Admin Add User Form Validation
+(function() {
+    var form = document.querySelector('[data-admin-add-form]');
+    if (!form) return;
+
+    var fullNameInput = document.getElementById('add_full_name');
+    var phoneInput = document.getElementById('add_phone');
+    var emailInput = document.getElementById('add_email');
+    var passwordInput = document.getElementById('add_password');
+
+    function setFieldError(input, message) {
+        if (!input) return;
+        var box = document.getElementById(input.id + '_error');
+        if (!box) return;
+
+        box.textContent = message;
+        box.classList.toggle('hidden', !message);
+        input.classList.toggle('border-red-300', !!message);
+        input.classList.toggle('bg-red-50', !!message);
+    }
+
+    function validateEmailStrict(email) {
+        if (!email) return { valid: true };
+        email = email.trim();
+        if (email.length > 254) return { valid: false, message: 'Email không được vượt quá 254 ký tự.' };
+        if (email.split('@').length !== 2) return { valid: false, message: 'Email phải có đúng một dấu @.' };
+        if (email.includes(' ')) return { valid: false, message: 'Email không được chứa khoảng trắng.' };
+
+        var parts = email.split('@');
+        var localPart = parts[0];
+        var domain = parts[1];
+
+        if (!localPart || !domain) return { valid: false, message: 'Email không hợp lệ.' };
+        
+        // Local-part checks (phần trước @)
+        if (localPart.length > 64) return { valid: false, message: 'Phần trước @ không được vượt quá 64 ký tự.' };
+        if (localPart[0] === '.' || localPart[localPart.length - 1] === '.') return { valid: false, message: 'Phần trước @ không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
+        if (localPart.includes('..')) return { valid: false, message: 'Phần trước @ không được có hai dấu chấm liên tiếp.' };
+        if (!/^[A-Za-z0-9._%+-]+$/.test(localPart)) return { valid: false, message: 'Phần trước @ chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, . _ % + -' };
+
+        // Domain checks (phần sau @)
+        if (domain.length > 255) return { valid: false, message: 'Tên miền không được vượt quá 255 ký tự.' };
+        if (!domain.includes('.')) return { valid: false, message: 'Tên miền phải có ít nhất một dấu chấm.' };
+        if (domain[0] === '.' || domain[domain.length - 1] === '.') return { valid: false, message: 'Tên miền không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
+        if (domain.includes('..')) return { valid: false, message: 'Tên miền không được có hai dấu chấm liên tiếp.' };
+        
+        // Check each domain label (parts separated by dots)
+        var domainLabels = domain.split('.');
+        for (var i = 0; i < domainLabels.length; i++) {
+            var label = domainLabels[i];
+            if (!label) return { valid: false, message: 'Tên miền có nhãn rỗng.' };
+            if (label.length > 63) return { valid: false, message: 'Nhãn tên miền không được vượt quá 63 ký tự.' };
+            if (label[0] === '-' || label[label.length - 1] === '-') return { valid: false, message: 'Nhãn tên miền không được bắt đầu hoặc kết thúc bằng dấu gạch ngang.' };
+            if (!/^[A-Za-z0-9-]+$/.test(label)) return { valid: false, message: 'Tên miền chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, dấu gạch ngang.' };
+        }
+        
+        // TLD check (last label)
+        var tld = domainLabels[domainLabels.length - 1];
+        if (!/^[a-zA-Z]{2,63}$/.test(tld)) return { valid: false, message: 'Đuôi tên miền (TLD) phải từ 2-63 ký tự chữ.' };
+        if (domain.toLowerCase() === 'localhost') return { valid: false, message: 'Không chấp nhận localhost.' };
+
+        return { valid: true };
+    }
+
+    function normalizePhoneInput(rawPhone) {
+        if (!rawPhone) return null;
+        var phone = rawPhone.replace(/\s+/g, '');
+        if (!/^[0-9+]+$/.test(phone)) return null;
+        var plusPos = phone.indexOf('+');
+        if (plusPos !== -1 && plusPos !== 0) return null;
+
+        if (phone.startsWith('+84')) {
+            var suffix = phone.substring(3);
+            if (suffix.length !== 9 || !/^\d+$/.test(suffix)) return null;
+            if (suffix[0] === '0') return null;
+            return '0' + suffix;
+        }
+
+        if (phone.startsWith('84') && !phone.startsWith('+')) {
+            var suffix = phone.substring(2);
+            if (suffix.length !== 9 || !/^\d+$/.test(suffix)) return null;
+            if (suffix[0] === '0') return null;
+            return '0' + suffix;
+        }
+
+        if (phone.startsWith('0')) {
+            if (phone.length !== 10 || !/^\d+$/.test(phone)) return null;
+            return phone;
+        }
+
+        return null;
+    }
+
+    function validateField(input) {
+        if (!input) return;
+
+        if (input.id === 'add_full_name') {
+            if (!input.value.trim()) {
+                setFieldError(input, 'Vui lòng nhập họ và tên.');
+            } else if (input.value.length > 100) {
+                setFieldError(input, 'Họ và tên không được vượt quá 100 ký tự.');
+            } else {
+                setFieldError(input, '');
+            }
+        } else if (input.id === 'add_email') {
+            if (input.value.trim()) {
+                var result = validateEmailStrict(input.value);
+                setFieldError(input, result.valid ? '' : result.message);
+            } else {
+                setFieldError(input, '');
+            }
+        } else if (input.id === 'add_phone') {
+            if (!input.value.trim()) {
+                setFieldError(input, 'Vui lòng nhập số điện thoại.');
+            } else {
+                var normalized = normalizePhoneInput(input.value);
+                if (!normalized) {
+                    var raw = input.value.trim();
+                    if (!/^[0-9\s+]+$/.test(raw)) {
+                        setFieldError(input, 'Số điện thoại chỉ được chứa số, khoảng trắng và dấu +.');
+                    } else if (raw.startsWith('+') && raw.indexOf('+') !== 0) {
+                        setFieldError(input, 'Dấu + chỉ được phép ở đầu số.');
+                    } else if (raw.startsWith('+84')) {
+                        var suffix = raw.substring(3);
+                        if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                            setFieldError(input, 'Số điện thoại +84 không hợp lệ. Phải có 9 số sau +84 và số đầu không được là 0.');
+                        }
+                    } else if (raw.startsWith('84') && !raw.startsWith('+')) {
+                        var suffix = raw.substring(2);
+                        if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                            setFieldError(input, 'Số điện thoại 84 không hợp lệ. Phải có 9 số sau 84 và số đầu không được là 0.');
+                        }
+                    } else if (raw.startsWith('0')) {
+                        if (raw.length !== 10 || !/^\d+$/.test(raw)) {
+                            setFieldError(input, 'Số điện thoại 0xxxxxxxxx phải có đúng 10 chữ số.');
+                        }
+                    } else {
+                        setFieldError(input, 'Số điện thoại phải bắt đầu bằng 0, +84 hoặc 84.');
+                    }
+                } else {
+                    setFieldError(input, '');
+                }
+            }
+        } else if (input.id === 'add_password') {
+            if (!input.value) {
+                setFieldError(input, 'Vui lòng nhập mật khẩu.');
+            } else if (input.value.length < 6) {
+                setFieldError(input, 'Mật khẩu phải có ít nhất 6 ký tự.');
+            } else {
+                setFieldError(input, '');
+            }
+        }
+    }
+
+    // Input event listeners for real-time validation with debounce
+    [fullNameInput, emailInput, phoneInput, passwordInput].forEach(function(input) {
+        if (input) {
+            var debounceTimer;
+            input.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    validateField(input);
+                }, 500);
+            });
+            input.addEventListener('blur', function() {
+                clearTimeout(debounceTimer);
+                validateField(input);
+            });
+        }
+    });
+
+    // Toggle password visibility
+    var toggleBtn = form.querySelector('.toggle-password');
+    if (toggleBtn && passwordInput) {
+        toggleBtn.addEventListener('click', function() {
+            var wasHidden = passwordInput.type === 'password';
+            passwordInput.type = wasHidden ? 'text' : 'password';
+            toggleBtn.querySelector('.icon-eye').classList.toggle('hidden', wasHidden);
+            toggleBtn.querySelector('.icon-eye-off').classList.toggle('hidden', !wasHidden);
+            toggleBtn.setAttribute('aria-pressed', String(wasHidden));
+            toggleBtn.setAttribute('aria-label', wasHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+        });
+    }
+
+    // Form submit validation
+    form.addEventListener('submit', function(event) {
+        var hasError = false;
+
+        [fullNameInput, emailInput, phoneInput, passwordInput].forEach(function(input) {
+            if (!input) return;
+            setFieldError(input, '');
+        });
+
+        if (fullNameInput && !fullNameInput.value.trim()) {
+            setFieldError(fullNameInput, 'Vui lòng nhập họ và tên.');
+            hasError = true;
+        } else if (fullNameInput && fullNameInput.value.length > 100) {
+            setFieldError(fullNameInput, 'Họ và tên không được vượt quá 100 ký tự.');
+            hasError = true;
+        }
+
+        if (emailInput && emailInput.value.trim()) {
+            var emailResult = validateEmailStrict(emailInput.value);
+            if (!emailResult.valid) {
+                setFieldError(emailInput, emailResult.message);
+                hasError = true;
+            }
+        }
+
+        if (phoneInput && !phoneInput.value.trim()) {
+            setFieldError(phoneInput, 'Vui lòng nhập số điện thoại.');
+            hasError = true;
+        } else if (phoneInput && phoneInput.value.trim()) {
+            var normalized = normalizePhoneInput(phoneInput.value);
+            if (!normalized) {
+                var raw = phoneInput.value.trim();
+                if (!/^[0-9\s+]+$/.test(raw)) {
+                    setFieldError(phoneInput, 'Số điện thoại chỉ được chứa số, khoảng trắng và dấu +.');
+                } else if (raw.startsWith('+') && raw.indexOf('+') !== 0) {
+                    setFieldError(phoneInput, 'Dấu + chỉ được phép ở đầu số.');
+                } else if (raw.startsWith('+84')) {
+                    var suffix = raw.substring(3);
+                    if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                        setFieldError(phoneInput, 'Số điện thoại +84 không hợp lệ. Phải có 9 số sau +84 và số đầu không được là 0.');
+                    }
+                } else if (raw.startsWith('84') && !raw.startsWith('+')) {
+                    var suffix = raw.substring(2);
+                    if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                        setFieldError(phoneInput, 'Số điện thoại 84 không hợp lệ. Phải có 9 số sau 84 và số đầu không được là 0.');
+                    }
+                } else if (raw.startsWith('0')) {
+                    if (raw.length !== 10 || !/^\d+$/.test(raw)) {
+                        setFieldError(phoneInput, 'Số điện thoại 0xxxxxxxxx phải có đúng 10 chữ số.');
+                    }
+                } else {
+                    setFieldError(phoneInput, 'Số điện thoại phải bắt đầu bằng 0, +84 hoặc 84.');
+                }
+                hasError = true;
+            }
+        }
+
+        if (passwordInput) {
+            if (!passwordInput.value) {
+                setFieldError(passwordInput, 'Vui lòng nhập mật khẩu.');
+                hasError = true;
+            } else if (passwordInput.value.length < 6) {
+                setFieldError(passwordInput, 'Mật khẩu phải có ít nhất 6 ký tự.');
+                hasError = true;
+            }
+        }
+
+        if (hasError) {
+            event.preventDefault();
+        }
+    });
+})();
+
+// Admin Edit User Form Validation
+(function() {
+    var form = document.querySelector('[data-admin-edit-form]');
+    if (!form) return;
+
+    var fullNameInput = document.getElementById('edit-full_name');
+    var phoneInput = document.getElementById('edit-phone');
+    var emailInput = document.getElementById('edit-email');
+    var passwordInput = document.getElementById('edit-password');
+
+    function setFieldError(input, message) {
+        if (!input) return;
+        var box = document.getElementById(input.id + '_error');
+        if (!box) return;
+
+        box.textContent = message;
+        box.classList.toggle('hidden', !message);
+        input.classList.toggle('border-red-300', !!message);
+        input.classList.toggle('bg-red-50', !!message);
+    }
+
+    function validateEmailStrict(email) {
+        if (!email) return { valid: true };
+        email = email.trim();
+        if (email.length > 254) return { valid: false, message: 'Email không được vượt quá 254 ký tự.' };
+        if (email.split('@').length !== 2) return { valid: false, message: 'Email phải có đúng một dấu @.' };
+        if (email.includes(' ')) return { valid: false, message: 'Email không được chứa khoảng trắng.' };
+
+        var parts = email.split('@');
+        var localPart = parts[0];
+        var domain = parts[1];
+
+        if (!localPart || !domain) return { valid: false, message: 'Email không hợp lệ.' };
+        
+        // Local-part checks (phần trước @)
+        if (localPart.length > 64) return { valid: false, message: 'Phần trước @ không được vượt quá 64 ký tự.' };
+        if (localPart[0] === '.' || localPart[localPart.length - 1] === '.') return { valid: false, message: 'Phần trước @ không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
+        if (localPart.includes('..')) return { valid: false, message: 'Phần trước @ không được có hai dấu chấm liên tiếp.' };
+        if (!/^[A-Za-z0-9._%+-]+$/.test(localPart)) return { valid: false, message: 'Phần trước @ chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, . _ % + -' };
+
+        // Domain checks (phần sau @)
+        if (domain.length > 255) return { valid: false, message: 'Tên miền không được vượt quá 255 ký tự.' };
+        if (!domain.includes('.')) return { valid: false, message: 'Tên miền phải có ít nhất một dấu chấm.' };
+        if (domain[0] === '.' || domain[domain.length - 1] === '.') return { valid: false, message: 'Tên miền không được bắt đầu hoặc kết thúc bằng dấu chấm.' };
+        if (domain.includes('..')) return { valid: false, message: 'Tên miền không được có hai dấu chấm liên tiếp.' };
+        
+        // Check each domain label (parts separated by dots)
+        var domainLabels = domain.split('.');
+        for (var i = 0; i < domainLabels.length; i++) {
+            var label = domainLabels[i];
+            if (!label) return { valid: false, message: 'Tên miền có nhãn rỗng.' };
+            if (label.length > 63) return { valid: false, message: 'Nhãn tên miền không được vượt quá 63 ký tự.' };
+            if (label[0] === '-' || label[label.length - 1] === '-') return { valid: false, message: 'Nhãn tên miền không được bắt đầu hoặc kết thúc bằng dấu gạch ngang.' };
+            if (!/^[A-Za-z0-9-]+$/.test(label)) return { valid: false, message: 'Tên miền chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, dấu gạch ngang.' };
+        }
+        
+        // TLD check (last label)
+        var tld = domainLabels[domainLabels.length - 1];
+        if (!/^[a-zA-Z]{2,63}$/.test(tld)) return { valid: false, message: 'Đuôi tên miền (TLD) phải từ 2-63 ký tự chữ.' };
+        if (domain.toLowerCase() === 'localhost') return { valid: false, message: 'Không chấp nhận localhost.' };
+
+        return { valid: true };
+    }
+
+    function normalizePhoneInput(rawPhone) {
+        if (!rawPhone) return null;
+        var phone = rawPhone.replace(/\s+/g, '');
+        if (!/^[0-9+]+$/.test(phone)) return null;
+        var plusPos = phone.indexOf('+');
+        if (plusPos !== -1 && plusPos !== 0) return null;
+
+        if (phone.startsWith('+84')) {
+            var suffix = phone.substring(3);
+            if (suffix.length !== 9 || !/^\d+$/.test(suffix)) return null;
+            if (suffix[0] === '0') return null;
+            return '0' + suffix;
+        }
+
+        if (phone.startsWith('84') && !phone.startsWith('+')) {
+            var suffix = phone.substring(2);
+            if (suffix.length !== 9 || !/^\d+$/.test(suffix)) return null;
+            if (suffix[0] === '0') return null;
+            return '0' + suffix;
+        }
+
+        if (phone.startsWith('0')) {
+            if (phone.length !== 10 || !/^\d+$/.test(phone)) return null;
+            return phone;
+        }
+
+        return null;
+    }
+
+    function validateField(input) {
+        if (!input) return;
+
+        if (input.id === 'edit-full_name') {
+            if (!input.value.trim()) {
+                setFieldError(input, 'Vui lòng nhập họ và tên.');
+            } else if (input.value.length > 100) {
+                setFieldError(input, 'Họ và tên không được vượt quá 100 ký tự.');
+            } else {
+                setFieldError(input, '');
+            }
+        } else if (input.id === 'edit-email') {
+            if (input.value.trim()) {
+                var result = validateEmailStrict(input.value);
+                setFieldError(input, result.valid ? '' : result.message);
+            } else {
+                setFieldError(input, '');
+            }
+        } else if (input.id === 'edit-phone') {
+            if (!input.value.trim()) {
+                setFieldError(input, 'Vui lòng nhập số điện thoại.');
+            } else {
+                var normalized = normalizePhoneInput(input.value);
+                if (!normalized) {
+                    var raw = input.value.trim();
+                    if (!/^[0-9\s+]+$/.test(raw)) {
+                        setFieldError(input, 'Số điện thoại chỉ được chứa số, khoảng trắng và dấu +.');
+                    } else if (raw.startsWith('+') && raw.indexOf('+') !== 0) {
+                        setFieldError(input, 'Dấu + chỉ được phép ở đầu số.');
+                    } else if (raw.startsWith('+84')) {
+                        var suffix = raw.substring(3);
+                        if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                            setFieldError(input, 'Số điện thoại +84 không hợp lệ. Phải có 9 số sau +84 và số đầu không được là 0.');
+                        }
+                    } else if (raw.startsWith('84') && !raw.startsWith('+')) {
+                        var suffix = raw.substring(2);
+                        if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                            setFieldError(input, 'Số điện thoại 84 không hợp lệ. Phải có 9 số sau 84 và số đầu không được là 0.');
+                        }
+                    } else if (raw.startsWith('0')) {
+                        if (raw.length !== 10 || !/^\d+$/.test(raw)) {
+                            setFieldError(input, 'Số điện thoại 0xxxxxxxxx phải có đúng 10 chữ số.');
+                        }
+                    } else {
+                        setFieldError(input, 'Số điện thoại phải bắt đầu bằng 0, +84 hoặc 84.');
+                    }
+                } else {
+                    setFieldError(input, '');
+                }
+            }
+        } else if (input.id === 'edit-password') {
+            if (input.value && input.value.length < 6) {
+                setFieldError(input, 'Mật khẩu phải có ít nhất 6 ký tự.');
+            } else {
+                setFieldError(input, '');
+            }
+        }
+    }
+
+    // Input event listeners for real-time validation with debounce
+    [fullNameInput, emailInput, phoneInput, passwordInput].forEach(function(input) {
+        if (input) {
+            var debounceTimer;
+            input.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    validateField(input);
+                }, 500);
+            });
+            input.addEventListener('blur', function() {
+                clearTimeout(debounceTimer);
+                validateField(input);
+            });
+        }
+    });
+
+    // Toggle password visibility
+    var toggleBtn = form.querySelector('.toggle-password');
+    if (toggleBtn && passwordInput) {
+        toggleBtn.addEventListener('click', function() {
+            var wasHidden = passwordInput.type === 'password';
+            passwordInput.type = wasHidden ? 'text' : 'password';
+            toggleBtn.querySelector('.icon-eye').classList.toggle('hidden', wasHidden);
+            toggleBtn.querySelector('.icon-eye-off').classList.toggle('hidden', !wasHidden);
+            toggleBtn.setAttribute('aria-pressed', String(wasHidden));
+            toggleBtn.setAttribute('aria-label', wasHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+        });
+    }
+
+    // Form submit validation
+    form.addEventListener('submit', function(event) {
+        var hasError = false;
+
+        [fullNameInput, emailInput, phoneInput, passwordInput].forEach(function(input) {
+            if (!input) return;
+            setFieldError(input, '');
+        });
+
+        if (fullNameInput && !fullNameInput.value.trim()) {
+            setFieldError(fullNameInput, 'Vui lòng nhập họ và tên.');
+            hasError = true;
+        } else if (fullNameInput && fullNameInput.value.length > 100) {
+            setFieldError(fullNameInput, 'Họ và tên không được vượt quá 100 ký tự.');
+            hasError = true;
+        }
+
+        if (emailInput && emailInput.value.trim()) {
+            var emailResult = validateEmailStrict(emailInput.value);
+            if (!emailResult.valid) {
+                setFieldError(emailInput, emailResult.message);
+                hasError = true;
+            }
+        }
+
+        if (phoneInput && !phoneInput.value.trim()) {
+            setFieldError(phoneInput, 'Vui lòng nhập số điện thoại.');
+            hasError = true;
+        } else if (phoneInput && phoneInput.value.trim()) {
+            var normalized = normalizePhoneInput(phoneInput.value);
+            if (!normalized) {
+                var raw = phoneInput.value.trim();
+                if (!/^[0-9\s+]+$/.test(raw)) {
+                    setFieldError(phoneInput, 'Số điện thoại chỉ được chứa số, khoảng trắng và dấu +.');
+                } else if (raw.startsWith('+') && raw.indexOf('+') !== 0) {
+                    setFieldError(phoneInput, 'Dấu + chỉ được phép ở đầu số.');
+                } else if (raw.startsWith('+84')) {
+                    var suffix = raw.substring(3);
+                    if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                        setFieldError(phoneInput, 'Số điện thoại +84 không hợp lệ. Phải có 9 số sau +84 và số đầu không được là 0.');
+                    }
+                } else if (raw.startsWith('84') && !raw.startsWith('+')) {
+                    var suffix = raw.substring(2);
+                    if (suffix.length !== 9 || !/^\d+$/.test(suffix) || suffix[0] === '0') {
+                        setFieldError(phoneInput, 'Số điện thoại 84 không hợp lệ. Phải có 9 số sau 84 và số đầu không được là 0.');
+                    }
+                } else if (raw.startsWith('0')) {
+                    if (raw.length !== 10 || !/^\d+$/.test(raw)) {
+                        setFieldError(phoneInput, 'Số điện thoại 0xxxxxxxxx phải có đúng 10 chữ số.');
+                    }
+                } else {
+                    setFieldError(phoneInput, 'Số điện thoại phải bắt đầu bằng 0, +84 hoặc 84.');
+                }
+                hasError = true;
+            }
+        }
+
+        if (passwordInput && passwordInput.value && passwordInput.value.length < 6) {
+            setFieldError(passwordInput, 'Mật khẩu phải có ít nhất 6 ký tự.');
+            hasError = true;
+        }
+
+        if (hasError) {
+            event.preventDefault();
+        }
+    });
+})();
 })();
 </script>
 <?php require BASE_PATH . 'views\layouts\panel_footer.php'; ?>
