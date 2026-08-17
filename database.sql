@@ -173,14 +173,14 @@ CREATE TABLE IF NOT EXISTS `contracts` (
   CONSTRAINT `fk_contract_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.contracts: ~5 rows (approximately)
+-- Dumping data for table manage.contracts: ~6 rows (approximately)
 INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`, `initial_electricity_index`, `initial_water_index`, `status`, `contract_date`, `created_at`) VALUES
-	(1, 3, 1, '2026-01-15', NULL, 4500000.00, 9000000.00, 1200.00, 35.00, 'active', '2026-01-10', '2026-01-10 01:00:00'),
-	(2, 4, 2, '2026-01-18', NULL, 3800000.00, 7600000.00, 980.00, 41.00, 'active', '2026-01-13', '2026-01-13 01:00:00'),
-	(3, 5, 3, '2026-01-20', NULL, 5200000.00, 10400000.00, 1500.00, 52.00, 'active', '2026-01-15', '2026-01-15 01:00:00'),
-	(4, 6, 4, '2026-02-01', NULL, 3200000.00, 6400000.00, 730.00, 24.00, 'active', '2026-01-27', '2026-01-27 01:00:00'),
+	(1, 3, 1, '2026-01-15', '2027-01-15', 4500000.00, 4500000.00, 1200.00, 35.00, 'active', '2026-01-10', '2026-01-10 01:00:00'),
+	(2, 4, 2, '2026-01-18', '2027-01-18', 3800000.00, 3800000.00, 980.00, 41.00, 'active', '2026-01-13', '2026-01-13 01:00:00'),
+	(3, 5, 3, '2026-01-20', '2027-01-20', 5200000.00, 5200000.00, 1500.00, 52.00, 'active', '2026-01-15', '2026-01-15 01:00:00'),
+	(4, 6, 4, '2026-02-01', '2027-02-01', 3200000.00, 3200000.00, 730.00, 24.00, 'active', '2026-01-27', '2026-01-27 01:00:00'),
 	(5, 7, 5, '2025-08-01', '2025-12-31', 3900000.00, 7800000.00, 420.00, 18.00, 'terminated', '2025-07-25', '2025-07-25 01:00:00'),
-	(6, 7, 5, '2026-04-10', NULL, 4000000.00, 0.00, NULL, NULL, 'active', '2026-08-15', '2026-08-15 17:57:20');
+	(6, 7, 5, '2026-04-10', '2027-04-10', 4000000.00, 4000000.00, NULL, NULL, 'active', '2026-08-15', '2026-08-15 17:57:20');
 
 -- Dumping structure for table manage.feedbacks
 CREATE TABLE IF NOT EXISTS `feedbacks` (
@@ -307,7 +307,6 @@ INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`
 	(1, 3, 'Hóa đơn tháng 03/2026', 'Hóa đơn tiền phòng và dịch vụ tháng 03 đã được tạo.', '/tenant/payments', 'invoice', 1, '2026-03-01 01:30:00'),
 	(2, 4, 'Hóa đơn tháng 03/2026', 'Hóa đơn tiền phòng và dịch vụ tháng 03 đã được tạo.', '/tenant/payments', 'invoice', 1, '2026-03-01 01:35:00'),
 	(3, 5, 'Hóa đơn tháng 03/2026', 'Hóa đơn tháng 03 đang chờ thanh toán.', '/tenant/payments', 'payment', 0, '2026-03-01 01:40:00'),
-	(4, 6, 'Yêu cầu bảo trì', 'Yêu cầu kiểm tra ổ điện của bạn đã được tiếp nhận.', '/tenant/maintenance', 'service', 1, '2026-04-10 03:00:00'),
 	(5, 7, 'Yêu cầu thuê phòng', 'Yêu cầu thuê phòng A202 đang được quản lý xét duyệt.', '/tenant/rental-requests', 'rental_request', 0, '2026-04-02 02:10:00'),
 	(7, NULL, 'Thông báo bảo trì chung', 'Khu A sẽ bảo trì hệ thống nước từ 08:00-10:00 ngày 18/04/2026.', '/notifications', 'general', 0, '2026-04-16 00:00:00'),
 	(8, 3, 'Thay đổi bảng giá dịch vụ', 'Giá wifi được điều chỉnh từ tháng 03/2026.', '/tenant/services', 'price_change', 1, '2026-02-16 01:00:00'),
@@ -332,7 +331,6 @@ CREATE TABLE IF NOT EXISTS `notification_reads` (
 INSERT INTO `notification_reads` (`id`, `notification_id`, `user_id`, `read_at`) VALUES
 	(1, 1, 3, '2026-03-02 02:00:00'),
 	(2, 2, 4, '2026-03-02 02:10:00'),
-	(3, 4, 6, '2026-04-10 04:00:00'),
 	(5, 8, 3, '2026-02-17 01:00:00'),
 	(6, 7, 3, '2026-04-16 01:30:00');
 
@@ -520,9 +518,9 @@ CREATE TABLE IF NOT EXISTS `roommate_requests` (
   CONSTRAINT `fk_rm_host` FOREIGN KEY (`host_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rm_requester` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rm_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.roommate_requests: ~2 rows (approximately)
+-- Dumping data for table manage.roommate_requests: ~1 rows (approximately)
 INSERT INTO `roommate_requests` (`id`, `requester_id`, `host_user_id`, `room_id`, `gender`, `relationship`, `status`, `created_at`, `updated_at`) VALUES
 	(1, 7, 3, 1, 'male', 'Bạn học cùng lớp', 'cancelled', '2026-04-03 07:00:00', '2026-08-15 17:57:57');
 
@@ -692,8 +690,7 @@ INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `i
 	(5, 'Giữ xe', 100000.00, 'xe/tháng', 'two_wheeler', 'Phí gửi xe máy có mái che.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
 	(6, 'Vệ sinh', 50000.00, 'phòng/tháng', 'cleaning_services', 'Vệ sinh hành lang, cầu thang và khu sinh hoạt chung.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
 	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Sử dụng máy giặt chung không giới hạn theo tháng.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL),
-	(10, 'Realme GT Neo2 5G', 120000.00, 'tháng', 'settings', '', 0, 'meter', 'other', 'room', 1, NULL, NULL, NULL, NULL),
-	(12, 'Test Tách Người', 10000.00, 'tháng', 'settings', '', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL);
+	(10, 'Realme GT Neo2 5G', 120000.00, 'tháng', 'settings', '', 0, 'meter', 'other', 'room', 1, NULL, NULL, NULL, NULL);
 
 -- Dumping structure for table manage.settings
 CREATE TABLE IF NOT EXISTS `settings` (
@@ -818,13 +815,13 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `idx_user_role` (`role`),
   KEY `fk_user_room` (`room_id`),
   CONSTRAINT `fk_user_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.users: ~7 rows (approximately)
+-- Dumping data for table manage.users: ~8 rows (approximately)
 INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, `role`, `room_id`, `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`, `created_at`) VALUES
 	(1, 'Nguyễn Minh Anh', 'admin@nhatroxanh.vn', '0901000001', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:00:00'),
 	(2, 'Trần Quốc Huy', 'manager@nhatroxanh.vn', '0901000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:05:00'),
-	(3, 'Phạm Gia Bảo', 'tenant01@example.com', '0912000001', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 1, NULL, NULL, NULL, NULL, NULL, '2026-01-08 03:00:00'),
+	(3, 'Phạm Gia Bảo', 'tenant01@example.com', '0912000001', '$2y$10$w67nsPC8.rgazBKwq/mS5.Z5G2fiPAJuKNXWkpZt/KSi6/7hhdSYq', 'default.png', 0, 1, NULL, NULL, NULL, NULL, NULL, '2026-01-08 03:00:00'),
 	(4, 'Nguyễn Thùy Linh', 'tenant02@example.com', '0912000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 2, NULL, NULL, NULL, NULL, NULL, '2026-01-09 03:00:00'),
 	(5, 'Lê Hoàng Nam', 'tenant03@example.com', '0912000003', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 3, NULL, NULL, NULL, NULL, NULL, '2026-01-10 03:00:00'),
 	(6, 'Đỗ Khánh Vy', 'tenant04@example.com', '0912000004', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 4, NULL, NULL, NULL, NULL, NULL, '2026-01-11 03:00:00'),
