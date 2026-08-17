@@ -86,19 +86,16 @@ class RoomController extends BaseController {
 
         $moveInDate = trim((string)($_POST['move_in_date'] ?? ''));
         $gender = trim((string)($_POST['gender'] ?? 'other'));
-        $occupantCount = (int)($_POST['occupant_count'] ?? 1);
 
         if ($moveInDate === '' || strtotime($moveInDate) === false) {
             setFlash('rent_error', 'Ngày vào ở không hợp lệ.');
             redirectTo('request-rent', ['id' => (int)$id]);
         }
-        if ($occupantCount < 1) {
-            setFlash('rent_error', 'Số người ở phải lớn hơn 0.');
-            redirectTo('request-rent', ['id' => (int)$id]);
-        }
-        $maxOcc = (int)($room['max_occupancy'] ?? 0);
-        if ($maxOcc > 0 && $occupantCount > $maxOcc) {
-            setFlash('rent_error', 'Số người ở vượt quá sức chứa tối đa của phòng (' . $maxOcc . ' người).');
+        $ts = strtotime($moveInDate);
+        $minTs = strtotime(date('Y-m-d'));
+        $maxTs = strtotime(date('Y-m-d', strtotime('+30 days')));
+        if ($ts < $minTs || $ts > $maxTs) {
+            setFlash('rent_error', 'Ngày dự kiến vào ở phải từ hôm nay đến tối đa 30 ngày kể từ hôm nay.');
             redirectTo('request-rent', ['id' => (int)$id]);
         }
 
@@ -107,7 +104,7 @@ class RoomController extends BaseController {
             'room_id' => (int)$id,
             'move_in_date' => $moveInDate,
             'gender' => $gender,
-            'occupant_count' => $occupantCount,
+            'occupant_count' => 1,
         ]);
         setFlash('rent_message', 'Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" đã được gửi, vui lòng chờ admin xét duyệt.');
         redirectTo('request-rent', ['id' => (int)$id]);

@@ -152,7 +152,7 @@ $old = $old ?? [];
                     </div>
                 <?php endif; ?>
 
-                <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg" id="registerBtn" disabled>
+                <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg" id="registerBtn">
                     Đăng ký
                 </button>
             </form>
@@ -376,56 +376,7 @@ function validateEmailStrict(email) {
     }
   }
 
-  function checkFormValidity() {
-    if (!form) return;
-    
-    var fullNameInput = document.getElementById('register_full_name');
-    var emailInput = document.getElementById('register_email');
-    var phoneInput = document.getElementById('register_phone');
-    
-    var hasError = false;
-    
-    // Full name
-    if (fullNameInput && !fullNameInput.value.trim()) {
-      hasError = true;
-    } else if (fullNameInput && fullNameInput.value.length > 100) {
-      hasError = true;
-    } else if (fullNameInput && !/^[\p{L}\p{N}\s\-'\.]+$/u.test(fullNameInput.value.trim())) {
-      hasError = true;
-    }
-    
-    // Email
-    if (emailInput && emailInput.value.trim()) {
-      var emailResult = validateEmailStrict(emailInput.value);
-      if (!emailResult.valid) hasError = true;
-    }
-    
-    // Phone
-    if (phoneInput && phoneInput.value.trim()) {
-      var normalized = normalizePhoneInput(phoneInput.value);
-      if (!normalized) hasError = true;
-    } else if (phoneInput && !phoneInput.value.trim()) {
-      hasError = true;
-    }
-    
-    // Password
-    if (passwordInput && (!passwordInput.value || passwordInput.value.length < 6)) {
-      hasError = true;
-    } else if (passwordInput && !/[A-Za-z]/.test(passwordInput.value)) {
-      hasError = true;
-    } else if (passwordInput && !/\d/.test(passwordInput.value)) {
-      hasError = true;
-    }
-    
-    // Confirm
-    if (confirmInput && (!confirmInput.value || confirmInput.value !== passwordInput?.value)) {
-      hasError = true;
-    }
-    
-    registerBtn.disabled = hasError;
-  }
-
-  function validateFieldOnBlur(input) {
+  function validateFieldOnInput(input) {
     if (!input) return;
     
     if (input.id === 'register_full_name') {
@@ -500,49 +451,44 @@ function validateEmailStrict(email) {
       }
     }
     
-    checkFormValidity();
   }
 
-  // Input event listeners for real-time validation
+// Input event listeners for real-time validation (show errors immediately)
   var fullNameInput = document.getElementById('register_full_name');
   var emailInput = document.getElementById('register_email');
   var phoneInput = document.getElementById('register_phone');
   
   [fullNameInput, emailInput, phoneInput].forEach(function(input) {
     if (input) {
-      var debounceTimer;
       input.addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-          validateFieldOnBlur(input);
-        }, 700);
+        validateFieldOnInput(input);
       });
       input.addEventListener('blur', function() {
-        clearTimeout(debounceTimer);
-        validateFieldOnBlur(input);
+        validateFieldOnInput(input);
       });
     }
   });
-
+  
   if (passwordInput) {
     passwordInput.addEventListener('input', function () {
       updatePasswordMeter();
       updatePasswordMatch();
-      checkFormValidity();
+      validateFieldOnInput(passwordInput);
     });
   }
-
+  
   if (confirmInput) {
     confirmInput.addEventListener('input', function() {
       updatePasswordMatch();
-      checkFormValidity();
+      validateFieldOnInput(confirmInput);
     });
   }
-
+  
   if (form) {
     form.addEventListener('submit', function (event) {
       var hasError = false;
-
+      
+      // Validate all fields on submit (errors already shown on input, but re-validate for safety)
       [
         fullNameInput,
         emailInput,
@@ -551,7 +497,7 @@ function validateEmailStrict(email) {
         confirmInput
       ].forEach(function (input) {
         if (!input) return;
-        setFieldError(input, '');
+        // Don't clear errors here - they're already shown from input validation
       });
 
       if (fullNameInput && !fullNameInput.value.trim()) {
@@ -616,8 +562,7 @@ function validateEmailStrict(email) {
     });
   }
 
-  // Initial check
-  checkFormValidity();
+  // Initial validation
   updatePasswordMeter();
   updatePasswordMatch();
 

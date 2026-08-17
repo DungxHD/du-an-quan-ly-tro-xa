@@ -371,6 +371,18 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->rejectRentRequest();
         break;
+    case 'admin-confirm-rent-request':
+        requireAdmin();
+        (new AdminController())->confirmRentRequest();
+        break;
+    case 'admin-cancel-rent-request':
+        requireAdmin();
+        (new AdminController())->cancelRentRequestAdmin();
+        break;
+    case 'admin-paid-rent-request':
+        requireAdmin();
+        (new AdminController())->paidRentRequest();
+        break;
     case 'tenant-roommate':
         (new TenantController())->roommate();
         break;

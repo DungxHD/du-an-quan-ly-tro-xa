@@ -32,6 +32,18 @@ if ($isPendingOtherRoom) {
         <?php endif; ?>
 
         <?php if ($isPendingThisRoom): ?>
+            <?php
+            $payConfirmed = (string)($pendingRequest['payment_status'] ?? 'pending') === 'confirmed';
+            $qrBank = RoomModel::getSetting('bank_name', 'Vietcombank');
+            $qrAccount = RoomModel::getSetting('bank_account_number', '');
+            $qrHolder = RoomModel::getSetting('bank_account_holder', '');
+            $qrAmount = (float)($room['price'] ?? 0);
+            $qrText = 'Chuyen khoan thue phong ' . ($room['name'] ?? '')
+                . ' - So tien: ' . number_format($qrAmount, 0, ',', '.') . ' VND'
+                . ' - Ngan hang: ' . $qrBank
+                . ' - STK: ' . $qrAccount
+                . ' - Chu TK: ' . $qrHolder;
+            ?>
             <div class="bg-white rounded-2xl shadow-sm border border-amber-100 p-6 text-center">
                 <span class="material-symbols-outlined text-5xl text-amber-500">hourglass_top</span>
                 <h3 class="mt-3 text-lg font-bold">Yêu cầu đang chờ xét duyệt</h3>
@@ -39,6 +51,23 @@ if ($isPendingOtherRoom) {
                     Yêu cầu thuê phòng "<?= e($room['name'] ?? '') ?>" đã được gửi, vui lòng chờ admin xét duyệt.
                     Admin có thể phản hồi qua thông báo hoặc liên hệ trực tiếp số điện thoại của bạn — hãy chú ý phản hồi từ admin.
                 </p>
+                <?php if ($payConfirmed): ?>
+                <div class="mt-5 mx-auto max-w-sm rounded-2xl border border-sky-200 bg-sky-50 p-5">
+                    <p class="text-sm font-bold text-sky-800">Quét mã QR để chuyển tiền đặt cọc</p>
+                    <p class="mt-1 text-xs text-sky-700">Số tiền: <span class="font-bold"><?= number_format($qrAmount, 0, ',', '.') ?>đ</span> (bằng giá thuê 1 tháng)</p>
+                    <img
+                        src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=<?= e(urlencode($qrText)) ?>"
+                        alt="Mã QR chuyển tiền"
+                        class="mx-auto mt-3 w-44 h-44 rounded-xl bg-white p-2"
+                        loading="lazy"
+                    >
+                    <p class="mt-3 text-xs text-sky-800">
+                        <?= e($qrBank) ?> · STK: <?= e($qrAccount) ?><br>
+                        Chủ TK: <?= e($qrHolder) ?>
+                    </p>
+                    <p class="mt-2 text-[11px] text-sky-700">Sau khi chuyển khoản, hãy thông báo cho admin để được xác nhận chính thức vào phòng.</p>
+                </div>
+                <?php endif; ?>
                 <div class="mt-5 flex flex-col sm:flex-row gap-3 justify-center">
                     <a href="<?= BASE_URL ?>?page=rooms" class="px-5 py-2.5 rounded-xl border border-gray-200 font-semibold text-gray-700 hover:bg-gray-50 transition">Quay lại</a>
                     <?php if ($phoneTel !== ''): ?>
@@ -66,7 +95,8 @@ if ($isPendingOtherRoom) {
                 <?= csrf_field() ?>
                 <div>
                     <label class="block text-sm font-semibold mb-2">Ngày dự kiến vào ở *</label>
-                    <input type="date" name="move_in_date" required min="<?= date('Y-m-d') ?>" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+                    <input type="date" name="move_in_date" required min="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d', strtotime('+30 days')) ?>" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+                    <p class="mt-1 text-xs text-gray-500">Chỉ được chọn ngày tối đa 30 ngày kể từ hôm nay.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-2">Giới tính *</label>
@@ -75,13 +105,6 @@ if ($isPendingOtherRoom) {
                         <option value="female">Nữ</option>
                         <option value="other">Khác</option>
                     </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold mb-2">Số người sẽ vào ở *</label>
-                    <input type="number" name="occupant_count" min="1" value="1" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                    <?php if ((int)($room['max_occupancy'] ?? 0) > 0): ?>
-                    <p class="mt-1 text-xs text-gray-500">Phòng tối đa <?= (int)$room['max_occupancy'] ?> người.</p>
-                    <?php endif; ?>
                 </div>
                 <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">Gửi yêu cầu thuê</button>
             </form>

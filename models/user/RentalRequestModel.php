@@ -8,13 +8,14 @@ class RentalRequestModel {
     public static function create($data) {
         $gender = $data['gender'] ?? 'other';
         $payload = [
-            'user_id'        => (int)($data['user_id'] ?? 0),
-            'room_id'        => (int)($data['room_id'] ?? 0),
-            'move_in_date'   => trim((string)($data['move_in_date'] ?? '')) ?: date('Y-m-d'),
-            'gender'         => in_array($gender, ['male', 'female', 'other'], true) ? $gender : 'other',
-            'occupant_count' => max(1, (int)($data['occupant_count'] ?? 1)),
-            'status'         => 'pending',
-            'admin_note'     => trim((string)($data['admin_note'] ?? '')),
+            'user_id'         => (int)($data['user_id'] ?? 0),
+            'room_id'         => (int)($data['room_id'] ?? 0),
+            'move_in_date'    => trim((string)($data['move_in_date'] ?? '')) ?: date('Y-m-d'),
+            'gender'          => in_array($gender, ['male', 'female', 'other'], true) ? $gender : 'other',
+            'occupant_count'  => max(1, (int)($data['occupant_count'] ?? 1)),
+            'status'          => 'pending',
+            'payment_status'  => 'pending',
+            'admin_note'      => trim((string)($data['admin_note'] ?? '')),
         ];
         return (int)Database::insert('rental_requests', $payload);
     }
@@ -55,7 +56,7 @@ class RentalRequestModel {
         $rows = Database::fetchAll(
             "SELECT rr.*,
                     u.full_name AS user_name, u.email AS user_email, u.phone AS user_phone,
-                    r.name AS room_name, r.max_occupancy AS room_max_occupancy,
+                    r.name AS room_name, r.price AS room_price, r.max_occupancy AS room_max_occupancy,
                     f.name AS floor_name, a.name AS area_name
              FROM rental_requests rr
              INNER JOIN users u ON u.id = rr.user_id
@@ -75,7 +76,7 @@ class RentalRequestModel {
         if (!Database::hasConnection()) { return []; }
         $sql = "SELECT rr.*,
                        u.full_name AS user_name, u.email AS user_email, u.phone AS user_phone,
-                       r.name AS room_name, r.max_occupancy AS room_max_occupancy,
+                       r.name AS room_name, r.price AS room_price, r.max_occupancy AS room_max_occupancy,
                        f.name AS floor_name, a.name AS area_name
                 FROM rental_requests rr
                 INNER JOIN users u ON u.id = rr.user_id
@@ -145,6 +146,36 @@ class RentalRequestModel {
             ['status' => 'cancelled'],
             'id = :id AND user_id = :user_id AND status = :status',
             ['id' => (int)$id, 'user_id' => (int)$userId, 'status' => 'pending']
+        );
+    }
+
+    /** Admin hủy yêu cầu đang chờ (người thuê không được vào phòng). */
+    public static function cancelByAdmin($id) {
+        return Database::update(
+            'rental_requests',
+            ['status' => 'cancelled', 'payment_status' => 'cancelled'],
+            'id = :id AND status = :status',
+            ['id' => (int)$id, 'status' => 'pending']
+        );
+    }
+
+    /** Admin xác nhận yêu cầu → hiện mã QR chờ người thuê thanh toán. */
+    public static function confirmByAdmin($id) {
+        return Database::update(
+            'rental_requests',
+            ['payment_status' => 'confirmed'],
+            'id = :id AND status = :status',
+            ['id' => (int)$id, 'status' => 'pending']
+        );
+    }
+
+    /** Admin xác nhận người thuê đã thanh toán → yêu cầu thành Đã duyệt. */
+    public static function markPaid($id) {
+        return Database::update(
+            'rental_requests',
+            ['status' => 'approved', 'payment_status' => 'paid'],
+            'id = :id AND status = :status',
+            ['id' => (int)$id, 'status' => 'pending']
         );
     }
 

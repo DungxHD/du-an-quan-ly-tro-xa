@@ -111,12 +111,22 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <?php
                 $reqId = (int)($req['id'] ?? 0);
                 $reqStatus = $req['status'] ?? 'pending';
-                $statusMeta = [
-                    'pending'  => ['label' => 'Chờ duyệt', 'class' => 'bg-amber-100 text-amber-700'],
-                    'approved' => ['label' => 'Đã duyệt', 'class' => 'bg-green-100 text-green-700'],
-                    'rejected' => ['label' => 'Đã từ chối', 'class' => 'bg-red-100 text-red-700'],
-                    'cancelled'=> ['label' => 'Đã hủy', 'class' => 'bg-slate-100 text-slate-700'],
-                ];
+                $reqPaymentStatus = (string)($req['payment_status'] ?? 'pending');
+                if ($reqStatus === 'pending' && $reqPaymentStatus === 'confirmed') {
+                    $statusMeta = [
+                        'pending'  => ['label' => 'Chờ thanh toán', 'class' => 'bg-sky-100 text-sky-700'],
+                        'approved' => ['label' => 'Đã duyệt', 'class' => 'bg-green-100 text-green-700'],
+                        'rejected' => ['label' => 'Đã từ chối', 'class' => 'bg-red-100 text-red-700'],
+                        'cancelled'=> ['label' => 'Đã hủy', 'class' => 'bg-slate-100 text-slate-700'],
+                    ];
+                } else {
+                    $statusMeta = [
+                        'pending'  => ['label' => 'Chờ duyệt', 'class' => 'bg-amber-100 text-amber-700'],
+                        'approved' => ['label' => 'Đã duyệt', 'class' => 'bg-green-100 text-green-700'],
+                        'rejected' => ['label' => 'Đã từ chối', 'class' => 'bg-red-100 text-red-700'],
+                        'cancelled'=> ['label' => 'Đã hủy', 'class' => 'bg-slate-100 text-slate-700'],
+                    ];
+                }
                 $meta = $statusMeta[$reqStatus] ?? ['label' => ucfirst($reqStatus), 'class' => 'bg-slate-100 text-slate-700'];
                 ?>
                 <div class="px-6 py-4 hover:bg-gray-50 transition">
@@ -144,18 +154,47 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <?php endif; ?>
                         </div>
                         <div class="flex flex-col gap-2 shrink-0">
-                            <?php if ($reqStatus === 'pending'): ?>
-                            <form method="POST" action="<?= BASE_URL ?>?page=admin-approve-rent-request" onsubmit="return confirm('Xác nhận duyệt yêu cầu này?');">
+                            <?php if ($reqStatus === 'pending' && (string)($req['payment_status'] ?? 'pending') !== 'confirmed'): ?>
+                            <form method="POST" action="<?= BASE_URL ?>?page=admin-confirm-rent-request" onsubmit="return confirm('Xác nhận yêu cầu thuê này? Mã QR chuyển tiền sẽ được hiển thị.');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="request_id" value="<?= $reqId ?>">
-                                <button type="submit" class="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition w-full">Duyệt</button>
+                                <button type="submit" class="px-3 py-2 bg-primary text-white rounded-lg font-semibold text-sm hover:opacity-90 transition w-full">Xác nhận & tạo mã QR</button>
                             </form>
-                            <form method="POST" action="<?= BASE_URL ?>?page=admin-reject-rent-request" onsubmit="return confirm('Xác nhận từ chối yêu cầu này?');">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="request_id" value="<?= $reqId ?>">
-                                <input type="text" name="admin_note" placeholder="Lý do từ chối" class="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary w-full" required>
-                                <button type="submit" class="mt-2 px-3 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition w-full">Từ chối</button>
-                            </form>
+                            <?php elseif ($reqStatus === 'pending' && (string)($req['payment_status'] ?? 'pending') === 'confirmed'): ?>
+                            <div class="text-center bg-gray-50 border border-gray-200 rounded-lg p-3 w-48">
+                                <?php
+                                $qrAmount = (float)($req['room_price'] ?? 0);
+                                $qrBank = RoomModel::getSetting('bank_name', 'Vietcombank');
+                                $qrAccount = RoomModel::getSetting('bank_account_number', '');
+                                $qrHolder = RoomModel::getSetting('bank_account_holder', '');
+                                $qrText = 'Chuyen khoan thue phong ' . ($req['room_name'] ?? '')
+                                    . ' - So tien: ' . number_format($qrAmount, 0, ',', '.') . ' VND'
+                                    . ' - Ngan hang: ' . $qrBank
+                                    . ' - STK: ' . $qrAccount
+                                    . ' - Chu TK: ' . $qrHolder;
+                                ?>
+                                <p class="text-xs font-bold text-gray-700 mb-2">Mã QR chuyển tiền</p>
+                                <img
+                                    src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=<?= e(urlencode($qrText)) ?>"
+                                    alt="Mã QR chuyển tiền"
+                                    class="mx-auto w-36 h-36 rounded-lg bg-white p-1"
+                                    loading="lazy"
+                                >
+                                <p class="mt-2 text-xs text-gray-600 font-semibold"><?= e($req['room_name'] ?? '') ?> · <?= number_format($qrAmount, 0, ',', '.') ?>đ</p>
+                                <p class="text-[11px] text-gray-500"><?= e($qrBank) ?> · <?= e($qrAccount) ?> · <?= e($qrHolder) ?></p>
+                                <div class="mt-2 flex flex-col gap-1.5">
+                                    <form method="POST" action="<?= BASE_URL ?>?page=admin-paid-rent-request" onsubmit="return confirm('Xác nhận người thuê đã thanh toán thành công? Người thuê sẽ được thêm vào phòng và trạng thái chuyển sang đang thuê.');">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="request_id" value="<?= $reqId ?>">
+                                        <button type="submit" class="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition w-full">Đã thanh toán</button>
+                                    </form>
+                                    <form method="POST" action="<?= BASE_URL ?>?page=admin-cancel-rent-request" onsubmit="return confirm('Xác nhận hủy yêu cầu này? Người thuê sẽ KHÔNG được thêm vào phòng và phòng vẫn ở trạng thái trống.');">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="request_id" value="<?= $reqId ?>">
+                                        <button type="submit" class="px-3 py-2 bg-rose-500 text-white rounded-lg font-semibold text-sm hover:bg-rose-600 transition w-full">Hủy</button>
+                                    </form>
+                                </div>
+                            </div>
                             <?php else: ?>
                             <span class="text-sm text-gray-400 text-center py-2">Đã xử lý</span>
                             <?php endif; ?>

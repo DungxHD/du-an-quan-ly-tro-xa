@@ -355,6 +355,41 @@ trait AdminHelperTrait
                     ],
                 ],
             ],
+            [
+                'id' => 'payment',
+                'title' => 'Thanh toán QR',
+                'icon' => 'qr_code_2',
+                'description' => 'Thông tin tài khoản ngân hàng dùng để tạo mã QR chuyển tiền khi duyệt yêu cầu thuê phòng.',
+                'fields' => [
+                    [
+                        'key' => 'bank_name',
+                        'label' => 'Tên ngân hàng',
+                        'type' => 'text',
+                        'group' => 'payment',
+                        'default' => 'Vietcombank',
+                        'placeholder' => 'Ví dụ: Vietcombank',
+                        'tooltip' => 'Tên ngân hàng nhận tiền thuê phòng.',
+                    ],
+                    [
+                        'key' => 'bank_account_number',
+                        'label' => 'Số tài khoản',
+                        'type' => 'text',
+                        'group' => 'payment',
+                        'default' => '',
+                        'placeholder' => 'Ví dụ: 0011001234567',
+                        'tooltip' => 'Số tài khoản ngân hàng nhận tiền.',
+                    ],
+                    [
+                        'key' => 'bank_account_holder',
+                        'label' => 'Chủ tài khoản',
+                        'type' => 'text',
+                        'group' => 'payment',
+                        'default' => '',
+                        'placeholder' => 'Tên người nhận trên tài khoản',
+                        'tooltip' => 'Tên chủ tài khoản ngân hàng.',
+                    ],
+                ],
+            ],
         ];
     }
 /**

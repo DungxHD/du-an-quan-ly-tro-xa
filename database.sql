@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS `contracts` (
   KEY `idx_contract_active` (`user_id`,`move_out_date`),
   CONSTRAINT `fk_contract_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_contract_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.contracts: ~6 rows (approximately)
 INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`, `initial_electricity_index`, `initial_water_index`, `status`, `contract_date`, `created_at`) VALUES
@@ -180,7 +180,8 @@ INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_d
 	(3, 5, 3, '2026-01-20', '2027-01-20', 5200000.00, 5200000.00, 1500.00, 52.00, 'active', '2026-01-15', '2026-01-15 01:00:00'),
 	(4, 6, 4, '2026-02-01', '2027-02-01', 3200000.00, 3200000.00, 730.00, 24.00, 'active', '2026-01-27', '2026-01-27 01:00:00'),
 	(5, 7, 5, '2025-08-01', '2025-12-31', 3900000.00, 7800000.00, 420.00, 18.00, 'terminated', '2025-07-25', '2025-07-25 01:00:00'),
-	(6, 7, 5, '2026-04-10', '2027-04-10', 4000000.00, 4000000.00, NULL, NULL, 'active', '2026-08-15', '2026-08-15 17:57:20');
+	(6, 7, 5, '2026-04-10', '2027-04-10', 4000000.00, 4000000.00, NULL, NULL, 'active', '2026-08-15', '2026-08-15 17:57:20'),
+	(7, 15, 7, '2026-08-28', '2027-08-28', 4200000.00, 4200000.00, NULL, NULL, 'active', '2026-08-17', '2026-08-17 19:05:42');
 
 -- Dumping structure for table manage.feedbacks
 CREATE TABLE IF NOT EXISTS `feedbacks` (
@@ -300,7 +301,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   PRIMARY KEY (`id`),
   KEY `fk_noti_user` (`user_id`),
   CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.notifications: ~10 rows (approximately)
 INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`, `is_read`, `created_at`) VALUES
@@ -312,7 +313,10 @@ INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`
 	(8, 3, 'Thay đổi bảng giá dịch vụ', 'Giá wifi được điều chỉnh từ tháng 03/2026.', '/tenant/services', 'price_change', 1, '2026-02-16 01:00:00'),
 	(9, 7, 'Yêu cầu thuê phòng đã được duyệt', 'Chúc mừng! Yêu cầu thuê phòng "A202 - Standard Plus" của bạn đã được admin duyệt. Ngày vào ở: 10/04/2026.', '', 'general', 0, '2026-08-15 17:57:21'),
 	(10, 7, 'Yêu cầu ở ghép bị hủy', 'Phạm Gia Bảo đã hủy lời mời ở ghép.', '', 'general', 0, '2026-08-15 17:57:57'),
-	(13, 7, 'Chủ trọ đã phản hồi phản ánh của bạn', 'Phản ánh "Muốn xem phòng trực tiếp": Ngáo à?', '?page=tenant-feedback', 'feedback', 0, '2026-08-15 19:38:42');
+	(13, 7, 'Chủ trọ đã phản hồi phản ánh của bạn', 'Phản ánh "Muốn xem phòng trực tiếp": Ngáo à?', '?page=tenant-feedback', 'feedback', 0, '2026-08-15 19:38:42'),
+	(14, 15, 'Tài khoản đã hủy đăng ký thuê', 'Tài khoản Test QR User đã hủy đăng ký thuê phòng "A203 - Deluxe". Phòng vẫn ở trạng thái trống.', '', 'general', 0, '2026-08-17 19:05:11'),
+	(15, 15, 'Người thuê đã thanh toán thành công', 'Người thuê Test QR User đã thanh toán thành công và chính thức vào thuê phòng "A301 - Studio".', '', 'general', 0, '2026-08-17 19:05:42'),
+	(16, 15, 'Chào mừng đến với phòng A301 - Studio', 'Bạn đã thanh toán thành công và chính thức là người thuê phòng "A301 - Studio". Ngày vào ở: 28/08/2026.', '', 'general', 0, '2026-08-17 19:05:42');
 
 -- Dumping structure for table manage.notification_reads
 CREATE TABLE IF NOT EXISTS `notification_reads` (
@@ -484,6 +488,7 @@ CREATE TABLE IF NOT EXISTS `rental_requests` (
   `gender` enum('male','female','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `occupant_count` tinyint NOT NULL DEFAULT '1',
   `status` enum('pending','approved','rejected','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `payment_status` enum('pending','confirmed','paid','cancelled') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `admin_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -493,12 +498,14 @@ CREATE TABLE IF NOT EXISTS `rental_requests` (
   KEY `idx_rr_status` (`status`),
   CONSTRAINT `fk_rr_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_rr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.rental_requests: ~3 rows (approximately)
-INSERT INTO `rental_requests` (`id`, `user_id`, `room_id`, `move_in_date`, `gender`, `occupant_count`, `status`, `admin_note`, `created_at`, `updated_at`) VALUES
-	(1, 7, 5, '2026-04-10', 'male', 1, 'approved', 'Yêu cầu đã được duyệt.', '2026-04-02 02:00:00', '2026-08-15 17:57:20'),
-	(3, 7, 10, '2026-04-20', 'male', 1, 'rejected', 'Phòng đã được ưu tiên cho một hồ sơ khác.', '2026-04-03 04:00:00', '2026-04-04 01:30:00');
+INSERT INTO `rental_requests` (`id`, `user_id`, `room_id`, `move_in_date`, `gender`, `occupant_count`, `status`, `payment_status`, `admin_note`, `created_at`, `updated_at`) VALUES
+	(1, 7, 5, '2026-04-10', 'male', 1, 'approved', 'pending', 'Yêu cầu đã được duyệt.', '2026-04-02 02:00:00', '2026-08-15 17:57:20'),
+	(3, 7, 10, '2026-04-20', 'male', 1, 'rejected', 'pending', 'Phòng đã được ưu tiên cho một hồ sơ khác.', '2026-04-03 04:00:00', '2026-04-04 01:30:00'),
+	(5, 15, 6, '2026-08-25', 'male', 1, 'cancelled', 'cancelled', '', '2026-08-17 19:05:09', '2026-08-17 19:05:11'),
+	(6, 15, 7, '2026-08-28', 'female', 1, 'approved', 'paid', '', '2026-08-17 19:05:40', '2026-08-17 19:05:42');
 
 -- Dumping structure for table manage.roommate_requests
 CREATE TABLE IF NOT EXISTS `roommate_requests` (
@@ -555,7 +562,7 @@ INSERT INTO `rooms` (`id`, `floor_id`, `name`, `position`, `price`, `area`, `max
 	(4, 2, 'A201 - Economy', 1, 3200000.00, 22.00, 2, 'Phòng tiết kiệm dành cho sinh viên, thiết kế gọn gàng và dễ sử dụng.', '["wifi","security","local_parking","water_heater"]', '/.uploads/image_phong_4/a201.jpg', 'rented', 0, NULL, 190, '2026-01-06 01:15:00'),
 	(5, 2, 'A202 - Standard Plus', 2, 4000000.00, 26.00, 2, 'Phòng sáng, thoáng, có bàn học và tủ quần áo lớn.', '["wifi","security","local_parking","ac_unit","water_heater"]', '/.uploads/image_phong_5/a202.jpg', 'maintenance', 0, NULL, 156, '2026-01-06 01:20:00'),
 	(6, 2, 'A203 - Deluxe', 3, 4400000.00, 29.00, 2, 'Phòng deluxe có ban công nhỏ, máy lạnh Inverter và nội thất hoàn thiện.', '["wifi","security","local_parking","local_laundry_service","ac_unit","water_heater"]', '/.uploads/image_phong_6/a203.jpg', 'available', 0, NULL, 213, '2026-01-06 01:25:00'),
-	(7, 3, 'A301 - Studio', 1, 4200000.00, 28.00, 2, 'Studio khép kín, nhiều ánh sáng tự nhiên, phù hợp một người hoặc cặp đôi.', '["wifi","security","ac_unit","water_heater"]', '/.uploads/image_phong_7/a301.jpg', 'available', 0, NULL, 178, '2026-01-06 01:30:00'),
+	(7, 3, 'A301 - Studio', 1, 4200000.00, 28.00, 2, 'Studio khép kín, nhiều ánh sáng tự nhiên, phù hợp một người hoặc cặp đôi.', '["wifi","security","ac_unit","water_heater"]', '/.uploads/image_phong_7/a301.jpg', 'rented', 0, NULL, 178, '2026-01-06 01:30:00'),
 	(8, 3, 'A302 - Family', 2, 5600000.00, 35.00, 3, 'Phòng gia đình rộng, có khu bếp nhỏ và nhiều không gian lưu trữ.', '["wifi","security","local_parking","ac_unit","kitchen","water_heater"]', '/.uploads/image_phong_8/a302.jpg', 'available', 0, NULL, 266, '2026-01-06 01:35:00'),
 	(9, 3, 'A303 - Standard', 3, 3900000.00, 25.00, 2, 'Phòng tiêu chuẩn yên tĩnh, cửa sổ thoáng và đầy đủ tiện ích cơ bản.', '["wifi","security","local_parking","water_heater"]', '/.uploads/image_phong_9/a303.jpg', 'available', 0, NULL, 143, '2026-01-06 01:40:00'),
 	(10, 4, 'B01 - Compact', 1, 2900000.00, 20.00, 2, 'Phòng tiết kiệm 20m², phù hợp sinh viên ngân sách vừa phải.', '["wifi","security","local_parking","water_heater"]', '/.uploads/image_phong_10/b01.jpg', 'available', 0, NULL, 134, '2026-01-06 01:45:00'),
@@ -658,8 +665,7 @@ INSERT INTO `room_services` (`id`, `room_id`, `service_id`, `quantity`, `registe
 	(37, 3, 4, 1, '2026-01-20 02:10:00'),
 	(38, 3, 5, 1, '2026-01-20 02:10:00'),
 	(39, 3, 6, 1, '2026-01-20 02:10:00'),
-	(40, 4, 4, 1, '2026-02-01 02:10:00'),
-	(48, 1, 10, 1, '2026-08-15 12:07:53');
+	(40, 4, 4, 1, '2026-02-01 02:10:00');
 
 -- Dumping structure for table manage.services
 CREATE TABLE IF NOT EXISTS `services` (
@@ -689,8 +695,7 @@ INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `i
 	(4, 'Wifi', 51000.00, 'người/tháng', 'wifi', 'Internet cáp quang dùng chung toàn khu.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL),
 	(5, 'Giữ xe', 100000.00, 'xe/tháng', 'two_wheeler', 'Phí gửi xe máy có mái che.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
 	(6, 'Vệ sinh', 50000.00, 'phòng/tháng', 'cleaning_services', 'Vệ sinh hành lang, cầu thang và khu sinh hoạt chung.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
-	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Sử dụng máy giặt chung không giới hạn theo tháng.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL),
-	(10, 'Realme GT Neo2 5G', 120000.00, 'tháng', 'settings', '', 0, 'meter', 'other', 'room', 1, NULL, NULL, NULL, NULL);
+	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Sử dụng máy giặt chung không giới hạn theo tháng.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL);
 
 -- Dumping structure for table manage.settings
 CREATE TABLE IF NOT EXISTS `settings` (
@@ -703,6 +708,9 @@ CREATE TABLE IF NOT EXISTS `settings` (
 
 -- Dumping data for table manage.settings: ~39 rows (approximately)
 INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `updated_at`) VALUES
+	('bank_account_holder', 'Nguyen Minh Anh', 'general', '2026-08-17 18:41:56'),
+	('bank_account_number', '0011001234567', 'general', '2026-08-17 18:41:56'),
+	('bank_name', 'Vietcombank', 'general', '2026-08-17 18:41:56'),
 	('comment_edit_hours', '24', 'moderation', '2026-01-05 02:00:00'),
 	('comment_lock_hours', '24', 'moderation', '2026-01-05 02:00:00'),
 	('contact_address', '123 Đường Nguyễn Xiển, TP. Thủ Đức, TP.HCM', 'contact', '2026-01-05 02:00:00'),
@@ -743,57 +751,6 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('stat_3_value', '24/7', 'stats', '2026-01-05 02:00:00'),
 	('toxicity_threshold', '0.7', 'moderation', '2026-08-15 17:18:59');
 
--- Dumping structure for table manage.settings_backup_auth_20260815
-CREATE TABLE IF NOT EXISTS `settings_backup_auth_20260815` (
-  `setting_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `setting_value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `setting_group` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'general',
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Dumping data for table manage.settings_backup_auth_20260815: ~40 rows (approximately)
-INSERT INTO `settings_backup_auth_20260815` (`setting_key`, `setting_value`, `setting_group`, `updated_at`) VALUES
-	('comment_edit_hours', '24', 'moderation', '2026-01-05 02:00:00'),
-	('comment_lock_hours', '24', 'moderation', '2026-01-05 02:00:00'),
-	('contact_address', '123 Đường Nguyễn Xiển, TP. Thủ Đức, TP.HCM', 'contact', '2026-01-05 02:00:00'),
-	('contact_email', 'contact@nhatroxanh.vn', 'contact', '2026-01-05 02:00:00'),
-	('contact_phone', '0901 000 001', 'contact', '2026-01-05 02:00:00'),
-	('contact_zalo', '0901000001', 'contact', '2026-01-05 02:00:00'),
-	('enable_comment_moderation', '1', 'moderation', '2026-01-05 02:00:00'),
-	('enable_gemini_moderation', '0', 'moderation', '2026-01-05 02:00:00'),
-	('forgot_password_no_email_message', 'Tài khoản chưa đăng ký email. Vui lòng liên hệ quản lý để được hỗ trợ.', 'auth', '2026-01-05 02:00:00'),
-	('gemini_api_key', '', 'moderation', '2026-01-05 02:00:00'),
-	('hero_headline', 'Tìm phòng phù hợp với nhu cầu của bạn', 'hero', '2026-01-05 02:00:00'),
-	('hero_headline_1', 'Xem Phòng Rõ', 'hero', '2026-01-05 02:00:00'),
-	('hero_headline_2', 'Chọn Chỗ Ở Dễ', 'hero', '2026-01-05 02:00:00'),
-	('hero_image', '/.uploads/image_page_home/home-hero.jpg', 'hero', '2026-01-05 02:00:00'),
-	('hero_subheadline', 'Thông tin phòng, giá thuê và dịch vụ được cập nhật rõ ràng.', 'hero', '2026-01-05 02:00:00'),
-	('intro_image', '/.uploads/image_page_home/home-intro.jpg', 'hero', '2026-01-05 02:00:00'),
-	('max_comment_attempts', '3', 'moderation', '2026-01-05 02:00:00'),
-	('min_days_to_review', '15', 'moderation', '2026-01-05 02:00:00'),
-	('otp_length', '4', 'auth', '2026-01-05 02:00:00'),
-	('otp_max_send_per_24h', '5', 'auth', '2026-01-05 02:00:00'),
-	('otp_max_verify_attempts', '5', 'auth', '2026-01-05 02:00:00'),
-	('otp_resend_seconds', '60', 'auth', '2026-01-05 02:00:00'),
-	('otp_ttl_minutes', '2', 'auth', '2026-01-05 02:00:00'),
-	('site_description', 'Hệ thống quản lý nhà trọ dành cho sinh viên và người đi làm tại TP.HCM.', 'brand', '2026-01-05 02:00:00'),
-	('site_name', 'Nhà trọ Xanh', 'brand', '2026-01-05 02:00:00'),
-	('site_slogan', 'Không gian sống tiện nghi, an toàn và minh bạch.', 'brand', '2026-01-05 02:00:00'),
-	('smtp_encryption', 'tls', 'email', '2026-01-05 02:00:00'),
-	('smtp_from_email', 'no-reply@nhatroxanh.vn', 'email', '2026-01-05 02:00:00'),
-	('smtp_from_name', 'NhaTroXanh', 'email', '2026-01-05 02:00:00'),
-	('smtp_host', 'smtp.example.com', 'email', '2026-01-05 02:00:00'),
-	('smtp_password', 'your_smtp_password', 'email', '2026-01-05 02:00:00'),
-	('smtp_port', '587', 'email', '2026-01-05 02:00:00'),
-	('smtp_username', 'your_email@example.com', 'email', '2026-01-05 02:00:00'),
-	('stat_1_label', 'Phòng đa dạng', 'stats', '2026-01-05 02:00:00'),
-	('stat_1_value', '12+', 'stats', '2026-01-05 02:00:00'),
-	('stat_2_label', 'Dịch vụ tiện ích', 'stats', '2026-01-05 02:00:00'),
-	('stat_2_value', '7', 'stats', '2026-01-05 02:00:00'),
-	('stat_3_label', 'Hỗ trợ cư dân', 'stats', '2026-01-05 02:00:00'),
-	('stat_3_value', '24/7', 'stats', '2026-01-05 02:00:00'),
-	('toxicity_threshold', '0.70', 'moderation', '2026-01-05 02:00:00');
-
 -- Dumping structure for table manage.users
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -815,7 +772,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `idx_user_role` (`role`),
   KEY `fk_user_room` (`room_id`),
   CONSTRAINT `fk_user_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.users: ~8 rows (approximately)
 INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, `role`, `room_id`, `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`, `created_at`) VALUES
@@ -825,36 +782,8 @@ INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, 
 	(4, 'Nguyễn Thùy Linh', 'tenant02@example.com', '0912000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 2, NULL, NULL, NULL, NULL, NULL, '2026-01-09 03:00:00'),
 	(5, 'Lê Hoàng Nam', 'tenant03@example.com', '0912000003', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 3, NULL, NULL, NULL, NULL, NULL, '2026-01-10 03:00:00'),
 	(6, 'Đỗ Khánh Vy', 'tenant04@example.com', '0912000004', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 4, NULL, NULL, NULL, NULL, NULL, '2026-01-11 03:00:00'),
-	(7, 'Vũ Đức Long', 'tenant05@example.com', '0912000005', '$2y$10$qGAR8FMJYgK4IdKkvkyZcuXba.z0jAN/7EUZOAu/dcZWHFMx65O7e', 'default.png', 0, 5, NULL, NULL, NULL, NULL, NULL, '2026-01-12 03:00:00');
-
--- Dumping structure for table manage.users_backup_auth_20260815
-CREATE TABLE IF NOT EXISTS `users_backup_auth_20260815` (
-  `id` int unsigned NOT NULL DEFAULT '0',
-  `full_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'HASH bcrypt',
-  `avatar` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'default.png',
-  `role` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1=Admin, 0=Tenant',
-  `room_id` int unsigned DEFAULT NULL COMMENT 'Phòng đang ở',
-  `date_of_birth` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `permanent_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_issue_date` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_issue_place` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Dumping data for table manage.users_backup_auth_20260815: ~8 rows (approximately)
-INSERT INTO `users_backup_auth_20260815` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, `role`, `room_id`, `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`, `created_at`) VALUES
-	(1, 'Nguyễn Minh Anh', 'admin@nhatroxanh.vn', '0901000001', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:00:00'),
-	(2, 'Trần Quốc Huy', 'manager@nhatroxanh.vn', '0901000002', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:05:00'),
-	(3, 'Phạm Gia Bảo', 'tenant01@example.com', '0912000001', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, 1, NULL, NULL, NULL, NULL, NULL, '2026-01-08 03:00:00'),
-	(4, 'Nguyễn Thùy Linh', 'tenant02@example.com', '0912000002', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, 2, NULL, NULL, NULL, NULL, NULL, '2026-01-09 03:00:00'),
-	(5, 'Lê Hoàng Nam', 'tenant03@example.com', '0912000003', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, 3, NULL, NULL, NULL, NULL, NULL, '2026-01-10 03:00:00'),
-	(6, 'Đỗ Khánh Vy', 'tenant04@example.com', '0912000004', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, 4, NULL, NULL, NULL, NULL, NULL, '2026-01-11 03:00:00'),
-	(7, 'Vũ Đức Long', 'tenant05@example.com', '0912000005', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-12 03:00:00'),
-	(8, 'Hoàng Ngọc Mai', 'tenant06@example.com', '0912000006', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'default.png', 0, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-13 03:00:00');
+	(7, 'Vũ Đức Long', 'tenant05@example.com', '0912000005', '$2y$10$qGAR8FMJYgK4IdKkvkyZcuXba.z0jAN/7EUZOAu/dcZWHFMx65O7e', 'default.png', 0, 5, NULL, NULL, NULL, NULL, NULL, '2026-01-12 03:00:00'),
+	(15, 'Test QR User', 'testqr@example.com', '0999000001', '$2y$10$urM5sVos5fTjOKAQ7T7FeuP4c47f1dEhGoWVRW95.dcqxGsVIRFLW', 'default.png', 0, 7, NULL, NULL, NULL, NULL, NULL, '2026-08-17 18:48:14');
 
 -- Dumping structure for table manage.user_services
 CREATE TABLE IF NOT EXISTS `user_services` (

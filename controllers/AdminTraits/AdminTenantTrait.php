@@ -382,6 +382,153 @@ trait AdminTenantTrait
         redirectTo('admin-rent-requests');
     }
 /**
+     * Bước 1: Admin xác nhận yêu cầu thuê → hiện mã QR chuyển tiền chờ người thuê thanh toán.
+     */
+    public function confirmRentRequest()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-rent-requests');
+        }
+        verify_csrf();
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $request = RentalRequestModel::getById($requestId);
+
+        if (!$request) {
+            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+        if ((string)($request['status'] ?? '') !== 'pending') {
+            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
+            redirectTo('admin-rent-requests');
+        }
+
+        $room = RoomModel::getById((int)($request['room_id'] ?? 0));
+        if (!$room) {
+            setFlash('rent_request_error', 'Phòng trong yêu cầu không còn tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+        if ((string)($room['status'] ?? '') !== 'available') {
+            setFlash('rent_request_error', 'Phòng "' . ($room['name'] ?? '') . '" không còn trống, không thể xác nhận yêu cầu.');
+            redirectTo('admin-rent-requests');
+        }
+
+        RentalRequestModel::confirmByAdmin($requestId);
+        $tenant = UserModel::getById((int)($request['user_id'] ?? 0));
+        setFlash('rent_request_message', 'Đã xác nhận yêu cầu thuê của "' . ($tenant['full_name'] ?? '') . '". Mã QR chuyển tiền đã sẵn sàng cho người thuê.');
+        redirectTo('admin-rent-requests');
+    }
+/**
+     * Bước 2a: Admin hủy yêu cầu đã xác nhận → người thuê không vào phòng, phòng vẫn trống.
+     */
+    public function cancelRentRequestAdmin()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-rent-requests');
+        }
+        verify_csrf();
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $request = RentalRequestModel::getById($requestId);
+
+        if (!$request) {
+            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+        if ((string)($request['status'] ?? '') !== 'pending') {
+            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
+            redirectTo('admin-rent-requests');
+        }
+
+        RentalRequestModel::cancelByAdmin($requestId);
+        $room = RoomModel::getById((int)($request['room_id'] ?? 0));
+        $tenant = UserModel::getById((int)($request['user_id'] ?? 0));
+        $tenantName = (string)($tenant['full_name'] ?? 'Tài khoản');
+        $roomName = (string)($room['name'] ?? '');
+        NotificationModel::create([
+            'user_id' => (int)($request['user_id'] ?? 0),
+            'type' => 'general',
+            'title' => 'Tài khoản đã hủy đăng ký thuê',
+            'content' => 'Tài khoản ' . $tenantName . ' đã hủy đăng ký thuê phòng "' . $roomName . '". Phòng vẫn ở trạng thái trống.',
+        ]);
+        setFlash('rent_request_message', 'Đã hủy yêu cầu thuê của "' . $tenantName . '". Người này không được thêm vào phòng, phòng "' . $roomName . '" vẫn còn trống.');
+        redirectTo('admin-rent-requests');
+    }
+/**
+     * Bước 2b: Admin xác nhận người thuê đã thanh toán → tạo hợp đồng, xếp phòng, phòng thành "đang thuê".
+     */
+    public function paidRentRequest()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-rent-requests');
+        }
+        verify_csrf();
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $request = RentalRequestModel::getById($requestId);
+
+        if (!$request) {
+            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+        if ((string)($request['status'] ?? '') !== 'pending') {
+            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
+            redirectTo('admin-rent-requests');
+        }
+
+        $userId = (int)($request['user_id'] ?? 0);
+        $roomId = (int)($request['room_id'] ?? 0);
+        $room = RoomModel::getById($roomId);
+        if (!$room) {
+            setFlash('rent_request_error', 'Phòng trong yêu cầu không còn tồn tại.');
+            redirectTo('admin-rent-requests');
+        }
+        if (ContractModel::getActiveByUserId($userId)) {
+            setFlash('rent_request_error', 'Người này đã có hợp đồng đang hoạt động, không thể xếp thêm phòng.');
+            redirectTo('admin-rent-requests');
+        }
+
+        $currentOccupants = RoomModel::countOccupants($roomId);
+        $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
+        if ($currentOccupants + 1 > $maxOcc) {
+            setFlash('rent_request_error', 'Phòng đã đủ sức chứa (' . $currentOccupants . '/' . $maxOcc . '), không thể thêm người.');
+            redirectTo('admin-rent-requests');
+        }
+
+        $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
+        try {
+            $contractId = ContractModel::create([
+                'user_id' => $userId,
+                'room_id' => $roomId,
+                'move_in_date' => $moveInDate,
+                'rent_price' => (float)($room['price'] ?? 0),
+                'deposit_amount' => (float)($room['price'] ?? 0),
+                'initial_electricity_index' => null,
+                'initial_water_index' => null,
+                'contract_date' => date('Y-m-d'),
+            ]);
+            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
+            ContractModel::syncRoomStatus($roomId);
+            RentalRequestModel::markPaid($requestId);
+            $tenant = UserModel::getById($userId);
+            $tenantName = (string)($tenant['full_name'] ?? 'Người thuê');
+            $roomName = (string)($room['name'] ?? '');
+            NotificationModel::create([
+                'user_id' => (int)($request['user_id'] ?? 0),
+                'type' => 'general',
+                'title' => 'Người thuê đã thanh toán thành công',
+                'content' => 'Người thuê ' . $tenantName . ' đã thanh toán thành công và chính thức vào thuê phòng "' . $roomName . '".',
+            ]);
+            NotificationModel::create([
+                'user_id' => $userId,
+                'type' => 'general',
+                'title' => 'Chào mừng đến với phòng ' . $roomName,
+                'content' => 'Bạn đã thanh toán thành công và chính thức là người thuê phòng "' . $roomName . '". Ngày vào ở: ' . date('d/m/Y', strtotime($moveInDate)) . '.',
+            ]);
+            setFlash('rent_request_message', 'Người thuê "' . $tenantName . '" đã thanh toán thành công và được thêm vào phòng "' . $roomName . '". Phòng và người thuê chuyển sang trạng thái đang thuê.');
+        } catch (Throwable $exception) {
+            setFlash('rent_request_error', 'Không xác nhận thanh toán được: ' . $exception->getMessage());
+        }
+        redirectTo('admin-rent-requests');
+    }
+/**
      * Yêu cầu ở ghép đã gộp vào trang quản lý yêu cầu (admin-rent-requests).
      * Giữ route cũ để link/redirect cũ không bị lỗi.
      */
