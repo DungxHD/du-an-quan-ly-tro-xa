@@ -543,14 +543,18 @@ class AuthController extends BaseController
                 'phone' => $phone,
             ];
 
-            // Validate họ tên
+            // Validate họ tên - bắt buộc, max 100 ký tự, không chỉ khoảng trắng, chỉ cho phép chữ/số/khoảng trắng/'-'/'.'
             if ($fullName === '') {
                 $errors['full_name'] = 'Vui lòng nhập họ và tên.';
+            } elseif (trim($fullName) === '') {
+                $errors['full_name'] = 'Họ và tên không được chỉ chứa khoảng trắng.';
             } elseif (mb_strlen($fullName) > 100) {
                 $errors['full_name'] = 'Họ và tên không được vượt quá 100 ký tự.';
+            } elseif (!preg_match('/^[\p{L}\p{N}\s\-\'\.]+$/u', $fullName)) {
+                $errors['full_name'] = 'Họ và tên chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, dấu gạch ngang, dấu chấm, dấu nháy đơn.';
             }
 
-            // Validate email (không bắt buộc)
+            // Validate email - không bắt buộc, nhưng nếu nhập thì phải đúng format strict
             if ($email !== '') {
                 if (!UserModel::validateEmailStrict($email)) {
                     $errors['email'] = 'Email không đúng định dạng.';
@@ -559,25 +563,29 @@ class AuthController extends BaseController
                 }
             }
 
-            // Validate phone
+            // Validate phone - bắt buộc
             if ($phone === '') {
                 $errors['phone'] = 'Vui lòng nhập số điện thoại.';
             } else {
                 $normalizedPhone = UserModel::normalizePhone($phone);
                 if (!$normalizedPhone) {
-                    $errors['phone'] = 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, dấu cộng ở đầu (+84), không dấu gạch ngang, ngoặc, chữ cái.';
+                    $errors['phone'] = 'Số điện thoại không hợp lệ. Chỉ chấp nhận: 0xxxxxxxxx (10 số), +84xxxxxxxxx (9 số sau +84, số đầu không phải 0), 84xxxxxxxxx (9 số sau 84, số đầu không phải 0).';
                 } elseif (UserModel::phoneExists($normalizedPhone)) {
                     $errors['phone'] = 'Số điện thoại đã được sử dụng.';
                 } else {
-                    $old['phone'] = $normalizedPhone; // Lưu phone đã chuẩn hóa
+                    $old['phone'] = $normalizedPhone;
                 }
             }
 
-            // Validate password
+            // Validate password - bắt buộc, min 6 ký tự, có ít nhất 1 chữ và 1 số
             if ($password === '') {
                 $errors['password'] = 'Vui lòng nhập mật khẩu.';
             } elseif (strlen($password) < 6) {
                 $errors['password'] = 'Mật khẩu phải có ít nhất 6 ký tự.';
+            } elseif (!preg_match('/[A-Za-z]/', $password)) {
+                $errors['password'] = 'Mật khẩu phải chứa ít nhất 1 chữ cái.';
+            } elseif (!preg_match('/\d/', $password)) {
+                $errors['password'] = 'Mật khẩu phải chứa ít nhất 1 số.';
             }
 
             if ($confirmPassword === '') {

@@ -187,6 +187,13 @@ trait AdminTenantTrait
             setFlash('admin_tenant_old', $oldInput);
             redirectTo('admin-tenants');
         }
+
+        // Tự động đặt tiền cọc = giá phòng cơ bản (không tính dịch vụ)
+        $room = RoomModel::getById($payload['room_id']);
+        if ($room) {
+            $payload['deposit_amount'] = (float)($room['price'] ?? 0);
+        }
+
         if ($payload['deposit_amount'] < 0) {
             setFlash('admin_tenant_error', 'Tiền cọc không được nhỏ hơn 0.');
             setFlash('admin_tenant_old', $oldInput);
@@ -320,7 +327,7 @@ trait AdminTenantTrait
                 'room_id' => $roomId,
                 'move_in_date' => $moveInDate,
                 'rent_price' => (float)($room['price'] ?? 0),
-                'deposit_amount' => 0,
+                'deposit_amount' => (float)($room['price'] ?? 0),
                 'initial_electricity_index' => null,
                 'initial_water_index' => null,
                 'contract_date' => date('Y-m-d'),
@@ -432,7 +439,7 @@ trait AdminTenantTrait
                 'room_id' => $roomId,
                 'move_in_date' => date('Y-m-d'),
                 'rent_price' => (float)($room['price'] ?? 0),
-                'deposit_amount' => 0,
+                'deposit_amount' => (float)($room['price'] ?? 0),
                 'initial_electricity_index' => null,
                 'initial_water_index' => null,
                 'contract_date' => date('Y-m-d'),
@@ -508,6 +515,7 @@ trait AdminTenantTrait
 
     /**
      * Admin veto yêu cầu ở ghép đã duyệt: gỡ người B khỏi phòng.
+     * KHÔNG cho phép gỡ người đã được duyệt qua yêu cầu ở ghép (theo yêu cầu người dùng).
      */
     public function vetoRoommate()
     {
@@ -526,26 +534,9 @@ trait AdminTenantTrait
         $roomId = (int)$request['room_id'];
 
         if ($status === 'approved') {
-            $contract = ContractModel::getActiveByUserId($requesterId);
-            try {
-                if ($contract && (int)$contract['room_id'] === $roomId) {
-                    ContractModel::terminate((int)$contract['id'], date('Y-m-d'));
-                } else {
-                    Database::update('users', ['room_id' => null], 'id = :id', ['id' => $requesterId]);
-                    ContractModel::syncRoomStatus($roomId);
-                }
-            } catch (Throwable $exception) {
-                setFlash('roommate_admin_error', 'Không gỡ được người ở ghép: ' . $exception->getMessage());
-                redirectTo('admin-rent-requests');
-            }
-            RoommateRequestModel::setStatus($requestId, 'admin_rejected');
-            NotificationModel::create([
-                'user_id' => $requesterId,
-                'type' => 'general',
-                'title' => 'Yêu cầu ở ghép bị admin gỡ bỏ',
-                'content' => 'Admin đã gỡ bạn khỏi phòng do yêu cầu ở ghép bị hủy bỏ.',
-            ]);
-            setFlash('roommate_admin_message', 'Đã gỡ người ở ghép khỏi phòng.');
+            // KHÔNG cho phép admin gỡ người đã được duyệt qua yêu cầu ở ghép
+            setFlash('roommate_admin_error', 'Không thể gỡ người ở ghép đã được duyệt. Hết hạn hợp đồng thì tự động kết thúc.');
+            redirectTo('admin-rent-requests');
         } elseif ($status === 'pending_admin') {
             RoommateRequestModel::setStatus($requestId, 'admin_rejected');
             $requesterId = (int)$request['requester_id'];

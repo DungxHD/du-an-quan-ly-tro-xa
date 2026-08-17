@@ -171,7 +171,6 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'profile', 'label' => 'Hồ sơ', 'icon' => 'person', 'url' => BASE_URL . '?page=tenant-profile'],
             ['id' => 'contract', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=tenant-contract'],
             ['id' => 'roommate', 'label' => 'Ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=tenant-roommate'],
-            ['id' => 'maintenance', 'label' => 'Bảo trì', 'icon' => 'build', 'url' => BASE_URL . '?page=tenant-maintenance'],
             ['id' => 'feedback', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=tenant-feedback'],
 
             ['id' => 'rooms', 'label' => 'Tìm phòng', 'icon' => 'search', 'url' => BASE_URL . '?page=rooms'],
@@ -397,10 +396,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->vetoRoommate();
         break;
-    case 'tenant-maintenance':
-        requireTenant();
-        (new TenantController())->maintenance();
-        break;
     case 'tenant-feedback':
         requireTenant();
         (new TenantController())->feedback();
@@ -408,9 +403,6 @@ switch ($page) {
     case 'tenant-send-feedback':
         requireTenant();
         (new TenantController())->sendFeedback();
-        break;
-    case 'tenant-reject-maintenance':
-        (new TenantController())->rejectMaintenance();
         break;
     case 'admin-maintenance':
         requireAdmin();

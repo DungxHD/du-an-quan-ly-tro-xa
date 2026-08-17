@@ -47,7 +47,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 </div>
                 
                 <!-- Form hồ sơ chỉ xử lý thông tin cơ bản, không trộn với dữ liệu hợp đồng để tránh lưu nhầm. -->
-                <form method="POST" data-validate class="space-y-5">
+                <form method="POST" data-validate class="space-y-5" onsubmit="return confirm('Xác nhận lưu thay đổi hồ sơ?');">
 <?= csrf_field() ?>
                     <div>
                         <label class="block text-sm font-semibold mb-2">Họ và tên</label>

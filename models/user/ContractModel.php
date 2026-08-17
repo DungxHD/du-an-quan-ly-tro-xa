@@ -174,16 +174,27 @@ class ContractModel {
 
     /**
      * Tạo mới hợp đồng thuê với snapshot giá thuê và chỉ số đầu kỳ.
+     * Tự động đặt ngày kết thúc = ngày vào + 1 năm.
      */
     public static function create(array $data) {
         $electricityIndex = $data['initial_electricity_index'] ?? null;
         $waterIndex = $data['initial_water_index'] ?? null;
 
+        // Tự động tính ngày kết thúc = ngày vào + 1 năm
+        $moveInDate = trim((string)($data['move_in_date'] ?? ''));
+        $moveOutDate = null;
+        if ($moveInDate !== '') {
+            $moveInTimestamp = strtotime($moveInDate);
+            if ($moveInTimestamp !== false) {
+                $moveOutDate = date('Y-m-d', strtotime('+1 year', $moveInTimestamp));
+            }
+        }
+
         $payload = [
             'user_id' => (int)($data['user_id'] ?? 0),
             'room_id' => (int)($data['room_id'] ?? 0),
-            'move_in_date' => trim((string)($data['move_in_date'] ?? '')),
-            'move_out_date' => null,
+            'move_in_date' => $moveInDate,
+            'move_out_date' => $moveOutDate,
             'rent_price' => (float)($data['rent_price'] ?? 0),
             'deposit_amount' => (float)($data['deposit_amount'] ?? 0),
             'initial_electricity_index' => $electricityIndex === null ? null : (float)$electricityIndex,
@@ -285,6 +296,9 @@ class ContractModel {
         $row['room_id'] = (int)($row['room_id'] ?? 0);
         $row['rent_price'] = (float)($row['rent_price'] ?? 0);
         $row['deposit_amount'] = (float)($row['deposit_amount'] ?? 0);
+        $row['start_date'] = trim((string)($row['move_in_date'] ?? ''));
+        $row['end_date'] = trim((string)($row['move_out_date'] ?? ''));
+        $row['deposit'] = $row['deposit_amount'];
         $row['initial_electricity_index'] = isset($row['initial_electricity_index']) && $row['initial_electricity_index'] !== null
             ? (float)$row['initial_electricity_index']
             : null;

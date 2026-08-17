@@ -171,7 +171,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="font-bold text-lg text-gray-900">Yêu cầu ở ghép</h3>
-                <p class="text-sm text-gray-500 mt-1">Người thuê xin ở ghép cùng người đang có phòng. Admin có thể từ chối hoặc veto & gỡ khỏi phòng.</p>
+                <p class="text-sm text-gray-500 mt-1">Người thuê xin ở ghép cùng người đang có phòng. Admin có thể duyệt hoặc từ chối. Yêu cầu đã duyệt không thể gỡ.</p>
             </div>
 
             <div class="px-6 py-4 border-b border-gray-100 space-y-4">
@@ -284,11 +284,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 <button type="submit" class="px-3 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition w-full">Từ chối</button>
                             </form>
                             <?php elseif ($rrStatus === 'approved'): ?>
-                            <form method="POST" action="<?= BASE_URL ?>?page=admin-veto-roommate" onsubmit="return confirm('Xác nhận veto và gỡ người ở ghép khỏi phòng?');">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="request_id" value="<?= $rrId ?>">
-                                <button type="submit" class="px-3 py-2 bg-orange-600 text-white rounded-lg font-semibold text-sm hover:bg-orange-700 transition w-full">Veto & gỡ</button>
-                            </form>
+                            <span class="px-3 py-2 bg-green-50 text-green-700 rounded-lg font-semibold text-sm text-center">Đã duyệt - không thể gỡ</span>
                             <?php else: ?>
                             <span class="text-sm text-gray-400 text-center py-2">Đã xử lý</span>
                             <?php endif; ?>

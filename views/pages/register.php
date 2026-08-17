@@ -232,7 +232,7 @@ $old = $old ?? [];
       btn.querySelector('.icon-eye').classList.toggle('hidden', wasHidden);
       btn.querySelector('.icon-eye-off').classList.toggle('hidden', !wasHidden);
       btn.setAttribute('aria-pressed', String(wasHidden));
-      btn.setAttribute('aria-label', wasHidden ? '��n mật khẩu' : 'Hiện mật khẩu');
+      btn.setAttribute('aria-label', wasHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
     });
   });
 
@@ -390,6 +390,8 @@ function validateEmailStrict(email) {
       hasError = true;
     } else if (fullNameInput && fullNameInput.value.length > 100) {
       hasError = true;
+    } else if (fullNameInput && !/^[\p{L}\p{N}\s\-'\.]+$/u.test(fullNameInput.value.trim())) {
+      hasError = true;
     }
     
     // Email
@@ -409,6 +411,10 @@ function validateEmailStrict(email) {
     // Password
     if (passwordInput && (!passwordInput.value || passwordInput.value.length < 6)) {
       hasError = true;
+    } else if (passwordInput && !/[A-Za-z]/.test(passwordInput.value)) {
+      hasError = true;
+    } else if (passwordInput && !/\d/.test(passwordInput.value)) {
+      hasError = true;
     }
     
     // Confirm
@@ -427,6 +433,8 @@ function validateEmailStrict(email) {
         setFieldError(input, 'Vui lòng nhập họ và tên.');
       } else if (input.value.length > 100) {
         setFieldError(input, 'Họ và tên không được vượt quá 100 ký tự.');
+      } else if (!/^[\p{L}\p{N}\s\-'\.]+$/u.test(input.value.trim())) {
+        setFieldError(input, 'Họ và tên chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, dấu gạch ngang, dấu chấm, dấu nháy đơn.');
       } else {
         setFieldError(input, '');
       }
@@ -475,6 +483,10 @@ function validateEmailStrict(email) {
         setFieldError(input, 'Vui lòng nhập mật khẩu.');
       } else if (input.value.length < 6) {
         setFieldError(input, 'Mật khẩu phải có ít nhất 6 ký tự.');
+      } else if (!/[A-Za-z]/.test(input.value)) {
+        setFieldError(input, 'Mật khẩu phải chứa ít nhất 1 chữ cái.');
+      } else if (!/\d/.test(input.value)) {
+        setFieldError(input, 'Mật khẩu phải chứa ít nhất 1 số.');
       } else {
         setFieldError(input, '');
       }
@@ -548,6 +560,9 @@ function validateEmailStrict(email) {
       } else if (fullNameInput && fullNameInput.value.length > 100) {
         setFieldError(fullNameInput, 'Họ và tên không được vượt quá 100 ký tự.');
         hasError = true;
+      } else if (fullNameInput && !/^[\p{L}\p{N}\s\-'\.]+$/u.test(fullNameInput.value.trim())) {
+        setFieldError(fullNameInput, 'Họ và tên chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, dấu gạch ngang, dấu chấm, dấu nháy đơn.');
+        hasError = true;
       }
 
       if (emailInput && emailInput.value.trim()) {
@@ -575,6 +590,12 @@ function validateEmailStrict(email) {
           hasError = true;
         } else if (passwordInput.value.length < 6) {
           setFieldError(passwordInput, 'Mật khẩu phải có ít nhất 6 ký tự.');
+          hasError = true;
+        } else if (!/[A-Za-z]/.test(passwordInput.value)) {
+          setFieldError(passwordInput, 'Mật khẩu phải chứa ít nhất 1 chữ cái.');
+          hasError = true;
+        } else if (!/\d/.test(passwordInput.value)) {
+          setFieldError(passwordInput, 'Mật khẩu phải chứa ít nhất 1 số.');
           hasError = true;
         }
       }
