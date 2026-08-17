@@ -159,6 +159,29 @@ $initialTab = $hasAmenityFlash ? 'amenities' : 'home';
                 <?php endforeach; ?>
             </div>
 
+            <!-- Thanh toán QR -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+                <div>
+                    <h3 class="font-bold text-lg inline-flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">qr_code_2</span>
+                        Thanh toán QR
+                    </h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Thông tin tài khoản ngân hàng dùng để tạo mã QR chuyển tiền khi duyệt yêu cầu thuê phòng.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-800">Tên ngân hàng</label>
+                    <input type="text" name="settings[bank_name]" value="<?= e($getValue('bank_name')) ?>" placeholder="Ví dụ: Vietcombank" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-800">Số tài khoản</label>
+                    <input type="text" name="settings[bank_account_number]" value="<?= e($getValue('bank_account_number')) ?>" placeholder="Ví dụ: 0011001234567" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-800">Chủ tài khoản</label>
+                    <input type="text" name="settings[bank_account_holder]" value="<?= e($getValue('bank_account_holder')) ?>" placeholder="Tên người nhận trên tài khoản" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm">
+                </div>
+            </div>
+
             <!-- Tiện ích trong bản xem trước -->
             <div class="rounded-2xl border border-gray-200 bg-white p-5 space-y-3">
                 <div class="flex items-center justify-between">

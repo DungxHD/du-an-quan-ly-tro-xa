@@ -152,6 +152,11 @@ $old = $old ?? [];
                     </div>
                 <?php endif; ?>
 
+                <div class="auth-alert p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-2 hidden" id="register_client_error" role="alert">
+                    <span class="material-symbols-outlined mt-0.5">error</span>
+                    <span id="register_client_error_text"></span>
+                </div>
+
                 <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg" id="registerBtn">
                     Đăng ký
                 </button>
@@ -245,9 +250,17 @@ $old = $old ?? [];
   var registerBtn = document.getElementById('registerBtn');
   var strengthWords = ['', 'Rất yếu', 'Yếu', 'Trung bình', 'Mạnh'];
 
+  var errorBoxIds = {
+    register_full_name: 'full_name_error',
+    register_email: 'email_error',
+    register_phone: 'phone_error',
+    reg_password: 'password_error',
+    reg_confirm: 'confirm_error'
+  };
+
   function setFieldError(input, message) {
     if (!input) return;
-    var box = document.getElementById(input.id + '_error');
+    var box = document.getElementById(errorBoxIds[input.id]);
     if (!box) return;
 
     box.textContent = message;
@@ -485,79 +498,95 @@ function validateEmailStrict(email) {
   }
   
   if (form) {
+    var clientErrorBox = document.getElementById('register_client_error');
+    var clientErrorText = document.getElementById('register_client_error_text');
+
     form.addEventListener('submit', function (event) {
       var hasError = false;
-      
-      // Validate all fields on submit (errors already shown on input, but re-validate for safety)
-      [
-        fullNameInput,
-        emailInput,
-        phoneInput,
-        passwordInput,
-        confirmInput
-      ].forEach(function (input) {
+      var firstInvalid = null;
+      var fieldsInOrder = [fullNameInput, emailInput, phoneInput, passwordInput, confirmInput];
+
+      function markInvalid(input) {
+        hasError = true;
+        if (!firstInvalid && input) firstInvalid = input;
+      }
+
+      fieldsInOrder.forEach(function (input) {
         if (!input) return;
-        // Don't clear errors here - they're already shown from input validation
+        var box = document.getElementById(errorBoxIds[input.id]);
+        if (box) {
+          box.textContent = '';
+          box.classList.add('hidden');
+        }
+        input.classList.remove('border-red-300', 'bg-red-50');
       });
 
       if (fullNameInput && !fullNameInput.value.trim()) {
         setFieldError(fullNameInput, 'Vui lòng nhập họ và tên.');
-        hasError = true;
+        markInvalid(fullNameInput);
       } else if (fullNameInput && fullNameInput.value.length > 100) {
         setFieldError(fullNameInput, 'Họ và tên không được vượt quá 100 ký tự.');
-        hasError = true;
+        markInvalid(fullNameInput);
       } else if (fullNameInput && !/^[\p{L}\p{N}\s\-'\.]+$/u.test(fullNameInput.value.trim())) {
         setFieldError(fullNameInput, 'Họ và tên chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, dấu gạch ngang, dấu chấm, dấu nháy đơn.');
-        hasError = true;
+        markInvalid(fullNameInput);
       }
 
       if (emailInput && emailInput.value.trim()) {
         var emailResult = validateEmailStrict(emailInput.value);
         if (!emailResult.valid) {
           setFieldError(emailInput, emailResult.message);
-          hasError = true;
+          markInvalid(emailInput);
         }
       }
 
       if (phoneInput && !phoneInput.value.trim()) {
         setFieldError(phoneInput, 'Vui lòng nhập số điện thoại.');
-        hasError = true;
+        markInvalid(phoneInput);
       } else if (phoneInput && phoneInput.value.trim()) {
         var normalized = normalizePhoneInput(phoneInput.value);
         if (!normalized) {
           setFieldError(phoneInput, 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, khoảng trắng, +84 ở đầu. Không dấu gạch ngang, ngoặc, chữ cái.');
-          hasError = true;
+          markInvalid(phoneInput);
         }
       }
 
       if (passwordInput) {
         if (!passwordInput.value) {
           setFieldError(passwordInput, 'Vui lòng nhập mật khẩu.');
-          hasError = true;
+          markInvalid(passwordInput);
         } else if (passwordInput.value.length < 6) {
           setFieldError(passwordInput, 'Mật khẩu phải có ít nhất 6 ký tự.');
-          hasError = true;
+          markInvalid(passwordInput);
         } else if (!/[A-Za-z]/.test(passwordInput.value)) {
           setFieldError(passwordInput, 'Mật khẩu phải chứa ít nhất 1 chữ cái.');
-          hasError = true;
+          markInvalid(passwordInput);
         } else if (!/\d/.test(passwordInput.value)) {
           setFieldError(passwordInput, 'Mật khẩu phải chứa ít nhất 1 số.');
-          hasError = true;
+          markInvalid(passwordInput);
         }
       }
 
       if (confirmInput) {
         if (!confirmInput.value) {
           setFieldError(confirmInput, 'Vui lòng xác nhận mật khẩu.');
-          hasError = true;
+          markInvalid(confirmInput);
         } else if (confirmInput.value !== passwordInput?.value) {
           setFieldError(confirmInput, 'Xác nhận mật khẩu chưa khớp.');
-          hasError = true;
+          markInvalid(confirmInput);
         }
       }
 
       if (hasError) {
         event.preventDefault();
+        if (clientErrorBox && clientErrorText) {
+          clientErrorText.textContent = 'Vui lòng kiểm tra lại các trường được đánh dấu lỗi bên dưới.';
+          clientErrorBox.classList.remove('hidden');
+          clientErrorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (firstInvalid) firstInvalid.focus();
+      } else if (clientErrorBox) {
+        clientErrorBox.classList.add('hidden');
       }
     });
   }
