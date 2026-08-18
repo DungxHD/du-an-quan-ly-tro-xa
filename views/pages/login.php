@@ -5,6 +5,7 @@ $success = $success ?? '';
 $action = $action ?? 'login';
 $cp_step = $old['cp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập mật khẩu
 $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
+$otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60));
 ?>
 <section class="auth-shell min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 bg-gradient-to-br from-primary/5 to-secondary/5">
     <div class="auth-ambient" aria-hidden="true">
@@ -252,6 +253,7 @@ $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
                         <?php if (!empty($errors['new_password'])): ?>
                             <p class="mt-2 text-sm text-red-600"><?= e($errors['new_password']) ?></p>
                         <?php endif; ?>
+                        <p id="cp_new_password_error" class="mt-2 text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div class="auth-field">
@@ -285,6 +287,7 @@ $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
                         <?php if (!empty($errors['confirm_password'])): ?>
                             <p class="mt-2 text-sm text-red-600"><?= e($errors['confirm_password']) ?></p>
                         <?php endif; ?>
+                        <p id="cp_confirm_password_error" class="mt-2 text-sm text-red-600 hidden"></p>
                     </div>
 
                     <button type="submit" class="auth-btn w-full py-3 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition transform hover:scale-[1.02] active:scale-[0.99] shadow-lg">
@@ -407,7 +410,7 @@ $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
                         <form method="POST" action="<?= BASE_URL ?>?page=resend-otp" class="inline" id="fpResendForm">
     <?= csrf_field() ?>
                             <button type="submit" class="text-primary hover:underline text-sm font-medium" id="fpResendBtn" disabled>
-                                Gửi lại mã OTP sau <span id="fpResendCountdown">02:00</span>
+                                Gửi lại mã OTP sau <span id="fpResendCountdown"><?= sprintf('%02d:%02d', (int)($otpResendSeconds / 60), $otpResendSeconds % 60) ?></span>
                             </button>
                         </form>
                     </div>
@@ -481,6 +484,7 @@ $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
   }
 </style>
 
+<script src="<?= BASE_URL ?>assets/js/account-validators.js"></script>
 <script>
 (function () {
   document.querySelectorAll('.toggle-password').forEach(function (btn) {
@@ -551,13 +555,13 @@ $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
     });
   }
 
-  // Resend countdown for forgot password step 2 (2 minutes = 120 seconds)
+  // Resend countdown for forgot password step 2 (đồng bộ với setting otp_resend_seconds)
   var fpCountdownEl = document.getElementById('fpResendCountdown');
   var fpResendBtn = document.getElementById('fpResendBtn');
   var fpResendForm = document.getElementById('fpResendForm');
 
   if (fpCountdownEl && fpResendBtn && fpResendForm) {
-    var totalSeconds = 120; // 2 minutes
+    var totalSeconds = <?= max(0, $otpResendSeconds) ?>;
     var seconds = totalSeconds;
     fpResendBtn.disabled = true;
 
@@ -580,6 +584,76 @@ $fp_step = $old['fp_step'] ?? 1; // 1 = nhập identifier, 2 = nhập OTP
         return;
       }
       // Let it submit normally - server will handle and redirect back with new countdown
+    });
+  }
+
+  // Change password step 2 validation (đồng nhất với register/admin: ≥6 ký tự, có chữ và số)
+  var cpForm = document.querySelector('[data-change-form-step2]');
+  if (cpForm) {
+    var cpNewPassword = document.getElementById('cp_new_password');
+    var cpConfirmPassword = document.getElementById('cp_confirm_password');
+    var cpOldPassword = document.getElementById('cp_old_password');
+
+    function setCpFieldError(input, message) {
+      if (!input) return;
+      var box = document.getElementById(input.id + '_error');
+      if (!box) return;
+      box.textContent = message;
+      box.classList.toggle('hidden', !message);
+      input.classList.toggle('border-red-300', !!message);
+      input.classList.toggle('bg-red-50', !!message);
+    }
+
+    if (cpNewPassword) {
+      cpNewPassword.addEventListener('input', function () {
+        setCpFieldError(cpNewPassword, cpNewPassword.value ? validatePassword(cpNewPassword.value) : '');
+      });
+    }
+    if (cpConfirmPassword) {
+      cpConfirmPassword.addEventListener('input', function () {
+        if (!cpConfirmPassword.value) {
+          setCpFieldError(cpConfirmPassword, '');
+        } else if (cpConfirmPassword.value !== (cpNewPassword ? cpNewPassword.value : '')) {
+          setCpFieldError(cpConfirmPassword, 'Xác nhận mật khẩu chưa khớp.');
+        } else {
+          setCpFieldError(cpConfirmPassword, '');
+        }
+      });
+    }
+
+    cpForm.addEventListener('submit', function (event) {
+      var hasError = false;
+
+      [cpOldPassword, cpNewPassword, cpConfirmPassword].forEach(function (input) {
+        if (input) setCpFieldError(input, '');
+      });
+
+      if (cpOldPassword && !cpOldPassword.value) {
+        setCpFieldError(cpOldPassword, 'Vui lòng nhập mật khẩu cũ.');
+        hasError = true;
+      }
+
+      if (cpNewPassword) {
+        var passwordError = cpNewPassword.value ? validatePassword(cpNewPassword.value) : 'Vui lòng nhập mật khẩu mới.';
+        if (passwordError) {
+          setCpFieldError(cpNewPassword, passwordError);
+          hasError = true;
+        }
+      }
+
+      if (cpConfirmPassword) {
+        if (!cpConfirmPassword.value) {
+          setCpFieldError(cpConfirmPassword, 'Vui lòng xác nhận mật khẩu mới.');
+          hasError = true;
+        } else if (cpConfirmPassword.value !== (cpNewPassword ? cpNewPassword.value : '')) {
+          setCpFieldError(cpConfirmPassword, 'Xác nhận mật khẩu chưa khớp.');
+          hasError = true;
+        }
+      }
+
+      if (hasError) {
+        event.preventDefault();
+      }
     });
   }
 })();

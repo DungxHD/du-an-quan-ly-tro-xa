@@ -1,5 +1,6 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Ho_Chi_Minh');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
@@ -148,17 +149,8 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'areas', 'label' => 'Quản lý khu', 'icon' => 'apartment', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
             ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
-
-            [
-                'id' => 'group-community', 'label' => 'Cộng đồng & Kiểm duyệt', 'icon' => 'star',
-                'children' => [
-                    ['id' => 'comments', 'label' => 'Đánh giá', 'icon' => 'star', 'url' => BASE_URL . '?page=admin-comments'],
-                    ['id' => 'comment-reports', 'label' => 'Báo cáo đánh giá', 'icon' => 'report', 'url' => BASE_URL . '?page=admin-comment-reports'],
-                    ['id' => 'banned-words', 'label' => 'Bộ từ cấm', 'icon' => 'block', 'url' => BASE_URL . '?page=admin-banned-words'],
-                    ['id' => 'feedbacks', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-feedbacks'],
-                ],
-            ],
-
+            ['id' => 'comments', 'label' => 'Đánh giá', 'icon' => 'star', 'url' => BASE_URL . '?page=admin-comments'],
+            ['id' => 'feedbacks', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-feedbacks'],
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=admin-notifications'],
             ['id' => 'accounts', 'label' => 'Quản lý tài khoản', 'icon' => 'manage_accounts', 'url' => BASE_URL . '?page=admin-accounts'],
         ],
@@ -228,6 +220,9 @@ switch ($page) {
         break;
     case 'cancel-rent-request':
         (new RoomController())->cancelRentRequest();
+        break;
+    case 'tenant-paid-rent-request':
+        (new RoomController())->paidRentRequest();
         break;
     case 'login':
         (new AuthController())->login();
@@ -496,22 +491,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->toggleComment();
         break;
-    case 'admin-comment-reports':
-        requireAdmin();
-        (new AdminController())->commentReports();
-        break;
-    case 'admin-resolve-report':
-        requireAdmin();
-        (new AdminController())->resolveCommentReport();
-        break;
-    case 'admin-banned-words':
-        requireAdmin();
-        (new AdminController())->bannedWords();
-        break;
-    case 'admin-save-banned-word':
-        requireAdmin();
-        (new AdminController())->saveBannedWord();
-        break;
     case 'admin-terminate-contract':
         requireAdmin();
         (new AdminController())->terminateContract($id);
@@ -575,6 +554,18 @@ switch ($page) {
     case 'tenant-report-comment':
         requireTenant();
         (new TenantController())->reportComment();
+        break;
+    case 'tenant-comment-moderation':
+        requireTenant();
+        (new TenantController())->commentModeration();
+        break;
+    case 'tenant-comment-rewrite':
+        requireTenant();
+        (new TenantController())->commentRewrite();
+        break;
+    case 'tenant-comment-cancel':
+        requireTenant();
+        (new TenantController())->commentCancel();
         break;
     default:
         (new HomeController())->index();

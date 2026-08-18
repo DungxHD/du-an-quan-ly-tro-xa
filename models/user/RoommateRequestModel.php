@@ -122,7 +122,11 @@ class RoommateRequestModel {
         return is_array($rows) ? $rows : [];
     }
 
-    public static function setStatus($id, $status) {
-        return Database::update('roommate_requests', ['status' => $status], 'id = :id', ['id' => (int)$id]);
+    public static function setStatus($id, $status, $adminNote = null) {
+        $payload = ['status' => $status];
+        if ($adminNote !== null) {
+            $payload['admin_note'] = trim((string)$adminNote);
+        }
+        return Database::update('roommate_requests', $payload, 'id = :id', ['id' => (int)$id]);
     }
 }

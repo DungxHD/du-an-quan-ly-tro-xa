@@ -139,7 +139,55 @@ class UserModel {
             return false;
         }
 
+        // Chỉ chấp nhận email @gmail.com (đuôi luôn là .com)
+        if (strtolower($domain) !== 'gmail.com') {
+            return false;
+        }
+
         return true;
+    }
+
+    /**
+     * Validate họ và tên dùng chung cho mọi form tạo/sửa tài khoản.
+     * Trả về chuỗi lỗi (hoặc '' nếu hợp lệ).
+     */
+    public static function validateFullName($fullName) {
+        $fullName = (string)$fullName;
+        if ($fullName === '') {
+            return 'Vui lòng nhập họ và tên.';
+        }
+        if (trim($fullName) === '') {
+            return 'Họ và tên không được chỉ chứa khoảng trắng.';
+        }
+        if (mb_strlen($fullName) > 100) {
+            return 'Họ và tên không được vượt quá 100 ký tự.';
+        }
+        if (!preg_match('/^[\p{L}\p{N}\s\-\'\.]+$/u', $fullName)) {
+            return 'Họ và tên chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, dấu gạch ngang, dấu chấm, dấu nháy đơn.';
+        }
+        return '';
+    }
+
+    /**
+     * Validate mật khẩu dùng chung cho mọi form tạo/sửa tài khoản.
+     * Rule: bắt buộc, tối thiểu 6 ký tự, có ít nhất 1 chữ cái và 1 số.
+     * Trả về chuỗi lỗi (hoặc '' nếu hợp lệ). $fieldLabel dùng cho thông báo trường trống.
+     */
+    public static function validatePassword($password, $fieldLabel = 'mật khẩu') {
+        $password = (string)$password;
+        if ($password === '') {
+            return 'Vui lòng nhập ' . $fieldLabel . '.';
+        }
+        if (strlen($password) < 6) {
+            return 'Mật khẩu phải có ít nhất 6 ký tự.';
+        }
+        if (!preg_match('/[A-Za-z]/', $password)) {
+            return 'Mật khẩu phải chứa ít nhất 1 chữ cái.';
+        }
+        if (!preg_match('/\d/', $password)) {
+            return 'Mật khẩu phải chứa ít nhất 1 số.';
+        }
+        return '';
     }
 
     /**

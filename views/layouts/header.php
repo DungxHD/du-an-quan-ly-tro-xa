@@ -41,22 +41,33 @@ $navClass = static function ($id) use ($activePage) {
     <meta name="description" content="<?= e($metaDescription) ?>">
     <meta property="og:title" content="<?= e($pageTitle) ?>">
     <meta property="og:description" content="<?= e($metaDescription) ?>">
+    <script>
+        (function () {
+            try {
+                var storedTheme = localStorage.getItem('nta_theme');
+                var systemTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                document.documentElement.dataset.theme = storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : systemTheme;
+            } catch (error) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        }());
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/custom.css">
     <script>
         tailwind.config = {
             theme: { extend: {
-                colors: { primary: '#00685f', secondary: '#4b41e1', surface: '#f9f9ff' },
-                fontFamily: { sans: ['Inter', 'sans-serif'] }
+                colors: { primary: 'var(--nta-brand)', secondary: 'var(--nta-secondary)', surface: 'var(--nta-bg)' },
+                fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Playfair Display', 'serif'], mono: ['DM Mono', 'monospace'] }
             }}
         }
     </script>
 </head>
-<body class="bg-surface text-gray-900 font-sans antialiased">
+<body class="nta-public-body bg-surface text-gray-900 font-sans antialiased">
 
-<nav class="fixed top-0 w-full bg-white/80 backdrop-blur-xl shadow-sm z-40 border-b border-gray-100" id="mainNav">
+<nav class="nta-public-nav fixed top-0 w-full bg-white/80 backdrop-blur-xl shadow-sm z-40 border-b border-gray-100" id="mainNav">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
             <a href="<?= $homeUrl ?>" class="flex items-center gap-3 group">
@@ -76,6 +87,9 @@ $navClass = static function ($id) use ($activePage) {
             </div>
 
             <div class="hidden lg:flex items-center gap-3">
+                <button type="button" class="nta-theme-toggle inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-600 hover:text-primary hover:border-primary/40 transition" data-theme-toggle aria-pressed="false" aria-label="Đổi giao diện sáng tối">
+                    <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
+                </button>
                 <?php if ($phoneTel !== '' && preg_match('/^[0-9+]+$/', $phoneTel)): ?>
                     <a href="tel:<?= e($phoneTel) ?>" class="hidden xl:inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition text-sm font-semibold">
                         <span class="material-symbols-outlined text-base">call</span>
@@ -102,15 +116,20 @@ $navClass = static function ($id) use ($activePage) {
                 <?php endif; ?>
             </div>
 
-            <button id="mobileMenuBtn" class="lg:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl hover:bg-gray-100 transition" aria-label="Mở menu">
-                <span class="material-symbols-outlined">menu</span>
-            </button>
+            <div class="lg:hidden flex items-center gap-2">
+                <button type="button" class="nta-theme-toggle inline-flex items-center justify-center w-10 h-10 rounded-xl hover:bg-gray-100 transition" data-theme-toggle aria-pressed="false" aria-label="Đổi giao diện sáng tối">
+                    <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
+                </button>
+                <button id="mobileMenuBtn" class="inline-flex items-center justify-center w-10 h-10 rounded-xl hover:bg-gray-100 transition" aria-label="Mở menu">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+            </div>
         </div>
     </div>
 </nav>
 
-<div id="mobileMenuBackdrop" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-[2px] z-40"></div>
-<aside id="mobileMenu" class="fixed top-0 right-0 h-full w-[86%] max-w-sm bg-white z-50 translate-x-full transition-transform duration-300">
+<div id="mobileMenuBackdrop" class="nta-mobile-backdrop hidden fixed inset-0 bg-gray-900/40 backdrop-blur-[2px] z-40"></div>
+<aside id="mobileMenu" class="nta-mobile-drawer fixed top-0 right-0 h-full w-[86%] max-w-sm bg-white z-50 translate-x-full transition-transform duration-300">
     <div class="p-5 border-b border-gray-100 flex items-center justify-between">
         <div class="flex items-center gap-3">
             <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center">

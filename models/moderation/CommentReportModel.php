@@ -47,7 +47,7 @@ class CommentReportModel {
             throw new RuntimeException('Bạn không thể tự báo cáo đánh giá của chính mình.');
         }
 
-        if ((int)($comment['status'] ?? 0) !== 1 || (int)($comment['is_spam'] ?? 0) === 1) {
+        if ((int)($comment['status'] ?? 0) !== 1) {
             throw new RuntimeException('Đánh giá này hiện không còn ở trạng thái công khai để báo cáo.');
         }
 
@@ -79,8 +79,6 @@ class CommentReportModel {
                     c.content AS comment_content,
                     c.rating AS comment_rating,
                     c.status AS comment_status,
-                    c.is_spam AS comment_is_spam,
-                    c.toxicity_score,
                     r.name AS room_name,
                     reporter.full_name AS reporter_name,
                     owner.full_name AS comment_author_name
@@ -266,9 +264,7 @@ class CommentReportModel {
         $row['user_id'] = (int)($row['user_id'] ?? 0);
         $row['room_id'] = (int)($row['room_id'] ?? 0);
         $row['comment_status'] = (int)($row['comment_status'] ?? 1);
-        $row['comment_is_spam'] = (int)($row['comment_is_spam'] ?? 0);
         $row['comment_rating'] = max(1, min(5, (int)($row['comment_rating'] ?? 5)));
-        $row['toxicity_score'] = round((float)($row['toxicity_score'] ?? 0), 2);
         $row['status'] = in_array((string)($row['status'] ?? ''), ['pending', 'resolved', 'dismissed'], true)
             ? (string)$row['status']
             : 'pending';
@@ -318,8 +314,6 @@ class CommentReportModel {
             $report['comment_content'] = $comment['content'] ?? '';
             $report['comment_rating'] = $comment['rating'] ?? 5;
             $report['comment_status'] = $comment['status'] ?? 1;
-            $report['comment_is_spam'] = $comment['is_spam'] ?? 0;
-            $report['toxicity_score'] = $comment['toxicity_score'] ?? 0;
             $report['room_name'] = $room['name'] ?? '';
             $report['reporter_name'] = $reporter['full_name'] ?? 'Người dùng';
             $report['comment_author_name'] = $owner['full_name'] ?? 'Người đánh giá';

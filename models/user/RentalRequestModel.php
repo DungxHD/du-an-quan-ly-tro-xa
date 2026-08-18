@@ -159,11 +159,15 @@ class RentalRequestModel {
         );
     }
 
-    /** Admin xác nhận yêu cầu → hiện mã QR chờ người thuê thanh toán. */
-    public static function confirmByAdmin($id) {
+    /** Admin xác nhận yêu cầu → ấn định tiền cọc + hiện mã QR chờ người thuê thanh toán. */
+    public static function confirmByAdmin($id, $deposit = null) {
+        $payload = ['payment_status' => 'confirmed'];
+        if ($deposit !== null) {
+            $payload['deposit'] = max(0, (float)$deposit);
+        }
         return Database::update(
             'rental_requests',
-            ['payment_status' => 'confirmed'],
+            $payload,
             'id = :id AND status = :status',
             ['id' => (int)$id, 'status' => 'pending']
         );

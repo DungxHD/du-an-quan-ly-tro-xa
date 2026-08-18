@@ -20,11 +20,12 @@ class RoomController extends BaseController {
             : ['allowed' => false, 'message' => ''];
         $commentMessage = pullFlash('comment_message', '');
         $commentError = pullFlash('comment_error', '');
+        $commentWarning = pullFlash('comment_warning', '');
         $pageTitle = $room['name'] . ' - ' . RoomModel::getSetting('site_name', 'NhaTroA');
 
         $this->renderPublic(
             'views/pages/detail.php',
-            compact('room', 'commentBundle', 'commentEligibility', 'commentMessage', 'commentError'),
+            compact('room', 'commentBundle', 'commentEligibility', 'commentMessage', 'commentError', 'commentWarning'),
             'detail',
             $pageTitle
         );
@@ -106,8 +107,106 @@ class RoomController extends BaseController {
             'gender' => $gender,
             'occupant_count' => 1,
         ]);
+        foreach (UserModel::getAll() as $admin) {
+            if ((int)($admin['role'] ?? 1) === 1) {
+                NotificationModel::create([
+                    'user_id' => (int)$admin['id'],
+                    'type' => 'rental_request',
+                    'title' => 'Yêu cầu thuê phòng mới',
+                    'content' => ($currentUser['full_name'] ?? 'Khách') . ' đã gửi yêu cầu thuê phòng "' . ($room['name'] ?? '') . '", ngày dự kiến vào ở ' . date('d/m/Y', $ts) . '. Cần admin xét duyệt.',
+                    'link' => '?page=admin-rent-requests&rent_filter=pending',
+                ]);
+            }
+        }
         setFlash('rent_message', 'Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" đã được gửi, vui lòng chờ admin xét duyệt.');
         redirectTo('request-rent', ['id' => (int)$id]);
+    }
+
+    /**
+     * Người thuê xác nhận đã thanh toán tiền cọc (dự án trường: tự xác nhận, vào phòng luôn).
+     * Yêu cầu phải thuộc về user đang đăng nhập, đang chờ duyệt và đã được admin xác nhận (có QR + tiền cọc).
+     */
+    public function paidRentRequest() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirectTo('rooms'); }
+        verify_csrf();
+        if (empty($_SESSION['user_id'])) { redirectTo('login'); }
+        if ((int)($_SESSION['role'] ?? -1) === 1) { redirectTo('home'); }
+        $userId = (int)$_SESSION['user_id'];
+
+        $requestId = (int)($_POST['request_id'] ?? 0);
+        $request = RentalRequestModel::getById($requestId);
+        if (!$request || (int)($request['user_id'] ?? 0) !== $userId) {
+            setFlash('rent_error', 'Yêu cầu không tồn tại hoặc không thuộc về tài khoản của bạn.');
+            redirectTo('rooms');
+        }
+        if ((string)($request['status'] ?? '') !== 'pending' || (string)($request['payment_status'] ?? '') !== 'confirmed') {
+            setFlash('rent_error', 'Yêu cầu này chưa được admin xác nhận hoặc đã được xử lý trước đó.');
+            redirectTo('request-rent', ['id' => (int)($request['room_id'] ?? 0)]);
+        }
+
+        $roomId = (int)($request['room_id'] ?? 0);
+        $room = RoomModel::getById($roomId);
+        if (!$room) {
+            setFlash('rent_error', 'Phòng trong yêu cầu không còn tồn tại.');
+            redirectTo('rooms');
+        }
+        if (ContractModel::getActiveByUserId($userId)) {
+            setFlash('rent_error', 'Bạn đã có hợp đồng đang hoạt động, không thể xác nhận thêm phòng.');
+            redirectTo('rooms');
+        }
+
+        $currentOccupants = RoomModel::countOccupants($roomId);
+        $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
+        if ($currentOccupants + 1 > $maxOcc) {
+            setFlash('rent_error', 'Phòng đã đủ sức chứa (' . $currentOccupants . '/' . $maxOcc . '), không thể vào ở.');
+            redirectTo('rooms');
+        }
+
+        $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
+        $deposit = (float)($request['deposit'] ?? 0);
+        if ($deposit <= 0) {
+            $deposit = (float)($room['price'] ?? 0);
+        }
+        try {
+            ContractModel::create([
+                'user_id' => $userId,
+                'room_id' => $roomId,
+                'move_in_date' => $moveInDate,
+                'rent_price' => (float)($room['price'] ?? 0),
+                'deposit_amount' => $deposit,
+                'initial_electricity_index' => null,
+                'initial_water_index' => null,
+                'contract_date' => date('Y-m-d'),
+            ]);
+            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
+            ContractModel::syncRoomStatus($roomId);
+            RentalRequestModel::markPaid($requestId);
+
+            $currentUser = UserModel::getById($userId);
+            $userName = (string)($currentUser['full_name'] ?? 'Người thuê');
+            $roomName = (string)($room['name'] ?? '');
+            foreach (UserModel::getAll() as $admin) {
+                if ((int)($admin['role'] ?? 1) === 1) {
+                    NotificationModel::create([
+                        'user_id' => (int)$admin['id'],
+                        'type' => 'rental_request',
+                        'title' => 'Tiền cọc đã được thanh toán',
+                        'content' => $userName . ' đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công cho phòng "' . $roomName . '".',
+                        'link' => '?page=admin-rent-requests&rent_filter=approved',
+                    ]);
+                }
+            }
+            NotificationModel::create([
+                'user_id' => $userId,
+                'type' => 'general',
+                'title' => 'Chào mừng đến với phòng ' . $roomName,
+                'content' => 'Bạn đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công và chính thức là người thuê phòng "' . $roomName . '". Ngày vào ở: ' . date('d/m/Y', strtotime($moveInDate)) . '.',
+            ]);
+            setFlash('rent_message', 'Chúc mừng! Bạn đã thanh toán tiền cọc thành công và chính thức vào thuê phòng "' . $roomName . '".');
+        } catch (Throwable $exception) {
+            setFlash('rent_error', 'Không xác nhận thanh toán được: ' . $exception->getMessage());
+        }
+        redirectTo('rooms');
     }
 
     /**

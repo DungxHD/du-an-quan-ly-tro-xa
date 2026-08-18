@@ -41,9 +41,20 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle ?? $panelTitle) ?></title>
+    <script>
+        (function () {
+            try {
+                var storedTheme = localStorage.getItem('nta_theme');
+                var systemTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                document.documentElement.dataset.theme = storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : systemTheme;
+            } catch (error) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        }());
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/custom.css">
     <script>
@@ -51,12 +62,14 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#00685f',
-                        secondary: '#4b41e1',
-                        surface: '#f9f9ff'
+                        primary: 'var(--nta-brand)',
+                        secondary: 'var(--nta-secondary)',
+                        surface: 'var(--nta-bg)'
                     },
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif']
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Playfair Display', 'serif'],
+                        mono: ['DM Mono', 'monospace']
                     }
                 }
             }
@@ -64,8 +77,8 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
     </script>
 </head>
 
-<body class="<?= e($panelBodyClass) ?> font-sans antialiased">
-    <nav class="fixed top-0 w-full z-40 <?= e($panelShellClass) ?>" id="panelNav">
+<body class="nta-panel-body <?= e($panelBodyClass) ?> font-sans antialiased" data-panel-theme="<?= e($panelTheme) ?>">
+    <nav class="nta-panel-topbar fixed top-0 w-full z-40 <?= e($panelShellClass) ?>" id="panelNav">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
@@ -79,6 +92,9 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
                 </div>
             </div>
             <div class="hidden md:flex items-center gap-3">
+                <button type="button" class="nta-theme-toggle inline-flex items-center justify-center w-10 h-10 rounded-xl <?= $panelTheme === 'admin' ? 'border border-gray-700 text-gray-300 hover:bg-gray-800' : 'border border-gray-200 text-gray-600 hover:bg-gray-50' ?> transition" data-theme-toggle aria-pressed="false" aria-label="Đổi giao diện sáng tối">
+                    <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
+                </button>
                 <?php if ($panelWelcome !== ''): ?>
                     <span class="text-sm <?= $panelTheme === 'admin' ? 'text-gray-300' : 'text-gray-600' ?>">
                         <?= e($panelWelcome) ?>
@@ -164,7 +180,7 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
     </nav>
 
     <div class="flex pt-16 min-h-screen">
-        <aside class="w-64 <?= e($panelSidebarClass) ?> min-h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 hidden md:block">
+        <aside class="nta-panel-sidebar w-64 <?= e($panelSidebarClass) ?> min-h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 hidden md:block">
             <nav class="space-y-1" id="panelSidebarNav">
                 <?php foreach ($panelNavItems as $item): ?>
                     <?php if (!empty($item['children'])): ?>
@@ -212,8 +228,11 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
             </nav>
         </aside>
 
-        <main class="flex-1 <?= e($panelContentClass) ?>">
-            <div class="md:hidden mb-4 flex gap-2 overflow-x-auto pb-2">
+        <main class="nta-panel-content flex-1 <?= e($panelContentClass) ?>">
+            <div class="md:hidden mb-4 flex items-center gap-2 overflow-x-auto pb-2">
+                <button type="button" class="nta-theme-toggle shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 transition" data-theme-toggle aria-pressed="false" aria-label="Đổi giao diện sáng tối">
+                    <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
+                </button>
                 <?php foreach ($panelNavItems as $item): ?>
                     <?php if (!empty($item['children'])): ?>
                         <?php foreach ($item['children'] as $child): ?>

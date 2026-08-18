@@ -1,6 +1,6 @@
 </main>
 
-<footer class="bg-gray-900 text-gray-300 mt-20">
+<footer class="nta-public-footer bg-gray-900 text-gray-300 mt-20">
     <?php
     $layout = $layout ?? [];
     $siteName = $layout['siteName'] ?? 'NhaTroA';

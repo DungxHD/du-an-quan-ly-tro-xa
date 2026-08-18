@@ -187,13 +187,12 @@ public function notifications()
         require_once BASE_PATH . 'views/admin/system/notifications.php';
     }
 /**
-     * Quản lý toàn bộ đánh giá phòng, gồm cả comment spam hoặc đang bị ẩn.
+     * Quản lý toàn bộ đánh giá phòng, gồm cả đánh giá đang bị ẩn.
      */
     public function comments()
     {
         $commentFilters = [
             'status' => trim((string)($_GET['status'] ?? '')),
-            'spam' => trim((string)($_GET['spam'] ?? '')),
             'keyword' => trim((string)($_GET['keyword'] ?? '')),
         ];
         $comments = CommentModel::getAdminComments($commentFilters);
@@ -295,130 +294,6 @@ public function notifications()
         redirectTo('admin-feedbacks', $redirectParams);
     }
 /**
-     * Trang quản lý Báo cáo đánh giá (comment reports do tenant gửi).
-     */
-    public function commentReports()
-    {
-        $commentReportFilters = CommentReportModel::normalizeFilters([
-            'status' => trim((string)($_GET['status'] ?? '')),
-            'keyword' => trim((string)($_GET['keyword'] ?? '')),
-        ]);
-        $commentReports = CommentReportModel::getAdminReports($commentReportFilters);
-        $commentReportStats = CommentReportModel::getStats($commentReports);
-        $commentReportMessage = pullFlash('admin_comment_report_message');
-        $commentReportError = pullFlash('admin_comment_report_error');
-        $pageTitle = 'Quản lý Báo cáo đánh giá - NhaTroA';
-        require_once BASE_PATH . 'views/admin/moderation/comment_reports.php';
-    }
-/**
-     * Admin giải quyết hoặc bác bỏ báo cáo comment.
-     */
-    public function resolveCommentReport()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-comment-reports');
-        }
-        verify_csrf();
-
-        $reportId = (int)($_POST['report_id'] ?? 0);
-        $action = trim((string)($_POST['resolve_action'] ?? ''));
-        $redirectParams = array_filter([
-            'status' => trim((string)($_POST['return_status'] ?? '')) ?: null,
-            'keyword' => trim((string)($_POST['return_keyword'] ?? '')) ?: null,
-        ], static fn($value) => $value !== null && $value !== '');
-
-        try {
-            $result = CommentReportModel::resolve($reportId, $action);
-            setFlash(
-                'admin_comment_report_message',
-                ($result['action'] ?? '') === 'resolved'
-                    ? 'Đã ẩn đánh giá và đóng các báo cáo liên quan.'
-                    : 'Đã bác bỏ báo cáo này.'
-            );
-        } catch (Throwable $exception) {
-            setFlash('admin_comment_report_error', $exception->getMessage());
-        }
-
-        redirectTo('admin-comment-reports', $redirectParams);
-    }
-/**
-     * Trang quản lý Bộ từ cấm dùng cho pipeline kiểm duyệt comment offline.
-     */
-    public function bannedWords()
-    {
-        $bannedWordFilters = BannedWordModel::normalizeFilters([
-            'keyword' => trim((string)($_GET['keyword'] ?? '')),
-            'type' => trim((string)($_GET['type'] ?? '')),
-            'is_active' => trim((string)($_GET['is_active'] ?? '')),
-        ]);
-        $bannedWords = BannedWordModel::getAll($bannedWordFilters);
-        $bannedWordStats = BannedWordModel::getStats($bannedWords);
-        $editId = (int)($_GET['edit'] ?? 0);
-        $editWord = $editId > 0 ? BannedWordModel::getById($editId) : null;
-        $oldBannedWordInput = pullFlash('admin_banned_word_old');
-        $bannedWordForm = is_array($oldBannedWordInput) ? $oldBannedWordInput : ($editWord ?? [
-            'id' => 0,
-            'word' => '',
-            'type' => 'word',
-            'replacement' => '***',
-            'is_active' => 1,
-        ]);
-        $normalizedPreview = BannedWordModel::normalizeWord((string)($bannedWordForm['word'] ?? ''));
-        $bannedWordTypeOptions = BannedWordModel::getTypeOptions();
-        $bannedWordMessage = pullFlash('admin_banned_word_message');
-        $bannedWordError = pullFlash('admin_banned_word_error');
-        $pageTitle = 'Quản lý Bộ từ cấm - NhaTroA';
-        require_once BASE_PATH . 'views/admin/moderation/banned_words.php';
-    }
-/**
-     * Lưu/cập nhật hoặc xóa từ cấm.
-     */
-    public function saveBannedWord()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-banned-words');
-        }
-        verify_csrf();
-
-        $id = (int)($_POST['id'] ?? 0);
-        $action = trim((string)($_POST['form_action'] ?? 'save'));
-        $redirectParams = array_filter([
-            'type' => trim((string)($_POST['return_type'] ?? '')) ?: null,
-            'keyword' => trim((string)($_POST['return_keyword'] ?? '')) ?: null,
-            'is_active' => trim((string)($_POST['return_is_active'] ?? '')) ?: null,
-        ], static fn($value) => $value !== null && $value !== '');
-
-        if ($action === 'delete') {
-            try {
-                BannedWordModel::delete($id);
-                setFlash('admin_banned_word_message', 'Đã xóa từ cấm thành công.');
-            } catch (Throwable $exception) {
-                setFlash('admin_banned_word_error', $exception->getMessage());
-            }
-            redirectTo('admin-banned-words', $redirectParams);
-        }
-
-        $payload = [
-            'word' => trim((string)($_POST['word'] ?? '')),
-            'type' => trim((string)($_POST['type'] ?? 'word')),
-            'replacement' => trim((string)($_POST['replacement'] ?? '***')),
-            'is_active' => !empty($_POST['is_active']) ? 1 : 0,
-        ];
-
-        try {
-            $savedId = BannedWordModel::save($payload, $id > 0 ? $id : null);
-            setFlash(
-                'admin_banned_word_message',
-                $id > 0 ? 'Đã cập nhật từ cấm thành công.' : 'Đã thêm từ cấm mới thành công.'
-            );
-            redirectTo('admin-banned-words', array_merge($redirectParams, ['edit' => $savedId]));
-        } catch (Throwable $exception) {
-            setFlash('admin_banned_word_old', array_merge($payload, ['id' => $id]));
-            setFlash('admin_banned_word_error', $exception->getMessage());
-            redirectTo('admin-banned-words', array_merge($redirectParams, $id > 0 ? ['edit' => $id] : []));
-        }
-    }
-/**
      * Bật/tắt hiển thị comment theo quyết định của admin.
      */
     public function toggleComment()
@@ -432,7 +307,6 @@ public function notifications()
         $targetStatus = isset($_POST['target_status']) ? (int)$_POST['target_status'] : null;
         $redirectParams = array_filter([
             'status' => trim((string)($_POST['return_status'] ?? '')) ?: null,
-            'spam' => trim((string)($_POST['return_spam'] ?? '')) ?: null,
             'keyword' => trim((string)($_POST['return_keyword'] ?? '')) ?: null,
         ], static fn($value) => $value !== null && $value !== '');
 

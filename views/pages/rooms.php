@@ -26,9 +26,9 @@ $filterMessages = $filters['messages'] ?? [];
 $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 ?>
 
-<section class="py-12 bg-surface min-h-screen">
+<section class="rooms-page py-12 bg-surface min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="mb-8 reveal">
+        <div class="rooms-page-header mb-8 reveal">
             <h1 class="text-4xl font-bold mb-2">
                 <?= $selectedArea ? 'Phòng trống tại <span class="gradient-text">' . e($selectedArea['name'] ?? '') . '</span>' : 'Danh sách <span class="gradient-text">phòng đang còn trống</span>' ?>
             </h1>
@@ -53,7 +53,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Sidebar bộ lọc -->
             <aside class="lg:col-span-1">
-                <form method="GET" id="room-filter-form" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20" data-price-min-gap="500000">
+                <form method="GET" id="room-filter-form" class="rooms-filter-panel bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20" data-price-min-gap="500000">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-lg flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">filter_list</span>
@@ -140,8 +140,8 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
             </aside>
 
             <!-- Danh sách phòng -->
-            <div class="lg:col-span-3">
-                <div id="rooms-results" class="mb-5 flex flex-wrap items-center gap-3">
+            <div class="rooms-results-column lg:col-span-3">
+                <div id="rooms-results" class="rooms-context-bar mb-5 flex flex-wrap items-center gap-3">
                     <span class="px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700" id="rooms-count">
                         <?= count($rooms) ?> phòng phù hợp
                     </span>

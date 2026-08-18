@@ -295,12 +295,6 @@ class Database
                 ['id' => 17, 'setting_key' => 'contact_zalo', 'setting_value' => '0901234567', 'setting_group' => 'contact'],
                 ['id' => 18, 'setting_key' => 'min_days_to_review', 'setting_value' => '15', 'setting_group' => 'moderation'],
                 ['id' => 19, 'setting_key' => 'comment_edit_hours', 'setting_value' => '24', 'setting_group' => 'moderation'],
-                ['id' => 20, 'setting_key' => 'max_comment_attempts', 'setting_value' => '3', 'setting_group' => 'moderation'],
-                ['id' => 21, 'setting_key' => 'comment_lock_hours', 'setting_value' => '24', 'setting_group' => 'moderation'],
-                ['id' => 22, 'setting_key' => 'enable_comment_moderation', 'setting_value' => '1', 'setting_group' => 'moderation'],
-                ['id' => 23, 'setting_key' => 'enable_gemini_moderation', 'setting_value' => '0', 'setting_group' => 'moderation'],
-                ['id' => 24, 'setting_key' => 'gemini_api_key', 'setting_value' => '', 'setting_group' => 'moderation'],
-                ['id' => 25, 'setting_key' => 'toxicity_threshold', 'setting_value' => '0.70', 'setting_group' => 'moderation'],
             ],
             // Dữ liệu fallback cho module khu/tầng bám theo schema mới `areas -> floors -> rooms`.
             'areas' => [
@@ -411,18 +405,10 @@ class Database
                 ['id' => 3, 'title' => 'Khu giặt chung', 'description' => 'Máy giặt hoạt động ổn định.', 'icon' => 'local_laundry_service', 'is_active' => 1, 'sort_order' => 3],
                 ['id' => 4, 'title' => 'Khu bếp cơ bản', 'description' => 'Thuận tiện sinh hoạt hằng ngày.', 'icon' => 'kitchen', 'is_active' => 1, 'sort_order' => 4],
             ],
-            'banned_words' => [
-                ['id' => 1, 'word' => 'dm', 'type' => 'abbreviation', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 2, 'word' => 'vcl', 'type' => 'abbreviation', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 3, 'word' => 'ngu nhu bo', 'type' => 'phrase', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 4, 'word' => 'mat day', 'type' => 'phrase', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 5, 'word' => 'cut', 'type' => 'word', 'replacement' => '***', 'is_active' => 0, 'created_at' => $now],
-            ],
             'comments' => [
-                ['id' => 1, 'room_id' => 1, 'user_id' => 2, 'content' => 'Phòng sáng, sạch và ở khá yên tĩnh.', 'rating' => 5, 'toxicity_score' => 0.02, 'is_spam' => 0, 'flagged_words' => '[]', 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-6 days'))],
-                ['id' => 2, 'room_id' => 3, 'user_id' => 2, 'content' => 'Khu trọ gọn gàng, bảo vệ hỗ trợ nhanh.', 'rating' => 4, 'toxicity_score' => 0.05, 'is_spam' => 0, 'flagged_words' => '[]', 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-3 days'))],
+                ['id' => 1, 'room_id' => 1, 'user_id' => 2, 'content' => 'Phòng sáng, sạch và ở khá yên tĩnh.', 'rating' => 5, 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-6 days'))],
+                ['id' => 2, 'room_id' => 3, 'user_id' => 2, 'content' => 'Khu trọ gọn gàng, bảo vệ hỗ trợ nhanh.', 'rating' => 4, 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-3 days'))],
             ],
-            'comment_moderation' => [],
             'comment_reports' => [
                 ['id' => 1, 'comment_id' => 1, 'user_id' => 3, 'reason' => 'Nội dung này hơi công kích và thiếu tôn trọng.', 'status' => 'pending', 'created_at' => date('Y-m-d H:i:s', strtotime('-1 day'))],
             ],
@@ -487,12 +473,6 @@ class Database
         if (in_array($key, [
             'min_days_to_review',
             'comment_edit_hours',
-            'max_comment_attempts',
-            'comment_lock_hours',
-            'enable_gemini_moderation',
-            'gemini_api_key',
-            'toxicity_threshold',
-            'enable_comment_moderation',
         ], true)) {
             return 'moderation';
         }

@@ -14,6 +14,10 @@ $panelPageScripts = '
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+    const themeStyles = getComputedStyle(document.documentElement);
+    const chartBrand = themeStyles.getPropertyValue("--nta-brand").trim() || "#00685f";
+    const chartAccent = themeStyles.getPropertyValue("--nta-secondary").trim() || "#4b41e1";
+    const chartInk = themeStyles.getPropertyValue("--nta-ink").trim() || "#17211f";
     const areaCtx = document.getElementById("areaOccupancyChart");
     if (areaCtx) {
         new Chart(areaCtx, {
@@ -23,12 +27,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 datasets: [{
                     label: "Tổng phòng",
                     data: ' . json_encode($areaChartTotalRooms) . ',
-                    backgroundColor: "#00685f",
+backgroundColor: chartBrand,
                     borderRadius: 10
                 }, {
                     label: "Phòng trống",
                     data: ' . json_encode($areaChartAvailableRooms) . ',
-                    backgroundColor: "#4b41e1",
+backgroundColor: chartAccent,
                     borderRadius: 10
                 }]
             },
@@ -36,12 +40,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: "bottom" }
+legend: { position: "bottom", labels: { color: chartInk } }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { precision: 0 }
+                        ticks: { precision: 0, color: chartInk },
+                        grid: { color: chartInk + "1A" }
                     }
                 }
             }
@@ -57,8 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 datasets: [{
                     label: "Doanh thu đã thu",
                     data: ' . json_encode($revenueChartTotals) . ',
-                    borderColor: "#00685f",
-                    backgroundColor: "rgba(0, 104, 95, 0.12)",
+borderColor: chartBrand,
+                    backgroundColor: chartBrand + "1F",
                     fill: true,
                     tension: 0.3,
                     pointRadius: 4,

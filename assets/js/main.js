@@ -1,5 +1,44 @@
 const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+(function initThemePreference() {
+    const root = document.documentElement;
+    const toggles = Array.from(document.querySelectorAll('[data-theme-toggle]'));
+    if (!toggles.length) {
+        return;
+    }
+
+    const readTheme = () => {
+        const current = root.dataset.theme;
+        return current === 'dark' || current === 'light' ? current : 'light';
+    };
+
+    const paint = (theme) => {
+        root.dataset.theme = theme;
+        toggles.forEach((toggle) => {
+            const isDark = theme === 'dark';
+            toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+            toggle.setAttribute('aria-label', isDark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối');
+            const icon = toggle.querySelector('[data-theme-icon]');
+            if (icon) {
+                icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+            }
+        });
+    };
+
+    paint(readTheme());
+    toggles.forEach((toggle) => {
+        toggle.addEventListener('click', () => {
+            const nextTheme = readTheme() === 'dark' ? 'light' : 'dark';
+            paint(nextTheme);
+            try {
+                localStorage.setItem('nta_theme', nextTheme);
+            } catch (error) {
+                // Theme still applies for the current page when storage is unavailable.
+            }
+        });
+    });
+}());
+
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 const mobileMenu = document.getElementById('mobileMenu');
 const mobileMenuBackdrop = document.getElementById('mobileMenuBackdrop');
@@ -463,3 +502,38 @@ document.querySelectorAll('form[data-room-filter-form]').forEach((form) => {
     aside.style.overflowY = 'auto';
     aside.style.overscrollBehavior = 'contain';
 })();
+
+(function initPendingSubmitStates() {
+    document.querySelectorAll('form[method="POST"]').forEach((form) => {
+        if (form.dataset.pendingBound === 'true') {
+            return;
+        }
+        form.dataset.pendingBound = 'true';
+        form.addEventListener('submit', (event) => {
+            if (event.defaultPrevented) {
+                return;
+            }
+            const submitter = event.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
+            if (!submitter || submitter.disabled) {
+                return;
+            }
+            form.setAttribute('aria-busy', 'true');
+            submitter.dataset.pendingText = submitter.textContent || submitter.value || '';
+            submitter.classList.add('is-pending');
+            submitter.disabled = true;
+            if (submitter.tagName === 'BUTTON') {
+                submitter.textContent = 'Đang xử lý…';
+            }
+        });
+    });
+}());
+
+(function initAccessibleLoadingRegions() {
+    const loading = document.getElementById('rooms-loading');
+    const grid = document.getElementById('rooms-grid');
+    if (loading && grid) {
+        loading.setAttribute('role', 'status');
+        loading.setAttribute('aria-live', 'polite');
+        grid.setAttribute('aria-live', 'polite');
+    }
+}());

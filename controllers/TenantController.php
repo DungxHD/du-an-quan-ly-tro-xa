@@ -34,6 +34,60 @@ class TenantController {
         return $date !== false && $date->format('Y-m-d') === $value;
     }
 
+    /**
+     * Kiểm tra nội dung đánh giá bằng AI moderation.
+     * Trả về: ['allowed' => bool, 'reason' => string, 'severity' => string, 'attempts' => int, 'locked_until' => int|null]
+     */
+    private function checkCommentModeration($userId, $content) {
+        $moderation = GeminiModerator::checkContent($content);
+
+        // Nếu sạch -> cho phép
+        if ($moderation['is_clean']) {
+            // Reset attempts khi nội dung sạch
+            unset($_SESSION['comment_moderation_attempts']);
+            unset($_SESSION['comment_moderation_locked_until']);
+            return ['allowed' => true, 'reason' => '', 'severity' => 'none', 'attempts' => 0, 'locked_until' => null];
+        }
+
+        // Kiểm tra lock 24h
+        $lockedUntil = (int)($_SESSION['comment_moderation_locked_until'] ?? 0);
+        if ($lockedUntil > 0 && $lockedUntil > time()) {
+            return [
+                'allowed' => false,
+                'reason' => 'Bạn đã vi phạm 3 lần. Tạm khóa gửi đánh giá đến ' . date('H:i d/m/Y', $lockedUntil) . '.',
+                'severity' => 'high',
+                'attempts' => 3,
+                'locked_until' => $lockedUntil,
+            ];
+        }
+
+        // Tăng attempts
+        $attempts = (int)($_SESSION['comment_moderation_attempts'] ?? 0) + 1;
+        $_SESSION['comment_moderation_attempts'] = $attempts;
+
+        // Nếu đạt 3 lần -> khóa 24h
+        if ($attempts >= 3) {
+            $lockUntil = time() + 24 * 3600;
+            $_SESSION['comment_moderation_locked_until'] = $lockUntil;
+            return [
+                'allowed' => false,
+                'reason' => 'Bạn đã vi phạm 3 lần liên tiếp. Tạm khóa gửi đánh giá trong 24 giờ (đến ' . date('H:i d/m/Y', $lockUntil) . ').',
+                'severity' => 'high',
+                'attempts' => $attempts,
+                'locked_until' => $lockUntil,
+            ];
+        }
+
+        // Chưa đạt 3 lần -> cảnh báo, cho phép viết lại
+        return [
+            'allowed' => false,
+            'reason' => $moderation['reason'] . ' (Lần ' . $attempts . '/3)',
+            'severity' => $moderation['severity'],
+            'attempts' => $attempts,
+            'locked_until' => null,
+        ];
+    }
+
     public function dashboard() {
         $user = $this->getAuthenticatedTenant();
         
@@ -77,6 +131,15 @@ if ($room) {
         'amenities' => $amenityLabels, 'occupants_list' => $occupantList,
     ];
 }
+$commentBundle = null;
+$commentEligibility = null;
+if ($room) {
+    $commentBundle = CommentModel::getRoomDetailComments((int)$room['id'], (int)($user['id'] ?? 0));
+    $commentEligibility = CommentModel::validateCreatePermission((int)($user['id'] ?? 0), (int)$room['id']);
+}
+$commentMessage = pullFlash('comment_message', '');
+$commentError = pullFlash('comment_error', '');
+$commentWarning = pullFlash('comment_warning', '');
 $pageTitle = 'Thông tin phòng - NhaTroA';
         require_once BASE_PATH . 'views/tenant/dashboard.php';
     }
@@ -185,14 +248,29 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
             $currentPassword = (string)($_POST['current_password'] ?? '');
             $newPassword = (string)($_POST['new_password'] ?? '');
 
-            if ($data['full_name'] === '') {
-                $error = 'Họ và tên là bắt buộc.';
-            } elseif ($newPassword !== '' && strlen($newPassword) < 6) {
-                $error = 'Mật khẩu mới phải có ít nhất 6 ký tự.';
-            } elseif ($newPassword !== '' && $currentPassword === '') {
-                $error = 'Vui lòng nhập mật khẩu hiện tại để xác nhận đổi mật khẩu.';
-            } elseif ($newPassword !== '' && !password_verify($currentPassword, (string)($user['password'] ?? ''))) {
-                $error = 'Mật khẩu hiện tại không đúng.';
+            $error = UserModel::validateFullName($data['full_name']);
+
+            if (empty($error) && $data['phone'] !== '') {
+                $normalizedPhone = UserModel::normalizePhone($data['phone']);
+                if (!$normalizedPhone) {
+                    $error = 'Số điện thoại không hợp lệ. Vui lòng nhập số 10 chữ số dạng 0xxxxxxxxx.';
+                } else {
+                    $data['phone'] = $normalizedPhone;
+                    if ($normalizedPhone !== ($user['phone'] ?? '') && UserModel::phoneExists($normalizedPhone)) {
+                        $error = 'Số điện thoại này đã được đăng ký.';
+                    }
+                }
+            }
+
+            if (empty($error) && $newPassword !== '') {
+                $passwordError = UserModel::validatePassword($newPassword, 'mật khẩu mới');
+                if ($passwordError !== '') {
+                    $error = $passwordError;
+                } elseif ($currentPassword === '') {
+                    $error = 'Vui lòng nhập mật khẩu hiện tại để xác nhận đổi mật khẩu.';
+                } elseif (!password_verify($currentPassword, (string)($user['password'] ?? ''))) {
+                    $error = 'Mật khẩu hiện tại không đúng.';
+                }
             }
 
             if (empty($error) && $newPassword !== '') {
@@ -386,27 +464,116 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $roomId = (int)($_POST['room_id'] ?? 0);
         $rating = (int)($_POST['rating'] ?? 0);
         $content = trim((string)($_POST['content'] ?? ''));
+        $returnPage = trim((string)($_POST['return_page'] ?? 'detail'));
+
+        // Pre-moderation check
+        $modCheck = $this->checkCommentModeration((int)($user['id'] ?? 0), $content);
+        if (!$modCheck['allowed']) {
+            // Lưu form data để user viết lại
+            $_SESSION['pending_comment'] = [
+                'room_id' => $roomId,
+                'rating' => $rating,
+                'content' => $content,
+                'return_page' => $returnPage,
+            ];
+            $_SESSION['moderation_warning'] = [
+                'reason' => $modCheck['reason'],
+                'attempts' => $modCheck['attempts'],
+                'locked_until' => $modCheck['locked_until'],
+                'severity' => $modCheck['severity'],
+                'action' => 'add',
+            ];
+            redirectTo('tenant-comment-moderation');
+        }
 
         try {
             $comment = CommentModel::create((int)($user['id'] ?? 0), $roomId, $rating, $content);
-            $message = 'Đã gửi đánh giá thành công.';
-
-            if ((int)($comment['is_spam'] ?? 0) === 1) {
-                $message = 'Đánh giá đã lưu nhưng đang ở chế độ riêng tư vì nội dung bị đánh dấu spam.';
-            } elseif ((int)($comment['status'] ?? 0) === 0) {
-                $message = 'Đánh giá đã lưu nhưng đang tạm ẩn do nội dung cần admin kiểm tra thêm.';
+            if (!empty($comment['moderation_masked'])) {
+                setFlash('comment_warning', 'Đã gửi đánh giá. Nội dung có chứa từ không chuẩn mực và đã được hệ thống mã hóa thành ***.');
+            } else {
+                setFlash('comment_message', 'Đã gửi đánh giá thành công.');
             }
-
-            if (!empty($comment['moderation_notice'])) {
-                $message .= ' ' . trim((string)$comment['moderation_notice']);
-            }
-
-            setFlash('comment_message', $message);
+            // Reset moderation session sau khi thành công
+            unset($_SESSION['comment_moderation_attempts']);
+            unset($_SESSION['comment_moderation_locked_until']);
         } catch (Throwable $exception) {
             setFlash('comment_error', $exception->getMessage());
         }
 
+        if ($returnPage === 'tenant' && (int)($user['room_id'] ?? 0) === (int)$roomId) {
+            redirectTo('tenant');
+        }
+
         redirectTo('detail', ['id' => $roomId]);
+    }
+
+    /**
+     * Hiển thị trang cảnh báo moderation (Hủy / Viết lại).
+     */
+    public function commentModeration() {
+        $user = $this->getAuthenticatedTenant();
+        $warning = $_SESSION['moderation_warning'] ?? null;
+        $pending = $_SESSION['pending_comment'] ?? null;
+
+        if (!$warning || !$pending) {
+            redirectTo('tenant');
+        }
+
+        $pageTitle = 'Cảnh báo nội dung - NhaTroA';
+        require_once BASE_PATH . 'views/tenant/comment_moderation.php';
+    }
+
+    /**
+     * Xử lý khi user chọn "Viết lại" - quay lại form với nội dung cũ (đã mask từ cấm).
+     */
+    public function commentRewrite() {
+        $user = $this->getAuthenticatedTenant();
+        $pending = $_SESSION['pending_comment'] ?? null;
+        $warning = $_SESSION['moderation_warning'] ?? null;
+
+        if (!$pending) {
+            redirectTo('tenant');
+        }
+
+        $action = $pending['action'] ?? 'add';
+        $room = RoomModel::getById($pending['room_id']);
+
+        // Mask nội dung gốc để không hiển thị từ cấm khi viết lại
+        $originalContent = $pending['content'] ?? '';
+        $maskedContent = $originalContent;
+        if ($originalContent !== '') {
+            $moderation = GeminiModerator::sanitize($originalContent);
+            $maskedContent = $moderation['content'];
+        }
+
+        // Gán lại nội dung đã mask để prefill form
+        $pending['content'] = $maskedContent;
+
+        // Chỉ hiển thị cảnh báo chung, không hiển thị từ cấm cụ thể
+        $commentWarning = 'Nội dung trước có từ không phù hợp. Vui lòng viết lại cho phù hợp.';
+        $commentError = '';
+
+        if ($action === 'edit') {
+            $commentId = $pending['comment_id'];
+            $permission = CommentModel::validateOwnerAction($commentId, (int)$user['id']);
+            $comment = $permission['comment'] ?? null;
+            $commentWindow = $permission['meta'] ?? [];
+            $pageTitle = 'Sửa lại đánh giá - NhaTroA';
+            require_once BASE_PATH . 'views/tenant/edit_comment.php';
+        } else {
+            $commentEligibility = CommentModel::validateCreatePermission((int)$user['id'], (int)$pending['room_id']);
+            $pageTitle = 'Viết lại đánh giá - NhaTroA';
+            require_once BASE_PATH . 'views/tenant/dashboard.php';
+        }
+    }
+
+    /**
+     * Xử lý khi user chọn "Hủy" - xóa session pending.
+     */
+    public function commentCancel() {
+        unset($_SESSION['pending_comment']);
+        unset($_SESSION['moderation_warning']);
+        redirectTo('tenant');
     }
 
     /**
@@ -430,26 +597,51 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verify_csrf();
+            $content = trim((string)($_POST['content'] ?? ''));
+            $rating = (int)($_POST['rating'] ?? 0);
+            $returnPage = trim((string)($_POST['return_page'] ?? 'detail'));
+
+            // Pre-moderation check for edit
+            $modCheck = $this->checkCommentModeration((int)($user['id'] ?? 0), $content);
+            if (!$modCheck['allowed']) {
+                // Lưu form data để user viết lại
+                $_SESSION['pending_comment'] = [
+                    'comment_id' => $commentId,
+                    'room_id' => $roomId,
+                    'rating' => $rating,
+                    'content' => $content,
+                    'return_page' => $returnPage,
+                ];
+                $_SESSION['moderation_warning'] = [
+                    'reason' => $modCheck['reason'],
+                    'attempts' => $modCheck['attempts'],
+                    'locked_until' => $modCheck['locked_until'],
+                    'severity' => $modCheck['severity'],
+                    'action' => 'edit',
+                ];
+                redirectTo('tenant-comment-moderation');
+            }
+
             try {
                 $updatedComment = CommentModel::updateByOwner(
                     $commentId,
                     (int)($user['id'] ?? 0),
-                    (int)($_POST['rating'] ?? 0),
-                    trim((string)($_POST['content'] ?? ''))
+                    $rating,
+                    $content
                 );
+                if (!empty($updatedComment['moderation_masked'])) {
+                    setFlash('comment_warning', 'Đã cập nhật đánh giá. Nội dung có chứa từ không chuẩn mực và đã được hệ thống mã hóa thành ***.');
+                } else {
+                    setFlash('comment_message', 'Đã cập nhật đánh giá thành công.');
+                }
+                // Reset moderation session sau khi thành công
+                unset($_SESSION['comment_moderation_attempts']);
+                unset($_SESSION['comment_moderation_locked_until']);
 
-                $message = 'Đã cập nhật đánh giá thành công.';
-                if ((int)($updatedComment['is_spam'] ?? 0) === 1) {
-                    $message = 'Đánh giá đã được cập nhật nhưng chỉ mình bạn thấy vì nội dung bị đánh dấu spam.';
-                } elseif ((int)($updatedComment['status'] ?? 0) === 0) {
-                    $message = 'Đánh giá đã được cập nhật nhưng đang tạm ẩn do nội dung cần admin kiểm tra thêm.';
+                if ($returnPage === 'tenant' && (int)($user['room_id'] ?? 0) === (int)($updatedComment['room_id'] ?? $roomId)) {
+                    redirectTo('tenant');
                 }
 
-                if (!empty($updatedComment['moderation_notice'])) {
-                    $message .= ' ' . trim((string)$updatedComment['moderation_notice']);
-                }
-
-                setFlash('comment_message', $message);
                 redirectTo('detail', ['id' => (int)($updatedComment['room_id'] ?? $roomId)]);
             } catch (Throwable $exception) {
                 setFlash('tenant_comment_error', $exception->getMessage());
@@ -476,12 +668,17 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $user = $this->getAuthenticatedTenant();
         $commentId = (int)($_POST['comment_id'] ?? 0);
         $roomId = (int)($_POST['room_id'] ?? 0);
+        $returnPage = trim((string)($_POST['return_page'] ?? 'detail'));
 
         try {
             CommentModel::deleteByOwner($commentId, (int)($user['id'] ?? 0));
             setFlash('comment_message', 'Đã xóa đánh giá thành công.');
         } catch (Throwable $exception) {
             setFlash('comment_error', $exception->getMessage());
+        }
+
+        if ($returnPage === 'tenant' && (int)($user['room_id'] ?? 0) === (int)$roomId) {
+            redirectTo('tenant');
         }
 
         if ($roomId > 0) {

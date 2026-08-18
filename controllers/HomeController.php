@@ -44,11 +44,6 @@ class HomeController extends BaseController {
                     'text' => 'Nhận hỗ trợ về thủ tục, dịch vụ và thông tin cư dân trong cùng một hệ thống thống nhất.',
                 ],
             ],
-            'testimonials' => [
-                ['name' => 'Minh Tuấn', 'role' => 'Sinh viên IT', 'text' => 'Điều mình thích nhất là cảm giác an tâm. Mọi thứ từ wifi, an ninh đến hỗ trợ đều rất rõ ràng và nhanh gọn.'],
-                ['name' => 'Linh Chi', 'role' => 'Designer', 'text' => 'Website cho cảm giác rất chuyên nghiệp, xem phòng dễ, hình ảnh sát thực tế và không bị mập mờ về chi phí.'],
-                ['name' => 'Hoàng Hải', 'role' => 'Nhân viên văn phòng', 'text' => 'Không gian sống sạch sẽ, chủ động hỗ trợ tốt và khu trọ tạo cảm giác uy tín hơn hẳn nhiều nơi khác.'],
-            ],
             'faqItems' => [
                 [
                     'question' => 'Có thể xem phòng trước khi quyết định không?',
@@ -295,7 +290,6 @@ class HomeController extends BaseController {
             'heroBadges',
             'marketingHighlights',
             'livingSteps',
-            'testimonials',
             'faqItems'
         ), 'home', $pageTitle);
     }

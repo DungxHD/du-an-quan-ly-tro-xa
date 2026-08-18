@@ -158,6 +158,7 @@ $success = $success ?? '';
   }
 </style>
 
+<script src="<?= BASE_URL ?>assets/js/account-validators.js"></script>
 <script>
 (function () {
   document.querySelectorAll('.toggle-password').forEach(function (btn) {
@@ -262,11 +263,9 @@ $success = $success ?? '';
       });
 
       if (passwordInput) {
-        if (!passwordInput.value) {
-          setFieldError(passwordInput, 'Vui lòng nhập mật khẩu mới.');
-          hasError = true;
-        } else if (passwordInput.value.length < 6) {
-          setFieldError(passwordInput, 'Mật khẩu mới phải có ít nhất 6 ký tự.');
+        var passwordError = passwordInput.value ? validatePassword(passwordInput.value) : 'Vui lòng nhập mật khẩu mới.';
+        if (passwordError) {
+          setFieldError(passwordInput, passwordError);
           hasError = true;
         }
       }

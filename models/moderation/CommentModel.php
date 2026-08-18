@@ -1,15 +1,15 @@
 <?php
 /**
  * CommentModel gom toàn bộ nghiệp vụ đánh giá phòng:
- * - Kiểm tra tenant có đủ điều kiện đánh giá hay không.
- * - Kiểm duyệt nội dung qua từ cấm và Gemini tùy cấu hình.
- * - Quản lý quyền sửa/xóa trong 24h và danh sách admin/public.
+ * - Kiểm tra tenant có đủ điều kiện đánh giá hay không (ở đủ 15 ngày).
+ * - Mỗi người chỉ đánh giá mỗi phòng duy nhất một lần.
+ * - Sửa đánh giá trong 24h kể từ khi gửi; sau 24h chỉ được xóa.
  */
 class CommentModel {
     private const REVIEW_WINDOW_DAYS = 15;
 
     /**
-     * Lấy cấu hình moderation và ép kiểu ngay tại model để controller/view không tự xử lý lẻ tẻ.
+     * Lấy cấu hình đánh giá và ép kiểu ngay tại model để controller/view không tự xử lý lẻ tẻ.
      */
     public static function getModerationSettings() {
         return CommentModerationModel::getSettings();
@@ -50,13 +50,8 @@ class CommentModel {
             return ['allowed' => false, 'message' => 'Phòng cần đánh giá không hợp lệ hoặc không tồn tại.'];
         }
 
-        $lockState = self::getLockState($resolvedUserId, $settings);
-        if ($lockState['locked']) {
-            return ['allowed' => false, 'message' => $lockState['message']];
-        }
-
         if (self::getByUserAndRoom($resolvedUserId, $resolvedRoomId)) {
-            return ['allowed' => false, 'message' => 'Bạn đã đánh giá phòng này.'];
+            return ['allowed' => false, 'message' => 'Bạn đã đánh giá phòng này rồi. Mỗi người chỉ được đánh giá mỗi phòng một lần.'];
         }
 
         $stay = self::getLatestEligibleStay($resolvedUserId, $resolvedRoomId);
@@ -69,7 +64,7 @@ class CommentModel {
             $stay['move_out_date'] ?? null,
             $settings['min_days_to_review']
         )) {
-            return ['allowed' => false, 'message' => 'Bạn cần ở đủ ' . $settings['min_days_to_review'] . ' ngày để đánh giá.'];
+            return ['allowed' => false, 'message' => 'Bạn cần ở đủ ' . $settings['min_days_to_review'] . ' ngày để được đánh giá phòng này.'];
         }
 
         return [
@@ -91,20 +86,24 @@ class CommentModel {
 
         $resolvedRating = self::normalizeRating($rating);
         $resolvedContent = trim((string)$content);
-        if ($resolvedRating < 1 || $resolvedRating > 5) {
-            throw new RuntimeException('Số sao đánh giá phải từ 1 đến 5.');
+
+        // Giới hạn 150 ký tự
+        if ($resolvedContent !== '' && mb_strlen($resolvedContent, 'UTF-8') > 150) {
+            throw new RuntimeException('Nội dung đánh giá không được vượt quá 150 ký tự.');
         }
 
-        $moderated = self::moderateContent($resolvedContent, $permission['settings']);
+        $moderation = null;
+        if ($resolvedContent !== '') {
+            $moderation = GeminiModerator::sanitize($resolvedContent);
+            $resolvedContent = $moderation['content'];
+        }
+
         $payload = [
             'room_id' => (int)$roomId,
             'user_id' => (int)$userId,
-            'content' => $moderated['content'],
+            'content' => $resolvedContent !== '' ? $resolvedContent : null,
             'rating' => $resolvedRating,
-            'toxicity_score' => $moderated['toxicity_score'],
-            'is_spam' => $moderated['is_spam'],
-            'flagged_words' => $moderated['flagged_words_json'],
-            'status' => $moderated['status'],
+            'status' => 1,
             'edited_at' => null,
         ];
 
@@ -112,33 +111,27 @@ class CommentModel {
             $commentId = (int)Database::insert('comments', $payload);
         } catch (Throwable $exception) {
             if (stripos($exception->getMessage(), 'uq_user_room') !== false || stripos($exception->getMessage(), 'Duplicate') !== false) {
-                throw new RuntimeException('Bạn đã đánh giá phòng này.');
+                throw new RuntimeException('Bạn đã đánh giá phòng này rồi. Mỗi người chỉ được đánh giá mỗi phòng một lần.');
             }
 
             throw $exception;
         }
 
-        if ($moderated['is_spam'] === 1) {
-            self::registerSpamAttempt((int)$userId, $permission['settings']);
-        } else {
-            self::clearSpamAttempts((int)$userId);
-        }
+        // [DEV-QWEN-A][NHOM-2][2026-08-14] Gửi thông báo khi có review mới cho admin và các tenant
+        self::notifyNewReview($commentId, $userId);
 
         $comment = self::getById($commentId);
-        if ($comment) {
-            $comment['moderation_notice'] = $moderated['notice'] ?? '';
+        if ($moderation) {
+            $comment['moderation_masked'] = (bool)($moderation['had_bad_words'] ?? false);
         }
-
-        // [DEV-QWEN-A][NHOM-2][2026-08-14] Gửi thông báo cho admin khi có review mới
-        self::notifyAdminsNewReview($commentId, $userId);
 
         return $comment;
     }
 
     /**
-     * Gửi thông báo cho tất cả admin khi có đánh giá mới.
+     * Gửi thông báo cho tất cả admin và tenant đang thuê khi có đánh giá mới.
      */
-    private static function notifyAdminsNewReview($commentId, $userId) {
+    private static function notifyNewReview($commentId, $userId) {
         $comment = self::getById($commentId);
         if (!$comment) return;
 
@@ -146,20 +139,30 @@ class CommentModel {
         $userName = $user ? $user['full_name'] : 'Người thuê';
         $roomName = $comment['room_name'] ?? 'Phòng #' . ($comment['room_id'] ?? '');
 
-        $admins = UserModel::getAll(['role' => 1]);
-        foreach ($admins as $admin) {
+        $users = UserModel::getAll();
+        foreach ($users as $target) {
+            $targetId = (int)($target['id'] ?? 0);
+            if ($targetId <= 0 || $targetId === (int)$userId) {
+                continue;
+            }
+
+            $isAdmin = (int)($target['role'] ?? -1) === 1;
+            if (!$isAdmin && (int)($target['role'] ?? -1) !== 0) {
+                continue;
+            }
+
             NotificationModel::create([
-                'user_id' => (int)$admin['id'],
+                'user_id' => $targetId,
                 'title' => 'Đánh giá phòng mới',
                 'content' => "Phòng \"{$roomName}\" được đánh giá từ người thuê \"{$userName}\".",
                 'type' => 'review',
-                'link' => '?page=admin-comments',
+                'link' => $isAdmin ? '?page=admin-comments' : '?page=tenant',
             ]);
         }
     }
 
     /**
-     * Kiểm tra quyền sửa/xóa đánh giá của chính tenant trong giới hạn thời gian cấu hình.
+     * Kiểm tra quyền sửa đánh giá của chính tenant trong 24h kể từ khi gửi.
      */
     public static function validateOwnerAction($commentId, $userId) {
         $comment = self::getById($commentId);
@@ -177,7 +180,7 @@ class CommentModel {
         if (!$window['can_edit']) {
             return [
                 'allowed' => false,
-                'message' => 'Đánh giá đã quá ' . $settings['comment_edit_hours'] . ' giờ. Vui lòng liên hệ admin để sửa hoặc xóa.',
+                'message' => 'Đánh giá đã quá ' . $settings['comment_edit_hours'] . ' giờ kể từ khi gửi, bạn chỉ có thể xóa đánh giá này.',
                 'comment' => $comment,
                 'meta' => $window,
             ];
@@ -202,47 +205,50 @@ class CommentModel {
         }
 
         $resolvedRating = self::normalizeRating($rating);
-        if ($resolvedRating < 1 || $resolvedRating > 5) {
-            throw new RuntimeException('Số sao đánh giá phải từ 1 đến 5.');
+
+        $resolvedContent = trim((string)$content);
+
+        // Giới hạn 150 ký tự
+        if ($resolvedContent !== '' && mb_strlen($resolvedContent, 'UTF-8') > 150) {
+            throw new RuntimeException('Nội dung đánh giá không được vượt quá 150 ký tự.');
         }
 
-        $moderated = self::moderateContent(trim((string)$content), $permission['settings']);
+        $moderation = null;
+        if ($resolvedContent !== '') {
+            $moderation = GeminiModerator::sanitize($resolvedContent);
+            $resolvedContent = $moderation['content'];
+        }
+
         Database::update(
             'comments',
             [
-                'content' => $moderated['content'],
+                'content' => $resolvedContent !== '' ? $resolvedContent : null,
                 'rating' => $resolvedRating,
-                'toxicity_score' => $moderated['toxicity_score'],
-                'is_spam' => $moderated['is_spam'],
-                'flagged_words' => $moderated['flagged_words_json'],
-                'status' => $moderated['status'],
                 'edited_at' => date('Y-m-d H:i:s'),
             ],
             'id = :id',
             ['id' => (int)$commentId]
         );
 
-        if ($moderated['is_spam'] === 1) {
-            self::registerSpamAttempt((int)$userId, $permission['settings']);
-        } else {
-            self::clearSpamAttempts((int)$userId);
-        }
-
         $comment = self::getById($commentId);
-        if ($comment) {
-            $comment['moderation_notice'] = $moderated['notice'] ?? '';
+        if ($moderation) {
+            $comment['moderation_masked'] = (bool)($moderation['had_bad_words'] ?? false);
         }
 
         return $comment;
     }
 
     /**
-     * Xóa đánh giá của chính tenant trong thời hạn cho phép.
+     * Xóa đánh giá của chính tenant. Sau 24h không sửa được nhưng vẫn xóa được bất cứ lúc nào.
      */
     public static function deleteByOwner($commentId, $userId) {
-        $permission = self::validateOwnerAction($commentId, $userId);
-        if (!$permission['allowed']) {
-            throw new RuntimeException($permission['message']);
+        $comment = self::getById($commentId);
+        if (!$comment) {
+            throw new RuntimeException('Đánh giá không tồn tại hoặc đã bị xóa.');
+        }
+
+        if ((int)($comment['user_id'] ?? 0) !== (int)$userId) {
+            throw new RuntimeException('Bạn không có quyền xóa đánh giá này.');
         }
 
         Database::delete('comments', 'id = :id', ['id' => (int)$commentId]);
@@ -329,7 +335,7 @@ class CommentModel {
     /**
      * Trả về block dữ liệu cho trang chi tiết:
      * - danh sách đánh giá công khai
-     * - đánh giá riêng của chủ comment (nếu có) kể cả spam/ẩn
+     * - đánh giá riêng của chủ comment (nếu có) kể cả đang bị ẩn
      */
     public static function getRoomDetailComments($roomId, $viewerUserId = 0) {
         $resolvedRoomId = (int)$roomId;
@@ -352,7 +358,7 @@ class CommentModel {
         return [
             'public_comments' => $publicComments,
             'owner_comment' => $ownerComment,
-            'public_count' => count($publicComments) + (($ownerComment && (int)($ownerComment['status'] ?? 0) === 1 && (int)($ownerComment['is_spam'] ?? 0) === 0) ? 1 : 0),
+            'public_count' => count($publicComments) + (($ownerComment && (int)($ownerComment['status'] ?? 0) === 1) ? 1 : 0),
         ];
     }
 
@@ -373,8 +379,8 @@ class CommentModel {
                 FROM comments c
                 INNER JOIN users u ON u.id = c.user_id
                 INNER JOIN rooms r ON r.id = c.room_id
-                WHERE c.room_id = ? AND c.status = 1 AND c.is_spam = 0
-                ORDER BY c.rating DESC, c.is_spam ASC, c.toxicity_score ASC, c.created_at DESC
+                WHERE c.room_id = ? AND c.status = 1
+                ORDER BY c.rating DESC, c.created_at DESC
                 ",
                 [$resolvedRoomId]
             );
@@ -384,8 +390,7 @@ class CommentModel {
 
         $rows = array_filter(self::buildFallbackRows(), static function ($row) use ($resolvedRoomId) {
             return (int)($row['room_id'] ?? 0) === $resolvedRoomId
-                && (int)($row['status'] ?? 0) === 1
-                && (int)($row['is_spam'] ?? 0) === 0;
+                && (int)($row['status'] ?? 0) === 1;
         });
 
         usort($rows, [self::class, 'compareCommentRows']);
@@ -393,7 +398,7 @@ class CommentModel {
     }
 
     /**
-     * Danh sách đánh giá cho trang quản trị với filter spam/trạng thái/tìm kiếm.
+     * Danh sách đánh giá cho trang quản trị với filter trạng thái/tìm kiếm.
      */
     public static function getAdminComments(array $filters = []) {
         $normalized = self::normalizeAdminFilters($filters);
@@ -417,11 +422,6 @@ class CommentModel {
                 $params[] = $normalized['status'] === 'visible' ? 1 : 0;
             }
 
-            if ($normalized['spam'] !== '') {
-                $sql .= ' AND c.is_spam = ?';
-                $params[] = $normalized['spam'] === 'spam' ? 1 : 0;
-            }
-
             if ($normalized['keyword'] !== '') {
                 $sql .= ' AND (u.full_name LIKE ? OR r.name LIKE ? OR c.content LIKE ?)';
                 $keyword = '%' . $normalized['keyword'] . '%';
@@ -430,7 +430,7 @@ class CommentModel {
                 $params[] = $keyword;
             }
 
-            $sql .= ' ORDER BY c.rating DESC, c.is_spam ASC, c.toxicity_score ASC, c.created_at DESC';
+            $sql .= ' ORDER BY c.rating DESC, c.created_at DESC';
             return array_map([self::class, 'normalizeCommentRow'], Database::fetchAll($sql, $params));
         }
 
@@ -438,13 +438,6 @@ class CommentModel {
             if ($normalized['status'] !== '') {
                 $expectedStatus = $normalized['status'] === 'visible' ? 1 : 0;
                 if ((int)($row['status'] ?? 0) !== $expectedStatus) {
-                    return false;
-                }
-            }
-
-            if ($normalized['spam'] !== '') {
-                $expectedSpam = $normalized['spam'] === 'spam' ? 1 : 0;
-                if ((int)($row['is_spam'] ?? 0) !== $expectedSpam) {
                     return false;
                 }
             }
@@ -499,8 +492,6 @@ class CommentModel {
             'total' => 0,
             'visible' => 0,
             'hidden' => 0,
-            'spam' => 0,
-            'clean' => 0,
         ];
 
         foreach ($rows as $row) {
@@ -509,12 +500,6 @@ class CommentModel {
                 $stats['visible']++;
             } else {
                 $stats['hidden']++;
-            }
-
-            if ((int)($row['is_spam'] ?? 0) === 1) {
-                $stats['spam']++;
-            } else {
-                $stats['clean']++;
             }
         }
 
@@ -577,6 +562,8 @@ class CommentModel {
 
     /**
      * Kiểm tra tenant đã ở đủ số ngày tối thiểu để được đánh giá chưa.
+     * Hợp đồng còn hạn (move_out_date ở tương lai hoặc rỗng) thì tính đến hôm nay;
+     * chỉ dùng move_out_date khi tenant đã thực sự chuyển đi.
      */
     private static function hasReachedMinimumStay($moveInDate, $moveOutDate, $minDays) {
         $resolvedMoveIn = trim((string)$moveInDate);
@@ -585,9 +572,11 @@ class CommentModel {
         }
 
         $start = new DateTime($resolvedMoveIn);
-        $end = !empty($moveOutDate) && strtotime((string)$moveOutDate) !== false
+        $moveOut = !empty($moveOutDate) && strtotime((string)$moveOutDate) !== false
             ? new DateTime((string)$moveOutDate)
-            : new DateTime();
+            : null;
+
+        $end = ($moveOut !== null && $moveOut <= new DateTime()) ? $moveOut : new DateTime();
 
         if ($end < $start) {
             return false;
@@ -597,144 +586,13 @@ class CommentModel {
     }
 
     /**
-     * Tính trạng thái khóa comment của người dùng theo bảng `comment_moderation`.
-     */
-    private static function getLockState($userId, array $settings) {
-        return CommentModerationModel::getLockState($userId, $settings);
-    }
-
-    /**
-     * Ghi nhận một lần nội dung bị xem là spam để áp dụng cơ chế khóa tạm nếu vượt ngưỡng.
-     */
-    private static function registerSpamAttempt($userId, array $settings) {
-        CommentModerationModel::registerSpamAttempt($userId, $settings);
-    }
-
-    /**
-     * Reset chuỗi vi phạm khi người dùng gửi nội dung hợp lệ hoặc đã hết thời gian khóa.
-     */
-    private static function clearSpamAttempts($userId) {
-        CommentModerationModel::clearSpamAttempts($userId);
-    }
-
-    /**
-     * Lấy trạng thái moderation hiện tại của user.
-     */
-    private static function getModerationRow($userId) {
-        $resolvedUserId = (int)$userId;
-        if ($resolvedUserId <= 0) {
-            return null;
-        }
-
-        if (Database::hasConnection()) {
-            return Database::fetchOne(
-                'SELECT * FROM comment_moderation WHERE user_id = ? LIMIT 1',
-                [$resolvedUserId]
-            );
-        }
-
-        foreach (Database::getTable('comment_moderation') as $row) {
-            if ((int)($row['user_id'] ?? 0) === $resolvedUserId) {
-                return $row;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Upsert trạng thái moderation để DB thật và fallback cùng hành vi.
-     */
-    private static function saveModerationRow($userId, array $data, $existingRow = null) {
-        $resolvedUserId = (int)$userId;
-        if ($existingRow) {
-            Database::update(
-                'comment_moderation',
-                $data,
-                'id = :id',
-                ['id' => (int)($existingRow['id'] ?? 0)]
-            );
-            return;
-        }
-
-        Database::insert('comment_moderation', array_merge([
-            'user_id' => $resolvedUserId,
-        ], $data));
-    }
-
-    /**
-     * Chạy toàn bộ pipeline kiểm duyệt nội dung.
-     */
-    private static function moderateContent($content, array $settings) {
-        return CommentModerationModel::moderate($content, $settings);
-    }
-
-    /**
-     * Mã hóa các từ/cụm từ cấm theo bảng `banned_words`.
-     */
-    private static function sanitizeByBannedWords($content) {
-        $sanitized = (string)$content;
-        $flaggedWords = [];
-
-        foreach (self::getBannedWords() as $word) {
-            $rawWord = trim((string)($word['word'] ?? ''));
-            if ($rawWord === '') {
-                continue;
-            }
-
-            $replacement = trim((string)($word['replacement'] ?? '***')) ?: '***';
-            $type = trim((string)($word['type'] ?? 'word'));
-            $pattern = $type === 'word'
-                ? '/(?<![\p{L}\p{N}_])' . preg_quote($rawWord, '/') . '(?![\p{L}\p{N}_])/iu'
-                : '/' . preg_quote($rawWord, '/') . '/iu';
-
-            if (preg_match($pattern, $sanitized)) {
-                $flaggedWords[] = $rawWord;
-                $sanitized = preg_replace($pattern, $replacement, $sanitized);
-            }
-        }
-
-        return [trim((string)$sanitized), array_values(array_unique($flaggedWords))];
-    }
-
-    /**
-     * Kiểm tra nội dung sau khi lọc có còn gì ngoài dấu `*` và ký tự trang trí hay không.
-     */
-    private static function isMaskedOnlyContent($content) {
-        $resolvedContent = trim((string)$content);
-        if ($resolvedContent === '') {
-            return false;
-        }
-
-        $probe = preg_replace('/[\s\*\.,;:!\?_\-\'"`~\(\)\[\]\{\}\/\\\\|+=<>@#$%^&]+/u', '', $resolvedContent);
-        return trim((string)$probe) === '';
-    }
-
-    /**
-     * Gọi Gemini chấm điểm độc hại. Nếu lỗi mạng/API thì hạ an toàn về 0 để không chặn luồng chính.
-     */
-    private static function getGeminiToxicityScore($content, $apiKey) {
-        $analysis = GeminiModerator::analyzeComment($content, $apiKey);
-        return (float)($analysis['toxicity_score'] ?? 0);
-    }
-
-    /**
-     * Lấy bộ từ cấm. Khi thiếu DB thật thì dùng dữ liệu fallback để chức năng vẫn chạy.
-     */
-    private static function getBannedWords() {
-        return BannedWordModel::getActiveWords();
-    }
-
-    /**
      * Chuẩn hóa dữ liệu filter admin để cả GET/POST dùng cùng một shape.
      */
     private static function normalizeAdminFilters(array $filters) {
         $status = trim((string)($filters['status'] ?? ''));
-        $spam = trim((string)($filters['spam'] ?? ''));
 
         return [
             'status' => in_array($status, ['visible', 'hidden'], true) ? $status : '',
-            'spam' => in_array($spam, ['spam', 'clean'], true) ? $spam : '',
             'keyword' => trim((string)($filters['keyword'] ?? '')),
         ];
     }
@@ -743,38 +601,20 @@ class CommentModel {
      * Ép kiểu dữ liệu comment và gắn thêm metadata hiển thị cho view.
      */
     private static function normalizeCommentRow(array $row) {
-        $settings = self::getModerationSettings();
         $row['id'] = (int)($row['id'] ?? 0);
         $row['room_id'] = (int)($row['room_id'] ?? 0);
         $row['user_id'] = (int)($row['user_id'] ?? 0);
         $row['rating'] = self::normalizeRating($row['rating'] ?? 5);
         $row['status'] = (int)($row['status'] ?? 1);
-        $row['is_spam'] = (int)($row['is_spam'] ?? 0);
-        $row['toxicity_score'] = round((float)($row['toxicity_score'] ?? 0), 2);
         $row['content'] = $row['content'] !== null ? trim((string)$row['content']) : null;
         $row['full_name'] = trim((string)($row['full_name'] ?? '')) ?: 'Khách thuê';
         $row['avatar'] = trim((string)($row['avatar'] ?? ''));
         $row['room_name'] = trim((string)($row['room_name'] ?? ''));
-        $row['flagged_words_list'] = self::decodeFlaggedWords($row['flagged_words'] ?? '[]');
         $row['is_edited'] = !empty($row['edited_at']);
-        $row['is_hidden_by_ai'] = (int)($row['status'] ?? 0) === 0
-            && (float)($row['toxicity_score'] ?? 0) > (float)($settings['toxicity_threshold'] ?? 0.7);
-        $row['hidden_reason_label'] = $row['is_hidden_by_ai'] ? 'Ẩn do AI' : ((int)($row['status'] ?? 0) === 0 ? 'Ẩn thủ công' : 'Đang hiện');
+        $row['hidden_reason_label'] = (int)($row['status'] ?? 0) === 0 ? 'Ẩn bởi admin' : 'Đang hiện';
         $row['created_at_label'] = !empty($row['created_at']) ? date('d/m/Y H:i', strtotime((string)$row['created_at'])) : '';
         $row['edited_at_label'] = !empty($row['edited_at']) ? date('d/m/Y H:i', strtotime((string)$row['edited_at'])) : '';
         return $row;
-    }
-
-    /**
-     * Decode danh sách từ bị gắn cờ từ JSON trong DB.
-     */
-    private static function decodeFlaggedWords($value) {
-        if (is_array($value)) {
-            return $value;
-        }
-
-        $decoded = json_decode((string)$value, true);
-        return is_array($decoded) ? $decoded : [];
     }
 
     /**
@@ -784,16 +624,6 @@ class CommentModel {
         $ratingCompare = (int)($right['rating'] ?? 0) <=> (int)($left['rating'] ?? 0);
         if ($ratingCompare !== 0) {
             return $ratingCompare;
-        }
-
-        $spamCompare = (int)($left['is_spam'] ?? 0) <=> (int)($right['is_spam'] ?? 0);
-        if ($spamCompare !== 0) {
-            return $spamCompare;
-        }
-
-        $toxicityCompare = (float)($left['toxicity_score'] ?? 0) <=> (float)($right['toxicity_score'] ?? 0);
-        if ($toxicityCompare !== 0) {
-            return $toxicityCompare;
         }
 
         return strcmp((string)($right['created_at'] ?? ''), (string)($left['created_at'] ?? ''));
@@ -821,13 +651,9 @@ class CommentModel {
     private static function buildVisibilityBadges(array $comment) {
         $badges = [];
 
-        if ((int)($comment['is_spam'] ?? 0) === 1) {
-            $badges[] = ['label' => 'Chỉ mình bạn thấy', 'class' => 'bg-amber-100 text-amber-700'];
-        }
-
         if ((int)($comment['status'] ?? 0) === 0) {
             $badges[] = [
-                'label' => !empty($comment['is_hidden_by_ai']) ? 'Ẩn do AI' : 'Đã bị admin ẩn',
+                'label' => 'Đã bị admin ẩn',
                 'class' => 'bg-rose-100 text-rose-700',
             ];
         }

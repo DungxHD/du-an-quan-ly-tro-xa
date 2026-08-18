@@ -12,15 +12,15 @@ $phoneTel = trim((string)($layout['contact']['phoneTel'] ?? ''));
 $roomsPageUrl = BASE_URL . '?page=rooms';
 ?>
 
-<section class="py-20 bg-gradient-to-br from-primary/5 via-white to-secondary/5">
+<section class="intro-hero py-20 bg-surface">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center max-w-4xl mx-auto mb-14 reveal">
+        <div class="intro-hero-header max-w-4xl mb-14 reveal">
             <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-5">
                 <span class="material-symbols-outlined text-base">home_work</span>
                 <?= e($introStory['eyebrow'] ?? 'Giới thiệu khu trọ') ?>
             </span>
-            <h1 class="text-5xl md:text-6xl font-black mb-5">Về <span class="gradient-text" data-cms="site_name"><?= e($siteName) ?></span></h1>
-            <p class="text-xl text-gray-600">
+            <h1 class="intro-display text-5xl md:text-6xl font-black mb-5">Về <span class="gradient-text" data-cms="site_name"><?= e($siteName) ?></span></h1>
+            <p class="text-xl text-gray-600 leading-relaxed">
                 Trang này tập trung vào chính khu trọ đang vận hành, không dùng nội dung chung chung kiểu landing page.
             </p>
         </div>

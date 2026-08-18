@@ -948,8 +948,8 @@ class RoomModel
                 SELECT c.*, u.full_name, u.avatar
                 FROM comments c
                 LEFT JOIN users u ON c.user_id = u.id
-                WHERE c.room_id = ? AND c.status = 1 AND c.is_spam = 0
-                ORDER BY c.rating DESC, c.is_spam ASC, c.toxicity_score ASC, c.created_at DESC
+                WHERE c.room_id = ? AND c.status = 1
+                ORDER BY c.rating DESC, c.created_at DESC
                 ",
                 [$roomId]
             );
@@ -964,8 +964,7 @@ class RoomModel
 
         $comments = array_filter(Database::getTable('comments'), static function ($comment) use ($roomId) {
             return (int)($comment['room_id'] ?? 0) === (int)$roomId
-                && (int)($comment['status'] ?? 0) === 1
-                && (int)($comment['is_spam'] ?? 0) === 0;
+                && (int)($comment['status'] ?? 0) === 1;
         });
 
         $comments = array_map(static function ($comment) use ($users) {
@@ -979,16 +978,6 @@ class RoomModel
             $ratingCompare = (int)($right['rating'] ?? 0) <=> (int)($left['rating'] ?? 0);
             if ($ratingCompare !== 0) {
                 return $ratingCompare;
-            }
-
-            $spamCompare = (int)($left['is_spam'] ?? 0) <=> (int)($right['is_spam'] ?? 0);
-            if ($spamCompare !== 0) {
-                return $spamCompare;
-            }
-
-            $toxicityCompare = (float)($left['toxicity_score'] ?? 0) <=> (float)($right['toxicity_score'] ?? 0);
-            if ($toxicityCompare !== 0) {
-                return $toxicityCompare;
             }
 
             return strcmp((string)($right['created_at'] ?? ''), (string)($left['created_at'] ?? ''));
@@ -1153,8 +1142,6 @@ class RoomModel
         $comment['avatar'] = trim((string)($comment['avatar'] ?? ''));
         $comment['content'] = trim((string)($comment['content'] ?? ''));
         $comment['rating'] = max(1, min(5, (int)($comment['rating'] ?? 5)));
-        $comment['is_spam'] = (int)($comment['is_spam'] ?? 0);
-        $comment['toxicity_score'] = (float)($comment['toxicity_score'] ?? 0);
         return $comment;
     }
 

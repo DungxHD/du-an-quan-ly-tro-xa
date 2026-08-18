@@ -211,10 +211,9 @@ class AuthController extends BaseController
             $errors['old_password'] = 'Mật khẩu cũ không đúng.';
         }
 
-        if ($newPassword === '') {
-            $errors['new_password'] = 'Vui lòng nhập mật khẩu mới.';
-        } elseif (strlen($newPassword) < 6) {
-            $errors['new_password'] = 'Mật khẩu mới phải có ít nhất 6 ký tự.';
+        $newPasswordError = UserModel::validatePassword($newPassword, 'mật khẩu mới');
+        if ($newPasswordError !== '') {
+            $errors['new_password'] = $newPasswordError;
         }
 
         if ($confirmPassword === '') {
@@ -429,10 +428,9 @@ class AuthController extends BaseController
             $newPassword = $_POST['new_password'] ?? '';
             $confirmPassword = $_POST['confirm_password'] ?? '';
 
-            if ($newPassword === '') {
-                $errors['new_password'] = 'Vui lòng nhập mật khẩu mới.';
-            } elseif (strlen($newPassword) < 6) {
-                $errors['new_password'] = 'Mật khẩu mới phải có ít nhất 6 ký tự.';
+            $newPasswordError = UserModel::validatePassword($newPassword, 'mật khẩu mới');
+            if ($newPasswordError !== '') {
+                $errors['new_password'] = $newPasswordError;
             }
 
             if ($confirmPassword === '') {
@@ -476,7 +474,7 @@ class AuthController extends BaseController
                 } elseif ($rateLimit['reason'] === 'max_daily') {
                     setFlash('otp_error', 'Bạn đã gửi OTP tối đa 5 lần trong 24 giờ. Vui lòng thử lại sau hoặc liên hệ chủ trọ.');
                 }
-                redirectTo('login?auth_action=forgot_password&fp_step=2');
+                redirectTo('login', ['auth_action' => 'forgot_password', 'fp_step' => 2]);
             }
 
             $otp = PasswordResetModel::createOtp($userId, $ip);
@@ -488,15 +486,15 @@ class AuthController extends BaseController
                 $sent = Mailer::sendOtpEmail($user['email'], $otp, $user['full_name']);
                 if (!$sent) {
                     setFlash('otp_error', 'Gửi OTP thất bại. Vui lòng liên hệ chủ trọ.');
-                    redirectTo('login?auth_action=forgot_password&fp_step=2');
+                    redirectTo('login', ['auth_action' => 'forgot_password', 'fp_step' => 2]);
                 }
             }
 
             setFlash('otp_success', 'Mã OTP mới đã được gửi đến email của bạn.');
-            redirectTo('login?auth_action=forgot_password&fp_step=2');
+            redirectTo('login', ['auth_action' => 'forgot_password', 'fp_step' => 2]);
         }
 
-        redirectTo('login?auth_action=forgot_password&fp_step=2');
+        redirectTo('login', ['auth_action' => 'forgot_password', 'fp_step' => 2]);
     }
 
     /**
@@ -544,14 +542,9 @@ class AuthController extends BaseController
             ];
 
             // Validate họ tên - bắt buộc, max 100 ký tự, không chỉ khoảng trắng, chỉ cho phép chữ/số/khoảng trắng/'-'/'.'
-            if ($fullName === '') {
-                $errors['full_name'] = 'Vui lòng nhập họ và tên.';
-            } elseif (trim($fullName) === '') {
-                $errors['full_name'] = 'Họ và tên không được chỉ chứa khoảng trắng.';
-            } elseif (mb_strlen($fullName) > 100) {
-                $errors['full_name'] = 'Họ và tên không được vượt quá 100 ký tự.';
-            } elseif (!preg_match('/^[\p{L}\p{N}\s\-\'\.]+$/u', $fullName)) {
-                $errors['full_name'] = 'Họ và tên chứa ký tự không hợp lệ. Chỉ cho phép chữ, số, khoảng trắng, dấu gạch ngang, dấu chấm, dấu nháy đơn.';
+            $fullNameError = UserModel::validateFullName($fullName);
+            if ($fullNameError !== '') {
+                $errors['full_name'] = $fullNameError;
             }
 
             // Validate email - không bắt buộc, nhưng nếu nhập thì phải đúng format strict
@@ -578,14 +571,9 @@ class AuthController extends BaseController
             }
 
             // Validate password - bắt buộc, min 6 ký tự, có ít nhất 1 chữ và 1 số
-            if ($password === '') {
-                $errors['password'] = 'Vui lòng nhập mật khẩu.';
-            } elseif (strlen($password) < 6) {
-                $errors['password'] = 'Mật khẩu phải có ít nhất 6 ký tự.';
-            } elseif (!preg_match('/[A-Za-z]/', $password)) {
-                $errors['password'] = 'Mật khẩu phải chứa ít nhất 1 chữ cái.';
-            } elseif (!preg_match('/\d/', $password)) {
-                $errors['password'] = 'Mật khẩu phải chứa ít nhất 1 số.';
+            $passwordError = UserModel::validatePassword($password);
+            if ($passwordError !== '') {
+                $errors['password'] = $passwordError;
             }
 
             if ($confirmPassword === '') {

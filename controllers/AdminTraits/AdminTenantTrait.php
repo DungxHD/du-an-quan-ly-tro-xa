@@ -348,7 +348,7 @@ trait AdminTenantTrait
         redirectTo('admin-rent-requests');
     }
 /**
-     * Từ chối yêu cầu thuê: ghi lý do, báo cho user (user được gửi yêu cầu phòng khác).
+     * Từ chối yêu cầu thuê: không cần lý do (yêu cầu thuê phòng), báo cho user (user được gửi yêu cầu phòng khác).
      */
     public function rejectRentRequest()
     {
@@ -357,7 +357,6 @@ trait AdminTenantTrait
         }
         verify_csrf();
         $requestId = (int)($_POST['request_id'] ?? 0);
-        $adminNote = trim((string)($_POST['admin_note'] ?? ''));
         $request = RentalRequestModel::getById($requestId);
 
         if (!$request) {
@@ -369,14 +368,13 @@ trait AdminTenantTrait
             redirectTo('admin-rent-requests');
         }
 
-        $note = $adminNote !== '' ? $adminNote : 'Admin chưa phản hồi lý do cụ thể.';
-        RentalRequestModel::setStatus($requestId, 'rejected', $note);
+        RentalRequestModel::setStatus($requestId, 'rejected');
         $room = RoomModel::getById((int)($request['room_id'] ?? 0));
         NotificationModel::create([
             'user_id' => (int)($request['user_id'] ?? 0),
             'type' => 'general',
             'title' => 'Yêu cầu thuê phòng bị từ chối',
-            'content' => 'Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" của bạn đã bị từ chối. Lý do: ' . $note . '. Bạn có thể gửi yêu cầu cho phòng khác.',
+            'content' => 'Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" của bạn đã bị từ chối. Bạn có thể gửi yêu cầu cho phòng khác.',
         ]);
         setFlash('rent_request_message', 'Đã từ chối yêu cầu thuê.');
         redirectTo('admin-rent-requests');
@@ -412,9 +410,25 @@ trait AdminTenantTrait
             redirectTo('admin-rent-requests');
         }
 
-        RentalRequestModel::confirmByAdmin($requestId);
+        $deposit = trim((string)($_POST['deposit'] ?? ''));
+        if ($deposit === '' || !is_numeric($deposit) || (float)$deposit <= 0) {
+            setFlash('rent_request_error', 'Vui lòng nhập số tiền cọc hợp lệ (lớn hơn 0) để giữ phòng cho người thuê.');
+            redirectTo('admin-rent-requests');
+        }
+        $deposit = (float)$deposit;
+
+        RentalRequestModel::confirmByAdmin($requestId, $deposit);
         $tenant = UserModel::getById((int)($request['user_id'] ?? 0));
-        setFlash('rent_request_message', 'Đã xác nhận yêu cầu thuê của "' . ($tenant['full_name'] ?? '') . '". Mã QR chuyển tiền đã sẵn sàng cho người thuê.');
+        $roomName = (string)($room['name'] ?? '');
+        $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
+        NotificationModel::create([
+            'user_id' => (int)($request['user_id'] ?? 0),
+            'type' => 'rental_request',
+            'title' => 'Yêu cầu thuê đã được chấp nhận',
+            'content' => 'Yêu cầu thuê phòng "' . $roomName . '" của bạn đã được admin chấp nhận. Vui lòng thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ để giữ phòng này cho đến hết ngày dự kiến vào ở (' . date('d/m/Y', strtotime($moveInDate)) . '). Mã QR thanh toán đã sẵn sàng.',
+            'link' => '?page=request-rent&id=' . (int)($request['room_id'] ?? 0),
+        ]);
+        setFlash('rent_request_message', 'Đã xác nhận yêu cầu thuê của "' . ($tenant['full_name'] ?? '') . '" với tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ. Mã QR chuyển tiền đã sẵn sàng cho người thuê.');
         redirectTo('admin-rent-requests');
     }
 /**
@@ -493,13 +507,17 @@ trait AdminTenantTrait
         }
 
         $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
+        $deposit = (float)($request['deposit'] ?? 0);
+        if ($deposit <= 0) {
+            $deposit = (float)($room['price'] ?? 0);
+        }
         try {
             $contractId = ContractModel::create([
                 'user_id' => $userId,
                 'room_id' => $roomId,
                 'move_in_date' => $moveInDate,
                 'rent_price' => (float)($room['price'] ?? 0),
-                'deposit_amount' => (float)($room['price'] ?? 0),
+                'deposit_amount' => $deposit,
                 'initial_electricity_index' => null,
                 'initial_water_index' => null,
                 'contract_date' => date('Y-m-d'),
@@ -510,19 +528,24 @@ trait AdminTenantTrait
             $tenant = UserModel::getById($userId);
             $tenantName = (string)($tenant['full_name'] ?? 'Người thuê');
             $roomName = (string)($room['name'] ?? '');
+            foreach (UserModel::getAll() as $admin) {
+                if ((int)($admin['role'] ?? 1) === 1) {
+                    NotificationModel::create([
+                        'user_id' => (int)$admin['id'],
+                        'type' => 'rental_request',
+                        'title' => 'Tiền cọc đã được thanh toán',
+                        'content' => 'Người thuê ' . $tenantName . ' đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công cho phòng "' . $roomName . '".',
+                        'link' => '?page=admin-rent-requests&rent_filter=approved',
+                    ]);
+                }
+            }
             NotificationModel::create([
                 'user_id' => (int)($request['user_id'] ?? 0),
                 'type' => 'general',
-                'title' => 'Người thuê đã thanh toán thành công',
-                'content' => 'Người thuê ' . $tenantName . ' đã thanh toán thành công và chính thức vào thuê phòng "' . $roomName . '".',
-            ]);
-            NotificationModel::create([
-                'user_id' => $userId,
-                'type' => 'general',
                 'title' => 'Chào mừng đến với phòng ' . $roomName,
-                'content' => 'Bạn đã thanh toán thành công và chính thức là người thuê phòng "' . $roomName . '". Ngày vào ở: ' . date('d/m/Y', strtotime($moveInDate)) . '.',
+                'content' => 'Bạn đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công và chính thức là người thuê phòng "' . $roomName . '". Ngày vào ở: ' . date('d/m/Y', strtotime($moveInDate)) . '.',
             ]);
-            setFlash('rent_request_message', 'Người thuê "' . $tenantName . '" đã thanh toán thành công và được thêm vào phòng "' . $roomName . '". Phòng và người thuê chuyển sang trạng thái đang thuê.');
+            setFlash('rent_request_message', 'Người thuê "' . $tenantName . '" đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công và được thêm vào phòng "' . $roomName . '". Phòng và người thuê chuyển sang trạng thái đang thuê.');
         } catch (Throwable $exception) {
             setFlash('rent_request_error', 'Không xác nhận thanh toán được: ' . $exception->getMessage());
         }
@@ -617,7 +640,7 @@ trait AdminTenantTrait
     }
 
     /**
-     * Admin từ chối yêu cầu ở ghép.
+     * Admin từ chối yêu cầu ở ghép: ghi lý do từ chối, gửi về người đang thuê trong phòng (người A) và người được mời (người B).
      */
     public function rejectRoommate()
     {
@@ -626,6 +649,7 @@ trait AdminTenantTrait
         }
         verify_csrf();
         $requestId = (int)($_POST['request_id'] ?? 0);
+        $adminNote = trim((string)($_POST['admin_note'] ?? ''));
         $request = RoommateRequestModel::getById($requestId);
         if (!$request) {
             setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
@@ -637,24 +661,25 @@ trait AdminTenantTrait
             redirectTo('admin-rent-requests');
         }
 
+        $note = $adminNote !== '' ? $adminNote : 'Admin chưa phản hồi lý do cụ thể.';
         $requesterId = (int)$request['requester_id'];
         $hostUserId = (int)$request['host_user_id'];
         $roomId = (int)$request['room_id'];
 
-        RoommateRequestModel::setStatus($requestId, 'rejected');
-        // Thông báo cho người B
-        NotificationModel::create([
-            'user_id' => $requesterId,
-            'type' => 'general',
-            'title' => 'Yêu cầu ở ghép bị từ chối',
-            'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn.',
-        ]);
-        // Thông báo cho người A
+        RoommateRequestModel::setStatus($requestId, 'rejected', $note);
+        // Thông báo cho người A (người đang thuê trong phòng — người gửi lời mời): kèm lý do
         NotificationModel::create([
             'user_id' => $hostUserId,
             'type' => 'general',
             'title' => 'Yêu cầu mời ở ghép bị từ chối',
-            'content' => 'Admin đã từ chối yêu cầu mời ở ghép tại phòng ' . (RoomModel::getById($roomId)['name'] ?? '') . '.',
+            'content' => 'Admin đã từ chối yêu cầu mời ở ghép tại phòng ' . (RoomModel::getById($roomId)['name'] ?? '') . '. Lý do: ' . $note,
+        ]);
+        // Thông báo cho người B (người được mời)
+        NotificationModel::create([
+            'user_id' => $requesterId,
+            'type' => 'general',
+            'title' => 'Yêu cầu ở ghép bị từ chối',
+            'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn tại phòng ' . (RoomModel::getById($roomId)['name'] ?? '') . '. Lý do: ' . $note,
         ]);
         setFlash('roommate_admin_message', 'Đã từ chối yêu cầu ở ghép.');
         redirectTo('admin-rent-requests');
@@ -801,8 +826,9 @@ trait AdminTenantTrait
         ];
         setFlash('admin_account_old', $payload);
 
-        if ($payload['full_name'] === '') {
-            setFlash('admin_account_error', 'Tên người dùng là bắt buộc.');
+        $fullNameError = UserModel::validateFullName($payload['full_name']);
+        if ($fullNameError !== '') {
+            setFlash('admin_account_error', $fullNameError);
             redirectTo('admin-accounts');
         }
         $normalizedPhone = UserModel::normalizePhone($payload['phone']);
@@ -814,16 +840,17 @@ trait AdminTenantTrait
             setFlash('admin_account_error', 'Số điện thoại này đã được đăng ký.');
             redirectTo('admin-accounts');
         }
-        if (!UserModel::validateEmailStrict($payload['email'])) {
+        if ($payload['email'] !== '' && !UserModel::validateEmailStrict($payload['email'])) {
             setFlash('admin_account_error', 'Email không đúng định dạng.');
             redirectTo('admin-accounts');
         }
-        if (UserModel::emailExists($payload['email'])) {
+        if ($payload['email'] !== '' && UserModel::emailExists($payload['email'])) {
             setFlash('admin_account_error', 'Email này đã được đăng ký.');
             redirectTo('admin-accounts');
         }
-        if (mb_strlen($payload['password']) < 6) {
-            setFlash('admin_account_error', 'Mật khẩu phải có ít nhất 6 ký tự.');
+        $passwordError = UserModel::validatePassword($payload['password']);
+        if ($passwordError !== '') {
+            setFlash('admin_account_error', $passwordError);
             redirectTo('admin-accounts');
         }
 
@@ -882,7 +909,6 @@ trait AdminTenantTrait
             Database::query('DELETE FROM notification_reads WHERE user_id = ?', [$userId]);
             Database::query('DELETE FROM comments WHERE user_id = ?', [$userId]);
             Database::query('DELETE FROM comment_reports WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM comment_moderation WHERE user_id = ?', [$userId]);
             Database::query('DELETE FROM feedbacks WHERE user_id = ?', [$userId]);
             Database::query('DELETE FROM contracts WHERE user_id = ?', [$userId]);
             Database::query('DELETE FROM rental_requests WHERE user_id = ?', [$userId]);
@@ -935,8 +961,9 @@ trait AdminTenantTrait
         ];
         setFlash('admin_account_old', array_merge($payload, ['id' => $userId]));
 
-        if ($payload['full_name'] === '') {
-            setFlash('admin_account_error', 'Tên người dùng là bắt buộc.');
+        $fullNameError = UserModel::validateFullName($payload['full_name']);
+        if ($fullNameError !== '') {
+            setFlash('admin_account_error', $fullNameError);
             redirectTo('admin-accounts');
         }
         $normalizedPhone = UserModel::normalizePhone($payload['phone']);
@@ -948,17 +975,20 @@ trait AdminTenantTrait
             setFlash('admin_account_error', 'Số điện thoại này đã được đăng ký.');
             redirectTo('admin-accounts');
         }
-        if (!UserModel::validateEmailStrict($payload['email'])) {
+        if ($payload['email'] !== '' && !UserModel::validateEmailStrict($payload['email'])) {
             setFlash('admin_account_error', 'Email không đúng định dạng.');
             redirectTo('admin-accounts');
         }
-        if (UserModel::emailExists($payload['email']) && $payload['email'] !== ($user['email'] ?? '')) {
+        if ($payload['email'] !== '' && UserModel::emailExists($payload['email']) && $payload['email'] !== ($user['email'] ?? '')) {
             setFlash('admin_account_error', 'Email này đã được đăng ký.');
             redirectTo('admin-accounts');
         }
-        if ($payload['password'] !== '' && mb_strlen($payload['password']) < 6) {
-            setFlash('admin_account_error', 'Mật khẩu phải có ít nhất 6 ký tự.');
-            redirectTo('admin-accounts');
+        if ($payload['password'] !== '') {
+            $passwordError = UserModel::validatePassword($payload['password']);
+            if ($passwordError !== '') {
+                setFlash('admin_account_error', $passwordError);
+                redirectTo('admin-accounts');
+            }
         }
 
         try {
