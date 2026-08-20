@@ -369,6 +369,32 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
                         <?php endif; ?>
                         <a href="<?= BASE_URL ?>?page=login" class="block mt-3 text-center text-gray-500 hover:text-primary text-sm">Quay lại</a>
                     </div>
+                <?php elseif (!empty($errors['otp_resend_wait'])): ?>
+                    <!-- [DEV-QWEN-A][FIX][2026-08-21] Hiển thị đúng lỗi rate-limit "chờ resend" —
+                         trước đây controller set $errors['otp_resend_wait'] nhưng view không render,
+                         khiến user bị đưa sang bước 2 và thấy box xanh "đã gửi" giả (không có email nào được gửi). -->
+                    <div class="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg flex items-start gap-2">
+                        <span class="material-symbols-outlined mt-0.5">schedule</span>
+                        <span>Bạn vừa gửi mã OTP gần đây. Vui lòng chờ <strong><?= (int)$errors['otp_resend_wait'] ?> giây</strong> trước khi gửi lại.</span>
+                    </div>
+                    <?php if (!empty($old['otp_sent_email'])): ?>
+                        <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-start gap-2">
+                            <span class="material-symbols-outlined mt-0.5">check_circle</span>
+                            <span>Mã OTP đã được gửi đến email <strong><?= e($old['otp_sent_email']) ?></strong>.</span>
+                        </div>
+                    <?php endif; ?>
+                    <div class="mt-4 text-center">
+                        <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
+                    </div>
+                <?php elseif (!empty($errors['otp_max_daily'])): ?>
+                    <!-- [DEV-QWEN-A][FIX][2026-08-21] Hiển thị đúng lỗi "hết lượt 5 lần/24h" (trước đây không render). -->
+                    <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-2">
+                        <span class="material-symbols-outlined mt-0.5">block</span>
+                        <span>Bạn đã đạt giới hạn gửi mã OTP (5 lần trong 24 giờ). Vui lòng thử lại sau hoặc liên hệ chủ trọ.</span>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
+                    </div>
                 <?php else: ?>
                     <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-start gap-2">
                         <span class="material-symbols-outlined mt-0.5">check_circle</span>
