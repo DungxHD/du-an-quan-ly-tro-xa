@@ -4,6 +4,38 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
+
+// [DEV-QWEN-A][FIX][2026-08-20] Chống trang trắng: exception/fatal luôn được ghi log
+// và hiển thị trang lỗi tối giản thay vì body rỗng (display_errors=0).
+$GLOBALS['__error_handled'] = false;
+set_exception_handler(static function (Throwable $e) {
+    $GLOBALS['__error_handled'] = true;
+    error_log('[FATAL] ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
+    http_response_code(500);
+    echo '<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Đã xảy ra lỗi</title></head>'
+        . '<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#334155;font-family:system-ui,sans-serif">'
+        . '<div style="text-align:center;padding:2rem;max-width:560px">'
+        . '<h1 style="margin:0 0 .5rem;font-size:1.25rem">Đã xảy ra lỗi hệ thống</h1>'
+        . '<p style="margin:0 0 1rem;color:#64748b">Chi tiết lỗi đã được ghi vào nhật ký. Vui lòng thử lại sau.</p>'
+        . '<p style="font-size:.8rem;color:#94a3b8;word-break:break-word">' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>'
+        . '</div></body></html>';
+    exit;
+});
+register_shutdown_function(static function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true) && !$GLOBALS['__error_handled']) {
+        error_log('[FATAL] ' . $error['message'] . ' | ' . $error['file'] . ':' . $error['line']);
+        if (!headers_sent()) {
+            http_response_code(500);
+            echo '<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Đã xảy ra lỗi</title></head>'
+                . '<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#334155;font-family:system-ui,sans-serif">'
+                . '<div style="text-align:center;padding:2rem;max-width:560px">'
+                . '<h1 style="margin:0 0 .5rem;font-size:1.25rem">Đã xảy ra lỗi hệ thống</h1>'
+                . '<p style="margin:0;color:#64748b">Chi tiết lỗi đã được ghi vào nhật ký. Vui lòng thử lại sau.</p>'
+                . '</div></body></html>';
+        }
+    }
+});
 define('BASE_PATH', __DIR__ . '/');
 $baseUrl = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
 define('BASE_URL', $baseUrl !== '' ? '/' . $baseUrl . '/' : '/');

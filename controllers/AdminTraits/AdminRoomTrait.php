@@ -648,6 +648,13 @@ public function saveRoom()
             redirectTo('admin-rooms', $redirectParams);
         }
 
+        // [DEV-QWEN-A][FIX][2026-08-20] Chặn các cột DB còn lại (MySQL strict mode):
+        // name varchar(100), max_occupancy tinyint (tối đa 255), position int.
+        // Trước đây nhập quá giới hạn gây PDOException lọt ra ngoài → trang trắng khi submit.
+        $data['name'] = mb_substr($data['name'], 0, 100);
+        $data['max_occupancy'] = min(255, $data['max_occupancy']);
+        $data['position'] = max(0, min(9999, $data['position']));
+
         $primaryImage = trim((string)($_POST['primary_image'] ?? $_POST['thumbnail'] ?? ''));
         $submittedGalleryImages = array_slice(array_map(
             static fn($value) => trim((string)$value),
@@ -715,69 +722,72 @@ public function saveRoom()
             $data['thumbnail'] = $primaryImage;
         }
 
-        $savedRoomId = (int)RoomModel::save($data, $id > 0 ? $id : null);
-        // === PRICE CHANGE LOGIC ===
+        // [DEV-QWEN-A][FIX][2026-08-20] Bọc toàn bộ phần ghi DB trong try/catch:
+        // trước đây PDOException lọt ra ngoài → fatal → trang trắng khi submit (display_errors=0).
         $pendingPriceMessage = '';
-        if ($id > 0 && $editRoom) {
-            $oldPrice = (float)($editRoom['price'] ?? 0);
-            $newPrice = (float)($data['price'] ?? 0);
-            $priceChanged = abs($oldPrice - $newPrice) > 0.01;
-
-            // Nếu phòng đang rented và giá thay đổi → schedule change
-            if ($editRoom['status'] === 'rented' && $priceChanged) {
-                $effectiveMonth = (int)($_POST['price_effective_month'] ?? 0);
-                $effectiveYear = (int)($_POST['price_effective_year'] ?? 0);
-
-                // Validate tháng áp dụng (min = tháng sau)
-                $currentOrder = ((int)date('Y') * 100) + (int)date('n');
-                $minOrder = $currentOrder + 1;
-
-                if ($effectiveYear === 0 || $effectiveMonth === 0) {
-                    // Mặc định: tháng sau
-                    $effectiveMonth = (int)date('n') + 1;
-                    $effectiveYear = (int)date('Y');
-                    if ($effectiveMonth > 12) {
-                        $effectiveMonth = 1;
-                        $effectiveYear++;
+        try {
+            $savedRoomId = (int)RoomModel::save($data, $id > 0 ? $id : null);
+            // === PRICE CHANGE LOGIC ===
+            if ($id > 0 && $editRoom) {
+                $oldPrice = (float)($editRoom['price'] ?? 0);
+                $newPrice = (float)($data['price'] ?? 0);
+                $priceChanged = abs($oldPrice - $newPrice) > 0.01;
+    
+                // Nếu phòng đang rented và giá thay đổi → schedule change
+                if ($editRoom['status'] === 'rented' && $priceChanged) {
+                    $effectiveMonth = (int)($_POST['price_effective_month'] ?? 0);
+                    $effectiveYear = (int)($_POST['price_effective_year'] ?? 0);
+    
+                    // Validate tháng áp dụng (min = tháng sau)
+                    $currentOrder = ((int)date('Y') * 100) + (int)date('n');
+                    $minOrder = $currentOrder + 1;
+    
+                    if ($effectiveYear === 0 || $effectiveMonth === 0) {
+                        // Mặc định: tháng sau
+                        $effectiveMonth = (int)date('n') + 1;
+                        $effectiveYear = (int)date('Y');
+                        if ($effectiveMonth > 12) {
+                            $effectiveMonth = 1;
+                            $effectiveYear++;
+                        }
+                    }
+    
+                    $order = ($effectiveYear * 100) + $effectiveMonth;
+                    if ($order < $minOrder) {
+                        setFlash('admin_room_error', 'Tháng áp dụng giá mới phải từ tháng sau trở đi.');
+                        setFlash('admin_room_old', $formState);
+                        redirectTo('admin-rooms', $redirectParams);
+                    }
+    
+                    // Schedule price change (ghi đè bản cũ nếu có)
+                    $deleted = RoomPriceChangeModel::scheduleChange(
+                        $savedRoomId,
+                        $oldPrice,
+                        $newPrice,
+                        $effectiveMonth,
+                        $effectiveYear,
+                        (int)($_SESSION['user_id'] ?? 0)
+                    );
+    
+                    // Revert price về giá cũ (chưa áp dụng ngay)
+                    Database::update('rooms', ['price' => $oldPrice], 'id = :id', ['id' => $savedRoomId]);
+    
+                    $msg = 'Giá mới ' . number_format($newPrice, 0, ',', '.') . 'đ sẽ áp dụng từ tháng '
+                        . str_pad((string)$effectiveMonth, 2, '0', STR_PAD_LEFT) . '/' . $effectiveYear . '.';
+                    if ($deleted > 0) {
+                        $msg .= ' (Đã hủy ' . $deleted . ' lịch thay đổi giá trước đó.)';
+                    }
+                    $pendingPriceMessage = $msg;
+                }
+    
+                // Nếu status chuyển từ rented → available/draft/maintenance → apply pending price ngay
+                if ($editRoom['status'] === 'rented' && $status !== 'rented') {
+                    $applied = RoomPriceChangeModel::applyPendingImmediately($savedRoomId);
+                    if ($applied > 0) {
+                        $pendingPriceMessage = 'Đã áp dụng ' . $applied . ' thay đổi giá chờ cho phòng.';
                     }
                 }
-
-                $order = ($effectiveYear * 100) + $effectiveMonth;
-                if ($order < $minOrder) {
-                    setFlash('admin_room_error', 'Tháng áp dụng giá mới phải từ tháng sau trở đi.');
-                    setFlash('admin_room_old', $formState);
-                    redirectTo('admin-rooms', $redirectParams);
-                }
-
-                // Schedule price change (ghi đè bản cũ nếu có)
-                $deleted = RoomPriceChangeModel::scheduleChange(
-                    $savedRoomId,
-                    $oldPrice,
-                    $newPrice,
-                    $effectiveMonth,
-                    $effectiveYear,
-                    (int)($_SESSION['user_id'] ?? 0)
-                );
-
-                // Revert price về giá cũ (chưa áp dụng ngay)
-                Database::update('rooms', ['price' => $oldPrice], 'id = :id', ['id' => $savedRoomId]);
-
-                $msg = 'Giá mới ' . number_format($newPrice, 0, ',', '.') . 'đ sẽ áp dụng từ tháng '
-                    . str_pad((string)$effectiveMonth, 2, '0', STR_PAD_LEFT) . '/' . $effectiveYear . '.';
-                if ($deleted > 0) {
-                    $msg .= ' (Đã hủy ' . $deleted . ' lịch thay đổi giá trước đó.)';
-                }
-                $pendingPriceMessage = $msg;
             }
-
-            // Nếu status chuyển từ rented → available/draft/maintenance → apply pending price ngay
-            if ($editRoom['status'] === 'rented' && $status !== 'rented') {
-                $applied = RoomPriceChangeModel::applyPendingImmediately($savedRoomId);
-                if ($applied > 0) {
-                    $pendingPriceMessage = 'Đã áp dụng ' . $applied . ' thay đổi giá chờ cho phòng.';
-                }
-            }
-        }
 
         // Dời ảnh từ image_phong_new -> image_phong_{id}
         $movedPrimary = $this->finalizeNewRoomImage($savedRoomId, $primaryImage);
@@ -791,6 +801,13 @@ public function saveRoom()
         $this->cleanupDraftRoomImages();
 
         RoomImageModel::syncForRoom($savedRoomId, $primaryImage, $galleryImages);
+        } catch (Throwable $e) {
+            // Ghi log chi tiết để chẩn đoán; không để fatal làm trắng trang.
+            error_log('[saveRoom] ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
+            setFlash('admin_room_error', 'Không thể lưu phòng do lỗi hệ thống: ' . $e->getMessage());
+            setFlash('admin_room_old', $formState);
+            redirectTo('admin-rooms', $redirectParams);
+        }
 
         setFlash('admin_room_message', $pendingPriceMessage !== ''
             ? $pendingPriceMessage

@@ -197,9 +197,19 @@ class Database
                 implode(', ', $placeholders)
             );
 
-            $stmt = self::getInstance()->prepare($sql);
-            $stmt->execute($data);
-            return (int)self::getInstance()->lastInsertId();
+            // [DEV-QWEN-A][FIX][2026-08-20] Ghi DB cũng phải bẫy lỗi thiếu bảng/cột (42S02/42S22)
+            // như query() — trước đây insert/update/delete để PDOException lọt ra ngoài gây fatal → trang trắng.
+            try {
+                $stmt = self::getInstance()->prepare($sql);
+                $stmt->execute($data);
+                return (int)self::getInstance()->lastInsertId();
+            } catch (PDOException $e) {
+                if (in_array($e->getCode(), ['42S02', '42S22'], true)) {
+                    error_log('[DB Schema Missing] ' . $e->getMessage() . ' | SQL: ' . $sql);
+                    return 0;
+                }
+                throw $e;
+            }
         }
 
         $rows = self::getTable($table);
@@ -235,8 +245,16 @@ class Database
                 $executeParams['set_' . $column] = $value;
             }
 
-            $stmt = self::getInstance()->prepare($sql);
-            return $stmt->execute($executeParams);
+            try {
+                $stmt = self::getInstance()->prepare($sql);
+                return $stmt->execute($executeParams);
+            } catch (PDOException $e) {
+                if (in_array($e->getCode(), ['42S02', '42S22'], true)) {
+                    error_log('[DB Schema Missing] ' . $e->getMessage() . ' | SQL: ' . $sql);
+                    return false;
+                }
+                throw $e;
+            }
         }
 
         $rows = self::getTable($table);
@@ -252,8 +270,17 @@ class Database
     public static function delete($table, $where, $params = [])
     {
         if (self::hasConnection()) {
-            $stmt = self::getInstance()->prepare(sprintf('DELETE FROM %s WHERE %s', $table, $where));
-            return $stmt->execute($params);
+            $sql = sprintf('DELETE FROM %s WHERE %s', $table, $where);
+            try {
+                $stmt = self::getInstance()->prepare($sql);
+                return $stmt->execute($params);
+            } catch (PDOException $e) {
+                if (in_array($e->getCode(), ['42S02', '42S22'], true)) {
+                    error_log('[DB Schema Missing] ' . $e->getMessage() . ' | SQL: ' . $sql);
+                    return false;
+                }
+                throw $e;
+            }
         }
 
         $rows = array_filter(
