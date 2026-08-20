@@ -632,6 +632,22 @@ public function saveRoom()
             redirectTo('admin-rooms', $redirectParams);
         }
 
+        // [DEV-QWEN-A][FIX][2026-08-20] Chặn giá trị vượt giới hạn cột DB
+        // (area = decimal(5,2) tối đa 999.99; price = decimal(10,2) tối đa 99.999.999,99)
+        // — trước đây nhập quá giới hạn gây PDOException → HTTP 500.
+        $outOfRange = [];
+        if ($data['area'] > 999.99) {
+            $outOfRange[] = 'Diện tích (tối đa 999.99 m²)';
+        }
+        if ($data['price'] > 99999999.99) {
+            $outOfRange[] = 'Giá thuê (tối đa 99.999.999 đ)';
+        }
+        if (!empty($outOfRange)) {
+            setFlash('admin_room_error', 'Không thể lưu phòng. Giá trị vượt giới hạn cho phép: ' . implode(', ', $outOfRange) . '.');
+            setFlash('admin_room_old', $formState);
+            redirectTo('admin-rooms', $redirectParams);
+        }
+
         $primaryImage = trim((string)($_POST['primary_image'] ?? $_POST['thumbnail'] ?? ''));
         $submittedGalleryImages = array_slice(array_map(
             static fn($value) => trim((string)$value),

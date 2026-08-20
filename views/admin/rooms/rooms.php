@@ -391,12 +391,12 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="mb-1 block text-sm font-semibold text-gray-700">Giá thuê (VNĐ) *</label>
-                    <input type="number" name="price" id="drawer-price" required step="1000" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                    <input type="number" name="price" id="drawer-price" required step="1000" max="99999999" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                     <input type="hidden" name="price_effective_month" id="drawer-price-month" value="0">
                     <input type="hidden" name="price_effective_year" id="drawer-price-year" value="0">
                 </div>
                 <div><label class="mb-1 block text-sm font-semibold text-gray-700">Diện tích (m2) *</label>
-                    <input type="number" name="area" id="drawer-area" required min="0.1" step="0.1" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                    <input type="number" name="area" id="drawer-area" required min="0.1" max="999.99" step="0.1" class="w-full rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
                 </div>
             </div>
 
