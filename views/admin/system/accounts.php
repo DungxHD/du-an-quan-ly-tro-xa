@@ -84,16 +84,16 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
 <!-- TÀI KHOẢN NGƯỜI DÙNG -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-<form method="GET" action="<?= BASE_URL ?>?page=admin-accounts" class="flex flex-col lg:flex-row lg:items-center gap-3">
+<form method="GET" action="<?= BASE_URL ?>?page=admin-accounts" id="account-search-form" class="flex flex-col lg:flex-row lg:items-center gap-3">
 <div class="relative flex-1">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-<input type="text" name="search" value="<?= e($keyword) ?>" placeholder="Tìm kiếm theo tên người dùng..." class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+<input type="text" name="search" id="account-search-input" value="<?= e($keyword) ?>" placeholder="Tìm kiếm theo tên người dùng..." autocomplete="off" class="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
+<span id="accounts-loading" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hidden animate-spin">progress_activity</span>
 </div>
-<div class="flex items-center gap-2">
-<a href="<?= e($buildAccountPageUrl(1, 'all')) ?>" class="px-4 py-3 rounded-xl text-sm font-semibold transition <?= $statusFilter === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">Hiển thị tất cả người dùng</a>
-<a href="<?= e($buildAccountPageUrl(1, 'renting')) ?>" class="px-4 py-3 rounded-xl text-sm font-semibold transition <?= $statusFilter === 'renting' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">Đang thuê phòng</a>
-<a href="<?= e($buildAccountPageUrl(1, 'not_renting')) ?>" class="px-4 py-3 rounded-xl text-sm font-semibold transition <?= $statusFilter === 'not_renting' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">Chưa thuê phòng</a>
-<button type="submit" class="px-4 py-3 rounded-xl bg-secondary text-white text-sm font-semibold hover:bg-opacity-90 transition">Tìm kiếm</button>
+<div class="flex items-center gap-2" id="account-status-bar">
+<a href="<?= e($buildAccountPageUrl(1, 'all')) ?>" data-status="all" class="px-4 py-3 rounded-xl text-sm font-semibold transition <?= $statusFilter === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">Hiển thị tất cả người dùng</a>
+<a href="<?= e($buildAccountPageUrl(1, 'renting')) ?>" data-status="renting" class="px-4 py-3 rounded-xl text-sm font-semibold transition <?= $statusFilter === 'renting' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">Đang thuê phòng</a>
+<a href="<?= e($buildAccountPageUrl(1, 'not_renting')) ?>" data-status="not_renting" class="px-4 py-3 rounded-xl text-sm font-semibold transition <?= $statusFilter === 'not_renting' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' ?>">Chưa thuê phòng</a>
 </div>
 </form>
 </div>
@@ -101,11 +101,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
 <h3 class="font-bold text-lg">Tài khoản người dùng</h3>
-<span class="text-xs text-gray-500"><?= (int)$totalUsers ?> tài khoản · <?= (int)$perPage ?> tài khoản/trang</span>
+<span id="accounts-total-label" class="text-xs text-gray-500"><?= (int)$totalUsers ?> tài khoản · <?= (int)$perPage ?> tài khoản/trang</span>
 </div>
-<?php if (empty($pagedUsers)): ?>
-<div class="px-6 py-10 text-center text-gray-500">Không có tài khoản phù hợp.</div>
-<?php else: ?>
+<div id="accounts-empty" class="px-6 py-10 text-center text-gray-500 <?= empty($pagedUsers) ? '' : 'hidden' ?>">Không có tài khoản phù hợp.</div>
 <div class="overflow-x-auto"><table class="w-full">
 <thead class="bg-gray-50"><tr>
 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Người dùng</th>
@@ -114,54 +112,15 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Hành động</th>
 </tr></thead>
-<tbody class="divide-y divide-gray-100">
+<tbody id="accounts-tbody" class="divide-y divide-gray-100">
 <?php foreach ($pagedUsers as $userRow): ?>
-<?php $isRenting = ($userRow['account_status'] ?? '') === 'renting'; ?>
-<tr class="hover:bg-gray-50 transition">
-<td class="px-6 py-4"><div class="flex items-center gap-3">
-<div class="w-11 h-11 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold uppercase"><?= e(mb_substr(trim((string)($userRow['full_name'] ?? '')), 0, 1)) ?></div>
-<div><p class="font-semibold text-gray-900"><?= e($userRow['full_name'] ?? '') ?></p>
-<p class="text-sm text-gray-500 mt-0.5"><?= e(!empty($userRow['created_at']) ? 'Đăng ký: ' . date('d/m/Y', strtotime((string)$userRow['created_at'])) : '') ?></p></div>
-</div></td>
-<td class="px-6 py-4 text-sm text-gray-600"><?= e($userRow['phone'] ?? '—') ?></td>
-<td class="px-6 py-4 text-sm text-gray-600"><?= e($userRow['email'] ?? '—') ?></td>
-<td class="px-6 py-4">
-<?php if ($isRenting): ?>
-<span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700 inline-flex items-center gap-1"><span class="material-symbols-outlined text-sm">meeting_room</span>Đang thuê</span>
-<?php if (!empty($userRow['active_contract']['room_name'])): ?>
-<p class="text-xs text-gray-500 mt-1"><?= e($userRow['active_contract']['room_name']) ?></p>
-<?php endif; ?>
-<?php else: ?>
-<span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-600">Chưa thuê phòng</span>
-<?php endif; ?>
-</td>
-<td class="px-6 py-4">
-                <?php if ($isRenting): ?>
-                <span class="inline-flex items-center gap-1 text-sm font-semibold text-gray-400 cursor-not-allowed opacity-70" title="Người đang thuê phòng không thể xóa. Hãy kết thúc hợp đồng trước."><span class="material-symbols-outlined text-sm">lock</span>Không xóa</span>
-                <?php else: ?>
-                <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-account&id=<?= (int)$userRow['id'] ?>" class="inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa tài khoản "<?= e($userRow['full_name'] ?? '') ?>"? Toàn bộ dữ liệu liên quan sẽ bị xóa.');">
-                <?= csrf_field() ?>
-                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm">Xóa</button>
-                </form>
-                <?php endif; ?>
-                <button type="button" data-edit-account='<?= e(json_encode($userRow, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)) ?>' class="ml-2 text-blue-600 hover:text-blue-800 font-semibold text-sm">Sửa</button>
-</td>
-</tr>
+<?php require BASE_PATH . 'views/admin/system/partials/account_row.php'; ?>
 <?php endforeach; ?>
 </tbody></table></div>
-<?php endif; ?>
-<?php if ($totalPages > 1): ?>
-<div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
-<p class="text-sm text-gray-500">Trang <?= (int)$page ?> / <?= (int)$totalPages ?></p>
-<div class="flex items-center gap-2">
-<?php if ($page > 1): ?><a href="<?= e($buildAccountPageUrl($page - 1)) ?>" class="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold hover:bg-gray-50 transition">Trước</a><?php endif; ?>
-<?php for ($pageNumber = 1; $pageNumber <= $totalPages; $pageNumber++): ?>
-<a href="<?= e($buildAccountPageUrl($pageNumber)) ?>" class="px-4 py-2 rounded-xl text-sm font-semibold transition <?= $pageNumber === $page ? 'bg-primary text-white' : 'border border-gray-200 text-gray-700 hover:bg-gray-50' ?>"><?= (int)$pageNumber ?></a>
-<?php endfor; ?>
-<?php if ($page < $totalPages): ?><a href="<?= e($buildAccountPageUrl($page + 1)) ?>" class="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold hover:bg-gray-50 transition">Sau</a><?php endif; ?>
+<div id="accounts-pagination">
+<?php $buildUrl = $buildAccountPageUrl; ?>
+<?php require BASE_PATH . 'views/admin/system/partials/account_pagination.php'; ?>
 </div>
-</div>
-<?php endif; ?>
 </div>
 </div>
 
@@ -292,11 +251,13 @@ if (editDrawer && editBackdrop) {
     if (editBtnClose) editBtnClose.addEventListener('click', closeEditDrawer);
     editBackdrop.addEventListener('click', closeEditDrawer);
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeEditDrawer(); });
-    document.querySelectorAll('[data-edit-account]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var user = JSON.parse(this.getAttribute('data-edit-account'));
-            openEditDrawer(user);
-        });
+    // [DEV-QWEN-A][FIX][2026-08-20] Dùng event delegation để nút "Sửa" hoạt động
+    // cả với các dòng do tìm kiếm tức thì (AJAX) render lại.
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-edit-account]');
+        if (!btn) return;
+        var user = JSON.parse(btn.getAttribute('data-edit-account'));
+        openEditDrawer(user);
     });
 }
 <?php if (!empty($accountError) && !empty($oldAccountInput['id'])): ?>openEditDrawer(<?= json_encode($oldAccountInput, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>);<?php endif; ?>
@@ -642,6 +603,115 @@ if (editDrawer && editBackdrop) {
         }
     });
 })();
+})();
+</script>
+<script>
+// [DEV-QWEN-A][FIX][2026-08-20] Instant search / search-as-you-type cho admin-accounts:
+// kết quả cập nhật ngay sau mỗi ký tự gõ (debounce 300ms) qua API accountsFilterApi,
+// không tải lại trang; vẫn giữ URL đồng bộ để refresh/back vẫn đúng bộ lọc.
+(function () {
+    var searchForm = document.getElementById('account-search-form');
+    var searchInput = document.getElementById('account-search-input');
+    var statusBar = document.getElementById('account-status-bar');
+    var tbody = document.getElementById('accounts-tbody');
+    var emptyBox = document.getElementById('accounts-empty');
+    var totalLabel = document.getElementById('accounts-total-label');
+    var paginationBox = document.getElementById('accounts-pagination');
+    var loadingIcon = document.getElementById('accounts-loading');
+    if (!searchInput || !tbody) return;
+
+    var BASE = window.BASE_URL || '<?= BASE_URL ?>';
+    var seq = 0;
+
+    function activeStatus() {
+        if (!statusBar) return 'all';
+        var active = statusBar.querySelector('.bg-primary');
+        return active ? (active.getAttribute('data-status') || 'all') : 'all';
+    }
+
+    function currentSearch() {
+        return searchInput.value.trim();
+    }
+
+    function buildApiUrl(state) {
+        var params = new URLSearchParams();
+        params.set('page', 'api-admin-accounts-filter');
+        params.set('search', state.search);
+        params.set('status', state.status);
+        if (state.page > 1) params.set('p', String(state.page));
+        return BASE + '?' + params.toString();
+    }
+
+    function syncUrl(state) {
+        var params = new URLSearchParams();
+        params.set('page', 'admin-accounts');
+        if (state.search) params.set('search', state.search);
+        if (state.status !== 'all') params.set('status', state.status);
+        if (state.page > 1) params.set('p', String(state.page));
+        try { history.replaceState(null, '', BASE + '?' + params.toString()); } catch (e) {}
+    }
+
+    function fetchResults(state) {
+        var requestId = ++seq;
+        if (loadingIcon) loadingIcon.classList.remove('hidden');
+        fetch(buildApiUrl(state), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (requestId !== seq || !data || data.success !== true) return;
+                tbody.innerHTML = data.rowsHtml || '';
+                if (emptyBox) emptyBox.classList.toggle('hidden', data.total > 0);
+                if (totalLabel) totalLabel.textContent = data.total + ' tài khoản · 10 tài khoản/trang';
+                if (paginationBox) paginationBox.innerHTML = data.paginationHtml || '';
+            })
+            .catch(function () {})
+            .then(function () {
+                if (requestId === seq && loadingIcon) loadingIcon.classList.add('hidden');
+            });
+    }
+
+    function applyState(status, page) {
+        var state = { search: currentSearch(), status: status, page: page };
+        fetchResults(state);
+        syncUrl(state);
+    }
+
+    var debounceTimer;
+    searchInput.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+            applyState(activeStatus(), 1);
+        }, 300);
+    });
+
+    if (searchForm) {
+        searchForm.addEventListener('submit', function (e) { e.preventDefault(); });
+    }
+
+    if (statusBar) {
+        statusBar.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-status]');
+            if (!btn) return;
+            e.preventDefault();
+            statusBar.querySelectorAll('[data-status]').forEach(function (b) {
+                var isActive = b === btn;
+                b.classList.toggle('bg-primary', isActive);
+                b.classList.toggle('text-white', isActive);
+                b.classList.toggle('bg-gray-100', !isActive);
+                b.classList.toggle('text-gray-700', !isActive);
+            });
+            applyState(btn.getAttribute('data-status') || 'all', 1);
+        });
+    }
+
+    if (paginationBox) {
+        paginationBox.addEventListener('click', function (e) {
+            var link = e.target.closest('[data-account-page]');
+            if (!link) return;
+            e.preventDefault();
+            applyState(activeStatus(), parseInt(link.getAttribute('data-account-page'), 10) || 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
 })();
 </script>
 <?php require BASE_PATH . 'views\layouts\panel_footer.php'; ?>

@@ -511,6 +511,10 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->accounts();
         break;
+    case 'api-admin-accounts-filter':
+        requireAdmin();
+        (new AdminController())->accountsFilterApi();
+        break;
     case 'admin-save-account':
         requireAdmin();
         (new AdminController())->saveAccount();

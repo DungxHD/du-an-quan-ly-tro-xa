@@ -816,6 +816,59 @@ trait AdminTenantTrait
      */
     public function accounts()
     {
+        [$admins, $users, $allUsersStatus, $pagedUsers, $totalUsers, $totalPages, $page, $keyword, $statusFilter, $perPage] = $this->resolveAccountQuery();
+
+        $accountMessage = pullFlash('admin_account_message');
+        $accountError = pullFlash('admin_account_error');
+        $oldAccountInput = pullFlash('admin_account_old', []);
+        $accountForm = array_merge([
+            'full_name' => '',
+            'phone' => '',
+            'email' => '',
+        ], is_array($oldAccountInput) ? $oldAccountInput : []);
+
+        $buildAccountPageUrl = static function ($pageNumber, $statusOverride = null) use ($keyword, $statusFilter) {
+            $params = [
+                'page' => 'admin-accounts',
+                'search' => $keyword,
+                'status' => $statusOverride !== null ? $statusOverride : $statusFilter,
+            ];
+            if ($pageNumber > 1) {
+                $params['p'] = $pageNumber;
+            }
+            return BASE_URL . '?' . http_build_query(array_filter($params, static fn($value) => $value !== '' && $value !== null));
+        };
+
+        $pageTitle = 'Quản lý tài khoản - NhaTroA';
+        require_once BASE_PATH . 'views/admin/system/accounts.php';
+    }
+
+    /**
+     * [DEV-QWEN-A][FIX][2026-08-20] API tìm kiếm tức thì (instant search) cho admin-accounts:
+     * trả về HTML của bảng kết quả + phân trang để JS cập nhật ngay sau mỗi ký tự gõ.
+     */
+    public function accountsFilterApi()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        [$admins, $users, $allUsersStatus, $pagedUsers, $totalUsers, $totalPages, $page, $keyword, $statusFilter, $perPage] = $this->resolveAccountQuery();
+
+        echo json_encode([
+            'success' => true,
+            'rowsHtml' => $this->renderAccountRowsHtml($pagedUsers),
+            'paginationHtml' => $this->renderAccountPaginationHtml($totalPages, $page, $keyword, $statusFilter),
+            'total' => $totalUsers,
+            'totalPages' => $totalPages,
+            'page' => $page,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /**
+     * Chuẩn hóa + lọc + phân trang danh sách tài khoản người dùng.
+     * Dùng chung cho trang admin-accounts và API tìm kiếm tức thì để tránh lệch logic.
+     */
+    private function resolveAccountQuery()
+    {
         $keyword = trim((string)($_GET['search'] ?? ''));
         $statusFilter = trim((string)($_GET['status'] ?? 'all'));
         if (!in_array($statusFilter, ['all', 'renting', 'not_renting'], true)) {
@@ -868,29 +921,45 @@ trait AdminTenantTrait
         $offset = ($page - 1) * $perPage;
         $pagedUsers = array_slice($filtered, $offset, $perPage);
 
-        $accountMessage = pullFlash('admin_account_message');
-        $accountError = pullFlash('admin_account_error');
-        $oldAccountInput = pullFlash('admin_account_old', []);
-        $accountForm = array_merge([
-            'full_name' => '',
-            'phone' => '',
-            'email' => '',
-        ], is_array($oldAccountInput) ? $oldAccountInput : []);
+        return [$admins, $users, $allUsersStatus, $pagedUsers, $totalUsers, $totalPages, $page, $keyword, $statusFilter, $perPage];
+    }
 
-        $buildAccountPageUrl = static function ($pageNumber, $statusOverride = null) use ($keyword, $statusFilter) {
+    /**
+     * Render các dòng <tr> của bảng tài khoản người dùng (dùng cho API AJAX).
+     */
+    private function renderAccountRowsHtml(array $users)
+    {
+        $html = '';
+        foreach ($users as $userRow) {
+            ob_start();
+            require BASE_PATH . 'views/admin/system/partials/account_row.php';
+            $html .= ob_get_clean();
+        }
+        return $html;
+    }
+
+    /**
+     * Render khối phân trang của bảng tài khoản người dùng (dùng cho API AJAX).
+     */
+    private function renderAccountPaginationHtml($totalPages, $page, $keyword, $statusFilter)
+    {
+        if ((int)$totalPages <= 1) {
+            return '';
+        }
+        $buildUrl = static function ($pageNumber) use ($keyword, $statusFilter) {
             $params = [
                 'page' => 'admin-accounts',
                 'search' => $keyword,
-                'status' => $statusOverride !== null ? $statusOverride : $statusFilter,
+                'status' => $statusFilter,
             ];
             if ($pageNumber > 1) {
                 $params['p'] = $pageNumber;
             }
             return BASE_URL . '?' . http_build_query(array_filter($params, static fn($value) => $value !== '' && $value !== null));
         };
-
-        $pageTitle = 'Quản lý tài khoản - NhaTroA';
-        require_once BASE_PATH . 'views/admin/system/accounts.php';
+        ob_start();
+        require BASE_PATH . 'views/admin/system/partials/account_pagination.php';
+        return ob_get_clean();
     }
 
     /**
