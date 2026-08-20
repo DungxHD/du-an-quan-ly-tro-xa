@@ -180,6 +180,18 @@ class RoomModel
         $normalized['min_price'] = self::parseHumanPrice($normalized['min_price_input']);
         $normalized['max_price'] = self::parseHumanPrice($normalized['max_price_input']);
 
+        // Ràng buộc: giá tối thiểu phải nhỏ hơn giá tối đa.
+        // Nếu vi phạm, không áp dụng bộ lọc khoảng giá mà giữ nguyên giá trị đã nhập
+        // để người dùng thấy và tự điều chỉnh lại.
+        if ($normalized['min_price'] !== null && $normalized['max_price'] !== null && $normalized['min_price'] >= $normalized['max_price']) {
+            $normalized['messages'][] = 'Giá tối thiểu phải nhỏ hơn giá tối đa. Bộ lọc khoảng giá sẽ không được áp dụng.';
+            $normalized['min_price'] = null;
+            $normalized['max_price'] = null;
+            $normalized['min_price_display'] = $normalized['min_price_input'];
+            $normalized['max_price_display'] = $normalized['max_price_input'];
+            return $normalized;
+        }
+
         // Ràng buộc giá tối thiểu 500.000đ
         if ($normalized['min_price'] !== null && $normalized['min_price'] < 500000) {
             $normalized['min_price'] = 500000;

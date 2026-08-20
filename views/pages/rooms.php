@@ -92,7 +92,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                                 placeholder="VD: 3 triệu, 3500k, 5000000" data-price-input="end" autocomplete="off" data-auto-fetch="debounce">
                         </div>
                         <p class="mt-2 text-xs text-gray-500" data-price-helper>
-                            Hỗ trợ: "2 triệu", "2.5tr", "2500000", "500k". Khoảng cách tối thiểu 500.000đ.
+                            Hỗ trợ: "2 triệu", "2.5tr", "2500000", "500k". Giá tối thiểu phải nhỏ hơn giá tối đa và cách nhau tối thiểu 500.000đ.
                         </p>
                         <datalist id="price-suggestion-start">
                             <option value="500 nghìn"></option>
@@ -291,6 +291,27 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
         }
     }
 
+    // Giá tối thiểu phải nhỏ hơn giá tối đa. Trả về true nếu khoảng giá không hợp lệ.
+    function isPriceRangeInvalid() {
+        const startInput = filterForm.querySelector('[data-price-input="start"]');
+        const endInput = filterForm.querySelector('[data-price-input="end"]');
+        const start = typeof parseHumanPriceClient === 'function' && startInput
+            ? parseHumanPriceClient(startInput.value) : null;
+        const end = typeof parseHumanPriceClient === 'function' && endInput
+            ? parseHumanPriceClient(endInput.value) : null;
+        return start !== null && end !== null && start >= end;
+    }
+
+    function showPriceRangeError() {
+        if (filterMessages) {
+            filterMessages.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
+            div.textContent = 'Giá tối thiểu phải nhỏ hơn giá tối đa. Vui lòng điều chỉnh lại khoảng giá.';
+            filterMessages.appendChild(div);
+        }
+    }
+
     function buildFetchUrl() {
         const formData = new FormData(filterForm);
         const params = new URLSearchParams();
@@ -305,6 +326,12 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
     }
 
     function fetchFilteredRooms() {
+        // Chặn khoảng giá không hợp lệ (min >= max) trước khi gọi API
+        if (isPriceRangeInvalid()) {
+            showPriceRangeError();
+            return;
+        }
+
         const seq = ++requestSeq;
         const url = buildFetchUrl();
         showLoading();

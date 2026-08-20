@@ -358,6 +358,10 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->rentRequests();
         break;
+    case 'api-admin-rent-requests':
+        requireAdmin();
+        (new AdminController())->rentRequestsFilterApi();
+        break;
     case 'admin-approve-rent-request':
         requireAdmin();
         (new AdminController())->approveRentRequest();

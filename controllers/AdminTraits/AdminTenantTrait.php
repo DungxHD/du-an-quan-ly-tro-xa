@@ -226,15 +226,10 @@ trait AdminTenantTrait
      */
     public function rentRequests()
     {
+        [$rentFilter, $rentKeyword, $roommateFilter, $roommateKeyword] = $this->resolveRentRequestFilters();
+
         // ===== CỘT 1: YÊU CẦU THUÊ PHÒNG =====
-        // Button filter: all, pending, approved, rejected
-        $rentFilter = trim((string)($_GET['rent_filter'] ?? 'all'));
-        $rentAllowed = ['all', 'pending', 'approved', 'rejected'];
-        if (!in_array($rentFilter, $rentAllowed, true)) {
-            $rentFilter = 'all';
-        }
         $rentStatus = $rentFilter === 'all' ? '' : $rentFilter;
-        $rentKeyword = trim((string)($_GET['rent_keyword'] ?? ''));
         $rentParams = [];
         if ($rentStatus !== '') {
             $rentParams['status'] = $rentStatus;
@@ -250,14 +245,7 @@ trait AdminTenantTrait
         $pendingRentCount = count($pendingRentAll);
 
         // ===== CỘT 2: YÊU CẦU Ở GHÉP =====
-        // Button filter: all, pending_admin, approved, rejected
-        $roommateFilter = trim((string)($_GET['roommate_filter'] ?? 'all'));
-        $roommateAllowed = ['all', 'pending_admin', 'approved', 'rejected'];
-        if (!in_array($roommateFilter, $roommateAllowed, true)) {
-            $roommateFilter = 'all';
-        }
         $roommateStatus = $roommateFilter === 'all' ? '' : $roommateFilter;
-        $roommateKeyword = trim((string)($_GET['roommate_keyword'] ?? ''));
         $roommateParams = [];
         if ($roommateStatus !== '') {
             $roommateParams['status'] = $roommateStatus;
@@ -267,10 +255,8 @@ trait AdminTenantTrait
         }
         $roommateRequests = RoommateRequestModel::getAll($roommateParams);
 
-        // Đếm số yêu cầu ở ghép đang chờ admin duyệt (pending_admin) cho badge "Cần xử lý"
-        $pendingRoommateParams = ['status' => 'pending_admin'];
-        $pendingRoommateAll = RoommateRequestModel::getAll($pendingRoommateParams);
-        $pendingRoommateCount = count($pendingRoommateAll);
+        // Đếm số yêu cầu ở ghép đang chờ admin duyệt (pending_admin + pending) cho badge "Cần xử lý"
+        $pendingRoommateCount = RoommateRequestModel::countPendingAdmin();
 
         // Flash messages
         $message = pullFlash('rent_request_message', '');
@@ -279,6 +265,105 @@ trait AdminTenantTrait
         $roommateError = pullFlash('roommate_admin_error', '');
         $pageTitle = 'Yêu cầu thuê & ở ghép - NhaTroA';
         require_once BASE_PATH . 'views/admin/tenants/rent_requests.php';
+    }
+
+    /**
+     * API AJAX cho trang admin-rent-requests: trả về HTML 2 cột theo filter hiện tại.
+     * Dùng để tìm kiếm theo thời gian thực mà không cần tải lại trang.
+     */
+    public function rentRequestsFilterApi()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        [$rentFilter, $rentKeyword, $roommateFilter, $roommateKeyword] = $this->resolveRentRequestFilters();
+
+        // ===== CỘT 1: YÊU CẦU THUÊ PHÒNG =====
+        $rentStatus = $rentFilter === 'all' ? '' : $rentFilter;
+        $rentParams = [];
+        if ($rentStatus !== '') {
+            $rentParams['status'] = $rentStatus;
+        }
+        if ($rentKeyword !== '') {
+            $rentParams['keyword'] = $rentKeyword;
+        }
+        $requests = RentalRequestModel::getAllWithDetails($rentParams);
+
+        // ===== CỘT 2: YÊU CẦU Ở GHÉP =====
+        $roommateStatus = $roommateFilter === 'all' ? '' : $roommateFilter;
+        $roommateParams = [];
+        if ($roommateStatus !== '') {
+            $roommateParams['status'] = $roommateStatus;
+        }
+        if ($roommateKeyword !== '') {
+            $roommateParams['keyword'] = $roommateKeyword;
+        }
+        $roommateRequests = RoommateRequestModel::getAll($roommateParams);
+
+        echo json_encode([
+            'success' => true,
+            'rent' => [
+                'html' => $this->renderRentRequestItems($requests),
+                'total' => count($requests),
+            ],
+            'roommate' => [
+                'html' => $this->renderRoommateRequestItems($roommateRequests),
+                'total' => count($roommateRequests),
+            ],
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /**
+     * Chuẩn hóa các bộ lọc của trang yêu cầu thuê & ở ghép (dùng chung cho trang + API).
+     */
+    private function resolveRentRequestFilters()
+    {
+        $rentFilter = trim((string)($_GET['rent_filter'] ?? 'all'));
+        $rentAllowed = ['all', 'pending', 'approved', 'rejected'];
+        if (!in_array($rentFilter, $rentAllowed, true)) {
+            $rentFilter = 'all';
+        }
+
+        $roommateFilter = trim((string)($_GET['roommate_filter'] ?? 'all'));
+        $roommateAllowed = ['all', 'pending_admin', 'approved', 'rejected'];
+        if (!in_array($roommateFilter, $roommateAllowed, true)) {
+            $roommateFilter = 'all';
+        }
+
+        return [
+            $rentFilter,
+            trim((string)($_GET['rent_keyword'] ?? '')),
+            $roommateFilter,
+            trim((string)($_GET['roommate_keyword'] ?? '')),
+        ];
+    }
+
+    /**
+     * Render danh sách item yêu cầu thuê phòng thành HTML (dùng cho API AJAX).
+     */
+    private function renderRentRequestItems(array $requests)
+    {
+        $html = '';
+        foreach ($requests as $req) {
+            ob_start();
+            require BASE_PATH . 'views/admin/tenants/partials/rent_request_item.php';
+            $html .= ob_get_clean();
+        }
+        return $html;
+    }
+
+    /**
+     * Render danh sách item yêu cầu ở ghép thành HTML (dùng cho API AJAX).
+     */
+    private function renderRoommateRequestItems(array $requests)
+    {
+        $html = '';
+        foreach ($requests as $rr) {
+            ob_start();
+            require BASE_PATH . 'views/admin/tenants/partials/roommate_request_item.php';
+            $html .= ob_get_clean();
+        }
+        return $html;
     }
 /**
      * Duyệt yêu cầu thuê: kiểm tra trùng hợp đồng + sức chứa, tạo contract, đồng bộ phòng, báo cho user.

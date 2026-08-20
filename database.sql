@@ -14,12 +14,8 @@
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-
--- Dumping database structure for manage
-CREATE DATABASE IF NOT EXISTS `manage` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-USE `manage`;
-
 -- Dumping structure for table manage.amenities
+DROP TABLE IF EXISTS `amenities`;
 CREATE TABLE IF NOT EXISTS `amenities` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `icon` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -42,6 +38,7 @@ INSERT INTO `amenities` (`id`, `icon`, `title`, `description`, `sort_order`, `is
 	(8, 'water_heater', 'Nóng lạnh', 'Bình nóng lạnh cho phòng, sử dụng ổn định.', 3, 1);
 
 -- Dumping structure for table manage.areas
+DROP TABLE IF EXISTS `areas`;
 CREATE TABLE IF NOT EXISTS `areas` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã khu',
   `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Tên khu',
@@ -58,6 +55,7 @@ INSERT INTO `areas` (`id`, `name`, `address`, `description`, `image`, `created_a
 	(2, 'Khu B - Tiết kiệm', '125 Đường Nguyễn Xiển, TP. Thủ Đức, TP.HCM', 'Khu nhà giá hợp lý, phòng diện tích vừa phải, có sân để xe và không gian sinh hoạt chung.', '/.uploads/image_khu_2/khu-b.jpg', '2026-01-05 01:10:00');
 
 -- Dumping structure for table manage.banned_words
+DROP TABLE IF EXISTS `banned_words`;
 CREATE TABLE IF NOT EXISTS `banned_words` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `word` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Từ/cụm từ cấm (ĐÃ CHUẨN HÓA)',
@@ -83,6 +81,7 @@ INSERT INTO `banned_words` (`id`, `word`, `type`, `replacement`, `is_active`, `c
 	(10, 'ck', 'abbreviation', '***', 1, '2026-01-05 01:20:00');
 
 -- Dumping structure for table manage.comments
+DROP TABLE IF EXISTS `comments`;
 CREATE TABLE IF NOT EXISTS `comments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
@@ -112,6 +111,7 @@ INSERT INTO `comments` (`id`, `room_id`, `user_id`, `content`, `rating`, `toxici
 	(36, 1, 3, 'Oke', 1, 0.00, 0, NULL, 1, NULL, '2026-08-18 01:10:05');
 
 -- Dumping structure for table manage.comment_moderation
+DROP TABLE IF EXISTS `comment_moderation`;
 CREATE TABLE IF NOT EXISTS `comment_moderation` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -131,6 +131,7 @@ INSERT INTO `comment_moderation` (`id`, `user_id`, `attempt_count`, `locked_unti
 	(2, 5, 1, NULL, '2026-03-24 03:00:00', '2026-01-10 03:00:00', '2026-03-24 03:00:00');
 
 -- Dumping structure for table manage.comment_reports
+DROP TABLE IF EXISTS `comment_reports`;
 CREATE TABLE IF NOT EXISTS `comment_reports` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `comment_id` int unsigned NOT NULL,
@@ -152,6 +153,7 @@ INSERT INTO `comment_reports` (`id`, `comment_id`, `user_id`, `reason`, `status`
 	(2, 2, 5, 'Đánh giá có thông tin chưa rõ về tiện ích.', 'dismissed', '2026-03-23 01:00:00');
 
 -- Dumping structure for table manage.contracts
+DROP TABLE IF EXISTS `contracts`;
 CREATE TABLE IF NOT EXISTS `contracts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -173,7 +175,7 @@ CREATE TABLE IF NOT EXISTS `contracts` (
   CONSTRAINT `fk_contract_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.contracts: ~6 rows (approximately)
+-- Dumping data for table manage.contracts: ~8 rows (approximately)
 INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`, `initial_electricity_index`, `initial_water_index`, `status`, `contract_date`, `created_at`) VALUES
 	(1, 3, 1, '2026-01-15', '2027-01-15', 4500000.00, 4500000.00, 1200.00, 35.00, 'active', '2026-01-10', '2026-01-10 01:00:00'),
 	(2, 4, 2, '2026-01-18', '2027-01-18', 3800000.00, 3800000.00, 980.00, 41.00, 'active', '2026-01-13', '2026-01-13 01:00:00'),
@@ -185,6 +187,7 @@ INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_d
 	(30, 18, 12, '2026-08-25', '2027-08-25', 3500000.00, 250000.00, NULL, NULL, 'active', '2026-08-18', '2026-08-17 22:06:54');
 
 -- Dumping structure for table manage.feedbacks
+DROP TABLE IF EXISTS `feedbacks`;
 CREATE TABLE IF NOT EXISTS `feedbacks` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -211,6 +214,7 @@ INSERT INTO `feedbacks` (`id`, `user_id`, `room_id`, `subject`, `content`, `imag
 	(3, 6, 4, 'Ổ điện bị lỏng', 'Ổ cắm gần bàn học có dấu hiệu lỏng, nhờ kiểm tra giúp.', NULL, 'Đã chuyển yêu cầu sang bộ phận bảo trì.', 'Kỹ thuật sẽ kiểm tra theo lịch đã thông báo.', 'resolved', '2026-04-10 01:00:00');
 
 -- Dumping structure for table manage.floors
+DROP TABLE IF EXISTS `floors`;
 CREATE TABLE IF NOT EXISTS `floors` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã tầng',
   `area_id` int unsigned NOT NULL COMMENT 'FK → areas',
@@ -223,7 +227,7 @@ CREATE TABLE IF NOT EXISTS `floors` (
   CONSTRAINT `fk_floor_area` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.floors: ~5 rows (approximately)
+-- Dumping data for table manage.floors: ~4 rows (approximately)
 INSERT INTO `floors` (`id`, `area_id`, `name`, `floor_number`, `room_limit`, `created_at`) VALUES
 	(1, 1, 'Tầng 1 Khu A', 1, 3, '2026-01-05 01:30:00'),
 	(2, 1, 'Tầng 2 Khu A', 2, 3, '2026-01-05 01:30:00'),
@@ -231,6 +235,7 @@ INSERT INTO `floors` (`id`, `area_id`, `name`, `floor_number`, `room_limit`, `cr
 	(4, 2, 'Tầng 1 Khu B', 1, 3, '2026-01-05 01:40:00');
 
 -- Dumping structure for table manage.maintenance_requests
+DROP TABLE IF EXISTS `maintenance_requests`;
 CREATE TABLE IF NOT EXISTS `maintenance_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
@@ -261,6 +266,7 @@ INSERT INTO `maintenance_requests` (`id`, `room_id`, `admin_id`, `reason`, `dura
 	(4, 5, 2, 'Kiểm tra quạt thông gió nhà vệ sinh.', 1, '2026-04-14', 'active', NULL, '2026-04-12 03:00:00', '2026-08-15 18:44:32');
 
 -- Dumping structure for table manage.meter_readings
+DROP TABLE IF EXISTS `meter_readings`;
 CREATE TABLE IF NOT EXISTS `meter_readings` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
@@ -289,6 +295,7 @@ INSERT INTO `meter_readings` (`id`, `room_id`, `service_id`, `month`, `year`, `o
 	(8, 4, 1, 3, 2026, 812.00, 901.00, '2026-04-01 01:15:00');
 
 -- Dumping structure for table manage.notifications
+DROP TABLE IF EXISTS `notifications`;
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL COMMENT 'NULL = broadcast tất cả',
@@ -303,7 +310,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=333 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.notifications: ~10 rows (approximately)
+-- Dumping data for table manage.notifications: ~33 rows (approximately)
 INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`, `is_read`, `created_at`) VALUES
 	(1, 3, 'Hóa đơn tháng 03/2026', 'Hóa đơn tiền phòng và dịch vụ tháng 03 đã được tạo.', '/tenant/payments', 'invoice', 1, '2026-03-01 01:30:00'),
 	(2, 4, 'Hóa đơn tháng 03/2026', 'Hóa đơn tiền phòng và dịch vụ tháng 03 đã được tạo.', '/tenant/payments', 'invoice', 1, '2026-03-01 01:35:00'),
@@ -340,6 +347,7 @@ INSERT INTO `notifications` (`id`, `user_id`, `title`, `content`, `link`, `type`
 	(332, 1, 'Đánh giá phòng mới', 'Phòng "A101 - Studio Deluxe" được đánh giá từ người thuê "Phạm Gia Bảo".', '?page=admin-comments', 'review', 0, '2026-08-18 01:10:05');
 
 -- Dumping structure for table manage.notification_reads
+DROP TABLE IF EXISTS `notification_reads`;
 CREATE TABLE IF NOT EXISTS `notification_reads` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `notification_id` int unsigned NOT NULL,
@@ -352,7 +360,7 @@ CREATE TABLE IF NOT EXISTS `notification_reads` (
   CONSTRAINT `fk_nr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.notification_reads: ~6 rows (approximately)
+-- Dumping data for table manage.notification_reads: ~5 rows (approximately)
 INSERT INTO `notification_reads` (`id`, `notification_id`, `user_id`, `read_at`) VALUES
 	(1, 1, 3, '2026-03-02 02:00:00'),
 	(2, 2, 4, '2026-03-02 02:10:00'),
@@ -361,6 +369,7 @@ INSERT INTO `notification_reads` (`id`, `notification_id`, `user_id`, `read_at`)
 	(7, 17, 17, '2026-08-17 19:58:42');
 
 -- Dumping structure for table manage.password_reset_otps
+DROP TABLE IF EXISTS `password_reset_otps`;
 CREATE TABLE IF NOT EXISTS `password_reset_otps` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -376,7 +385,7 @@ CREATE TABLE IF NOT EXISTS `password_reset_otps` (
   CONSTRAINT `fk_otp_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.password_reset_otps: ~3 rows (approximately)
+-- Dumping data for table manage.password_reset_otps: ~11 rows (approximately)
 INSERT INTO `password_reset_otps` (`id`, `user_id`, `otp_hash`, `expires_at`, `attempts`, `used_at`, `ip`, `created_at`) VALUES
 	(1, 7, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '2026-04-20 10:02:00', 0, NULL, '192.168.1.20', '2026-04-20 03:00:00'),
 	(3, 1, '$2y$10$I7ZjsWKASrjXMFgDUHKmuexubCOjvb6YeJrGQ8yf52pVNXWwr5L9u', '2026-08-16 03:58:17', 0, NULL, '::1', '2026-08-16 03:56:17'),
@@ -391,6 +400,7 @@ INSERT INTO `password_reset_otps` (`id`, `user_id`, `otp_hash`, `expires_at`, `a
 	(12, 18, '$2y$10$BOVN1Z0RYUZ6YQKP6lrfoueGKLpvJDVR9sGv1dhAEA1R9JTwDi6wy', '2026-08-18 09:37:57', 0, NULL, '::1', '2026-08-18 02:35:57');
 
 -- Dumping structure for table manage.password_reset_send_attempts
+DROP TABLE IF EXISTS `password_reset_send_attempts`;
 CREATE TABLE IF NOT EXISTS `password_reset_send_attempts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -402,7 +412,7 @@ CREATE TABLE IF NOT EXISTS `password_reset_send_attempts` (
   CONSTRAINT `fk_send_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.password_reset_send_attempts: ~4 rows (approximately)
+-- Dumping data for table manage.password_reset_send_attempts: ~12 rows (approximately)
 INSERT INTO `password_reset_send_attempts` (`id`, `user_id`, `ip`, `sent_at`, `created_at`) VALUES
 	(1, 7, '192.168.1.20', '2026-04-20 10:00:00', '2026-04-20 03:00:00'),
 	(2, 7, '192.168.1.20', '2026-04-20 10:15:00', '2026-04-20 03:15:00'),
@@ -418,6 +428,7 @@ INSERT INTO `password_reset_send_attempts` (`id`, `user_id`, `ip`, `sent_at`, `c
 	(13, 18, '::1', '2026-08-18 09:35:57', '2026-08-18 02:35:57');
 
 -- Dumping structure for table manage.payments
+DROP TABLE IF EXISTS `payments`;
 CREATE TABLE IF NOT EXISTS `payments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
@@ -447,6 +458,7 @@ INSERT INTO `payments` (`id`, `room_id`, `contract_id`, `user_id`, `month`, `yea
 	(5, 1, 1, 3, 4, 2026, 649000.00, 'unpaid', NULL, '2026-04-01 01:00:00');
 
 -- Dumping structure for table manage.payment_items
+DROP TABLE IF EXISTS `payment_items`;
 CREATE TABLE IF NOT EXISTS `payment_items` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `payment_id` int unsigned NOT NULL,
@@ -493,6 +505,7 @@ INSERT INTO `payment_items` (`id`, `payment_id`, `service_id`, `item_name`, `uni
 	(25, 5, 6, 'Vệ sinh', 50000.00, 1.00, 50000.00, 'fixed', '2026-04-01 01:01:00');
 
 -- Dumping structure for table manage.price_changes
+DROP TABLE IF EXISTS `price_changes`;
 CREATE TABLE IF NOT EXISTS `price_changes` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `service_id` int unsigned NOT NULL,
@@ -518,6 +531,7 @@ INSERT INTO `price_changes` (`id`, `service_id`, `old_price`, `new_price`, `old_
 	(2, 4, 49000.00, 51000.00, 'per_person', 'per_person', 3, 2026, 1, 2, '2026-02-15 02:00:00');
 
 -- Dumping structure for table manage.rental_requests
+DROP TABLE IF EXISTS `rental_requests`;
 CREATE TABLE IF NOT EXISTS `rental_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -539,7 +553,7 @@ CREATE TABLE IF NOT EXISTS `rental_requests` (
   CONSTRAINT `fk_rr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.rental_requests: ~3 rows (approximately)
+-- Dumping data for table manage.rental_requests: ~4 rows (approximately)
 INSERT INTO `rental_requests` (`id`, `user_id`, `room_id`, `move_in_date`, `gender`, `deposit`, `occupant_count`, `status`, `payment_status`, `admin_note`, `created_at`, `updated_at`) VALUES
 	(1, 7, 5, '2026-04-10', 'male', NULL, 1, 'approved', 'pending', 'Yêu cầu đã được duyệt.', '2026-04-02 02:00:00', '2026-08-15 17:57:20'),
 	(3, 7, 10, '2026-04-20', 'male', NULL, 1, 'rejected', 'pending', 'Phòng đã được ưu tiên cho một hồ sơ khác.', '2026-04-03 04:00:00', '2026-04-04 01:30:00'),
@@ -547,6 +561,7 @@ INSERT INTO `rental_requests` (`id`, `user_id`, `room_id`, `move_in_date`, `gend
 	(8, 18, 12, '2026-08-25', 'male', 250000.00, 1, 'approved', 'paid', '', '2026-08-17 20:14:50', '2026-08-17 22:06:54');
 
 -- Dumping structure for table manage.roommate_requests
+DROP TABLE IF EXISTS `roommate_requests`;
 CREATE TABLE IF NOT EXISTS `roommate_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `requester_id` int unsigned NOT NULL COMMENT 'Người B — gửi yêu cầu',
@@ -572,6 +587,7 @@ INSERT INTO `roommate_requests` (`id`, `requester_id`, `host_user_id`, `room_id`
 	(1, 7, 3, 1, 'male', 'Bạn học cùng lớp', NULL, 'cancelled', '2026-04-03 07:00:00', '2026-08-15 17:57:57');
 
 -- Dumping structure for table manage.rooms
+DROP TABLE IF EXISTS `rooms`;
 CREATE TABLE IF NOT EXISTS `rooms` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Mã phòng',
   `floor_id` int unsigned NOT NULL COMMENT 'FK → floors',
@@ -610,6 +626,7 @@ INSERT INTO `rooms` (`id`, `floor_id`, `name`, `position`, `price`, `area`, `max
 	(12, 4, 'B03 - Double', 3, 3500000.00, 26.00, 3, 'Phòng rộng cho 2-3 người, thích hợp nhóm bạn ở chung.', '["wifi","security","local_parking","ac_unit","water_heater"]', '/.uploads/image_phong_12/b03.jpg', 'rented', 0, NULL, 210, '2026-01-06 01:55:00');
 
 -- Dumping structure for table manage.room_images
+DROP TABLE IF EXISTS `room_images`;
 CREATE TABLE IF NOT EXISTS `room_images` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
@@ -643,6 +660,7 @@ INSERT INTO `room_images` (`id`, `room_id`, `image_url`, `is_primary`, `sort_ord
 	(17, 12, '/.uploads/image_phong_12/b03.jpg', 1, 1, '2026-01-06 02:55:00');
 
 -- Dumping structure for table manage.room_price_changes
+DROP TABLE IF EXISTS `room_price_changes`;
 CREATE TABLE IF NOT EXISTS `room_price_changes` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
@@ -665,6 +683,7 @@ INSERT INTO `room_price_changes` (`id`, `room_id`, `old_price`, `new_price`, `ef
 	(2, 4, 3000000.00, 3200000.00, 2, 2026, 1, 2, '2026-01-20 03:00:00');
 
 -- Dumping structure for table manage.room_services
+DROP TABLE IF EXISTS `room_services`;
 CREATE TABLE IF NOT EXISTS `room_services` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
@@ -708,6 +727,7 @@ INSERT INTO `room_services` (`id`, `room_id`, `service_id`, `quantity`, `registe
 	(40, 4, 4, 1, '2026-02-01 02:10:00');
 
 -- Dumping structure for table manage.services
+DROP TABLE IF EXISTS `services`;
 CREATE TABLE IF NOT EXISTS `services` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -727,7 +747,7 @@ CREATE TABLE IF NOT EXISTS `services` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.services: ~9 rows (approximately)
+-- Dumping data for table manage.services: ~7 rows (approximately)
 INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `is_required`, `billing_mode`, `kind`, `applies_to`, `is_active`, `delete_year`, `delete_month`, `deactivate_month`, `deactivate_year`) VALUES
 	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tính theo chỉ số công tơ điện thực tế của từng phòng.', 1, 'meter', 'electricity', 'room', 1, NULL, NULL, NULL, NULL),
 	(2, 'Tiền nước', 30000.00, 'người/tháng', 'water_drop', 'Tính theo số người đang ở trong phòng.', 1, 'per_person', 'water', 'room', 1, NULL, NULL, NULL, NULL),
@@ -738,6 +758,7 @@ INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `i
 	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Sử dụng máy giặt chung không giới hạn theo tháng.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL);
 
 -- Dumping structure for table manage.settings
+DROP TABLE IF EXISTS `settings`;
 CREATE TABLE IF NOT EXISTS `settings` (
   `setting_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `setting_value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
@@ -746,7 +767,7 @@ CREATE TABLE IF NOT EXISTS `settings` (
   PRIMARY KEY (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.settings: ~39 rows (approximately)
+-- Dumping data for table manage.settings: ~38 rows (approximately)
 INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `updated_at`) VALUES
 	('bank_account_holder', 'Nguyen Minh Anh', 'general', '2026-08-17 18:41:56'),
 	('bank_account_number', '0011001234567', 'general', '2026-08-17 18:41:56'),
@@ -769,7 +790,7 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('otp_max_verify_attempts', '5', 'auth', '2026-01-05 02:00:00'),
 	('otp_resend_seconds', '60', 'auth', '2026-01-05 02:00:00'),
 	('otp_ttl_minutes', '2', 'auth', '2026-01-05 02:00:00'),
-	('resend_api_key', 're_T3dFs2pi_Cq5tGmtdwCMMN91krwYM5ARH', 'email', '2026-08-18 01:49:03'),
+	('resend_api_key', 're_CLYjohwQ_7th4km5uAAmJJB8YoECZfKtR', 'email', '2026-08-18 01:49:03'),
 	('site_description', 'Hệ thống quản lý nhà trọ dành cho sinh viên và người đi làm tại TP.HCM.', 'brand', '2026-01-05 02:00:00'),
 	('site_name', 'Nhà trọ Xanh', 'brand', '2026-01-05 02:00:00'),
 	('site_slogan', 'Không gian sống tiện nghi, an toàn và minh bạch.', 'brand', '2026-01-05 02:00:00'),
@@ -788,6 +809,7 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('stat_3_value', '24/7', 'stats', '2026-01-05 02:00:00');
 
 -- Dumping structure for table manage.users
+DROP TABLE IF EXISTS `users`;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `full_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -810,7 +832,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   CONSTRAINT `fk_user_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.users: ~8 rows (approximately)
+-- Dumping data for table manage.users: ~9 rows (approximately)
 INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, `role`, `room_id`, `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`, `created_at`) VALUES
 	(1, 'Nguyễn Minh Anh', 'admin@nhatroxanh.vn', '0901000001', '$2y$10$jxpuLl0bJGI6Zor8PcekH.J2hcqtNMJ1GRITyo/c1yGYBfJmHb2iy', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:00:00'),
 	(2, 'Trần Quốc Huy', 'manager@nhatroxanh.vn', '0901000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:05:00'),
@@ -823,6 +845,7 @@ INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, 
 	(18, 'Lương Văn Dũng', 'giagiong001@gmail.com', '0328528758', '$2y$10$YqWw1foeQYfUuNbJYWb3mOU/.fyUEVuV7E78AafMTTvBXIYcwe1oC', 'default.png', 0, 12, NULL, NULL, NULL, NULL, NULL, '2026-08-17 20:14:16');
 
 -- Dumping structure for table manage.user_services
+DROP TABLE IF EXISTS `user_services`;
 CREATE TABLE IF NOT EXISTS `user_services` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -836,7 +859,7 @@ CREATE TABLE IF NOT EXISTS `user_services` (
   CONSTRAINT `fk_us_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.user_services: ~3 rows (approximately)
+-- Dumping data for table manage.user_services: ~2 rows (approximately)
 INSERT INTO `user_services` (`id`, `user_id`, `service_id`, `quantity`, `registered_at`) VALUES
 	(8, 7, 4, 1, '2025-08-01 02:10:00'),
 	(9, 7, 5, 1, '2025-08-01 02:10:00');
