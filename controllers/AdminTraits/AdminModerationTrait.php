@@ -410,9 +410,8 @@ public function notifications()
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
             redirectTo('admin-services');
         }
-        // Đối tượng áp dụng bị khóa theo cách tính giá: chỉ số → phòng, theo người → người, theo số lượng → phòng.
-        // (Khối locked-kind bên dưới sẽ ép về 'room' cho điện/nước/rác bắt buộc.)
-        $appliesToByBillingMode = ['meter' => 'room', 'per_person' => 'person', 'per_unit' => 'room'];
+        // Đối tượng áp dụng bị khóa theo cách tính giá: theo người → người, theo số lượng → phòng.
+        $appliesToByBillingMode = ['per_person' => 'person', 'per_unit' => 'room'];
         if (isset($appliesToByBillingMode[$data['billing_mode']])) {
             $data['applies_to'] = $appliesToByBillingMode[$data['billing_mode']];
         }
@@ -463,11 +462,6 @@ public function notifications()
         }
         if ($data['is_required'] === 1 && $data['applies_to'] !== 'room') {
             setFlash('admin_service_error', 'Dịch vụ bắt buộc chỉ được áp dụng theo phòng.');
-            setFlash('admin_service_old', array_merge($data, ['id' => $id]));
-            redirectTo('admin-services');
-        }
-        if ($data['billing_mode'] === 'meter' && $data['applies_to'] !== 'room') {
-            setFlash('admin_service_error', 'Dịch vụ tính theo chỉ số chỉ phù hợp với phòng.');
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
             redirectTo('admin-services');
         }
@@ -879,12 +873,6 @@ public function deleteService($id)
                 'label' => 'Cố định',
                 'badge_class' => 'bg-slate-100 text-slate-700',
                 'tooltip' => 'Thu cố định theo chu kỳ, thường dùng cho wifi hoặc phí trọn gói.',
-            ],
-            [
-                'value' => 'meter',
-                'label' => 'Theo chỉ số',
-                'badge_class' => 'bg-cyan-100 text-cyan-700',
-                'tooltip' => 'Tính theo công tơ/chỉ số tiêu thụ thực tế như điện hoặc nước.',
             ],
             [
                 'value' => 'per_person',

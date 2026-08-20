@@ -27,6 +27,9 @@ trait AdminTenantTrait
         $assignmentForm = array_merge([
             'user_id' => 0,
             'room_id' => 0,
+            'move_in_date' => date('Y-m-d'),
+            'rent_price' => '',
+            'deposit_amount' => '',
         ], is_array($oldTenantAssignment) ? $oldTenantAssignment : []);
 
         $pageTitle = 'Quản lý Người thuê - NhaTroA';
@@ -35,6 +38,85 @@ trait AdminTenantTrait
 
     /**
      * Gán tenant vào phòng.
+        if (!$selectedContract) {
+            setFlash('admin_contract_error', 'Hợp đồng không tồn tại hoặc đã bị xóa.');
+            redirectTo('admin-contracts');
+        }
+
+        $selectedContract = Encryption::decryptFields($selectedContract, UserModel::getContractFields());
+        $contracts = ContractModel::getAll();
+        $contractMessage = pullFlash('admin_contract_message');
+        $contractError = pullFlash('admin_contract_error');
+        $terminationForm = array_merge([
+            'move_out_date' => date('Y-m-d'),
+        ], (array)pullFlash('admin_contract_termination_old', []));
+        $pageTitle = 'Chi tiết Hợp đồng - NhaTroA';
+        require_once BASE_PATH . 'views/admin/tenants/contracts.php';
+    }
+/**
+     * Kết thúc hợp đồng đang active và giải phóng phòng tương ứng.
+     */
+    public function terminateContract($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-contracts');
+        }
+        verify_csrf();
+
+        $contractId = (int)($id ?: ($_POST['contract_id'] ?? 0));
+        $moveOutDate = trim((string)($_POST['move_out_date'] ?? ''));
+
+        if (!$this->isValidDateInput($moveOutDate)) {
+            setFlash('admin_contract_error', 'Ngày chuyển đi không đúng định dạng.');
+            setFlash('admin_contract_termination_old', ['move_out_date' => $moveOutDate]);
+            redirectTo('admin-view-contract', ['id' => $contractId]);
+        }
+
+        try {
+            ContractModel::terminate($contractId, $moveOutDate);
+
+            // Apply pending price changes ngay lập tức khi phòng giải phóng
+            $contract = ContractModel::getById($contractId);
+            if ($contract && isset($contract['room_id'])) {
+                RoomPriceChangeModel::applyPendingImmediately((int)$contract['room_id']);
+            }
+            setFlash('admin_contract_message', 'Đã kết thúc hợp đồng và giải phóng phòng.');
+            redirectTo('admin-contracts');
+        } catch (Throwable $exception) {
+            setFlash('admin_contract_error', $exception->getMessage());
+            setFlash('admin_contract_termination_old', ['move_out_date' => $moveOutDate]);
+            redirectTo('admin-view-contract', ['id' => $contractId]);
+        }
+    }
+/**
+     * Kiểm tra một chuỗi ngày có đúng chuẩn `Y-m-d` để tránh ghi sai vào DB.
+     */
+    private function isValidDateInput($value)
+    {
+        $resolvedValue = trim((string)$value);
+        if ($resolvedValue === '') {
+            return false;
+        }
+
+        $date = DateTime::createFromFormat('Y-m-d', $resolvedValue);
+        return $date !== false && $date->format('Y-m-d') === $resolvedValue;
+    }
+/**
+     * Chuẩn hóa payload tạo hợp đồng từ form admin để controller/model dùng cùng một shape.
+     */
+    private function normalizeTenantAssignmentInput(array $source)
+    {
+        return [
+            'user_id' => (int)($source['user_id'] ?? 0),
+            'room_id' => (int)($source['room_id'] ?? 0),
+            'move_in_date' => trim((string)($source['move_in_date'] ?? '')),
+            'rent_price' => (float)($source['rent_price'] ?? 0),
+            'deposit_amount' => (float)($source['deposit_amount'] ?? 0),
+            'contract_date' => date('Y-m-d'),
+        ];
+    }
+/**
+     * Gán tenant vào phòng và tạo hợp đồng active trong cùng một thao tác.
      */
     public function addTenant()
     {
@@ -47,8 +129,16 @@ trait AdminTenantTrait
         $roomId = (int)($_POST['room_id'] ?? 0);
 
         $oldInput = [
+<<<<<<< HEAD
             'user_id' => $userId,
             'room_id' => $roomId,
+=======
+            'user_id' => $payload['user_id'],
+            'room_id' => $payload['room_id'],
+            'move_in_date' => $payload['move_in_date'],
+            'rent_price' => $_POST['rent_price'] ?? '',
+            'deposit_amount' => $_POST['deposit_amount'] ?? '',
+>>>>>>> 9a4cf30de020267bafe7ea0047c1ee518bd1f25e
         ];
 
         if ($userId <= 0) {
@@ -61,6 +151,31 @@ trait AdminTenantTrait
             setFlash('admin_tenant_old', $oldInput);
             redirectTo('admin-tenants');
         }
+<<<<<<< HEAD
+=======
+        if (!$this->isValidDateInput($payload['move_in_date'])) {
+            setFlash('admin_tenant_error', 'Ngày vào ở không đúng định dạng.');
+            setFlash('admin_tenant_old', $oldInput);
+            redirectTo('admin-tenants');
+        }
+        if ($payload['rent_price'] <= 0) {
+            setFlash('admin_tenant_error', 'Giá thuê trong hợp đồng phải lớn hơn 0.');
+            setFlash('admin_tenant_old', $oldInput);
+            redirectTo('admin-tenants');
+        }
+
+        // Tự động đặt tiền cọc = giá phòng cơ bản (không tính dịch vụ)
+        $room = RoomModel::getById($payload['room_id']);
+        if ($room) {
+            $payload['deposit_amount'] = (float)($room['price'] ?? 0);
+        }
+
+        if ($payload['deposit_amount'] < 0) {
+            setFlash('admin_tenant_error', 'Tiền cọc không được nhỏ hơn 0.');
+            setFlash('admin_tenant_old', $oldInput);
+            redirectTo('admin-tenants');
+        }
+>>>>>>> 9a4cf30de020267bafe7ea0047c1ee518bd1f25e
 
         try {
             UserModel::assignToRoom($userId, $roomId);
@@ -257,7 +372,20 @@ public function rentRequests()
 
         $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
         try {
+<<<<<<< HEAD
             UserModel::assignToRoom($userId, $roomId);
+=======
+            $contractId = ContractModel::create([
+                'user_id' => $userId,
+                'room_id' => $roomId,
+                'move_in_date' => $moveInDate,
+                'rent_price' => (float)($room['price'] ?? 0),
+                'deposit_amount' => (float)($room['price'] ?? 0),
+                'contract_date' => date('Y-m-d'),
+            ]);
+            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
+            ContractModel::syncRoomStatus($roomId);
+>>>>>>> 9a4cf30de020267bafe7ea0047c1ee518bd1f25e
             RentalRequestModel::setStatus($requestId, 'approved', 'Yêu cầu đã được duyệt.');
             NotificationModel::create([
                 'user_id' => $userId,
@@ -436,6 +564,17 @@ public function rentRequests()
         }
 
         try {
+<<<<<<< HEAD
+=======
+            $contractId = ContractModel::create([
+                'user_id' => $userId,
+                'room_id' => $roomId,
+                'move_in_date' => $moveInDate,
+                'rent_price' => (float)($room['price'] ?? 0),
+                'deposit_amount' => $deposit,
+                'contract_date' => date('Y-m-d'),
+            ]);
+>>>>>>> 9a4cf30de020267bafe7ea0047c1ee518bd1f25e
             Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
             RoomModel::syncRoomStatus($roomId);
             RentalRequestModel::markPaid($requestId);
@@ -517,7 +656,20 @@ public function roommateRequests()
         }
 
         try {
+<<<<<<< HEAD
             UserModel::assignToRoom($requesterId, $roomId, true);
+=======
+            ContractModel::create([
+                'user_id' => $requesterId,
+                'room_id' => $roomId,
+                'move_in_date' => date('Y-m-d'),
+                'rent_price' => (float)($room['price'] ?? 0),
+                'deposit_amount' => (float)($room['price'] ?? 0),
+                'contract_date' => date('Y-m-d'),
+            ]);
+            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $requesterId]);
+            ContractModel::syncRoomStatus($roomId);
+>>>>>>> 9a4cf30de020267bafe7ea0047c1ee518bd1f25e
             RoommateRequestModel::setStatus($requestId, 'approved');
             
             // Thông báo cho người B

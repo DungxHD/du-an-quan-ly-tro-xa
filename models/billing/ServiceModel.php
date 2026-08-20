@@ -1,21 +1,18 @@
 <?php
 class ServiceModel {
-    private const BILLING_MODES = ['fixed', 'meter', 'per_person', 'per_unit'];
+    private const BILLING_MODES = ['fixed', 'per_person', 'per_unit'];
     private const APPLIES_TO = ['room', 'person'];
-    private const KINDS = ['other', 'electricity', 'water', 'trash'];
+    private const KINDS = ['other'];
     public static function getKindOptions() {
-        return ['other' => 'Dịch vụ khác', 'electricity' => 'Tiền điện (bắt buộc)', 'water' => 'Tiền nước (bắt buộc)', 'trash' => 'Tiền rác (bắt buộc)'];
+        return ['other' => 'Dịch vụ khác'];
     }
     public static function getKindBillingModesMap() {
         return [
-            'electricity' => ['meter'],
-            'water' => ['meter', 'per_person'],
-            'trash' => ['per_person'],
             'other' => self::BILLING_MODES,
         ];
     }
     public static function isLockedKind($kind) {
-        return in_array((string)$kind, ['electricity', 'water', 'trash'], true);
+        return false;
     }
 
     /**
@@ -24,7 +21,6 @@ class ServiceModel {
     public static function getBillingModeOptions() {
         return [
             'fixed' => 'Cố định',
-            'meter' => 'Theo chỉ số',
             'per_person' => 'Theo người',
             'per_unit' => 'Theo số lượng',
         ];
@@ -173,11 +169,6 @@ class ServiceModel {
      */
     public static function save(array $data, $id = null) {
         $payload = self::normalizeServiceRow($data);
-        if (self::isLockedKind($payload['kind'])) {
-            $payload['is_required'] = 1;
-            $payload['is_active'] = 1;
-            $payload['applies_to'] = 'room';
-        }
         unset($payload['id']);
 
         $resolvedId = (int)$id;
@@ -190,15 +181,15 @@ class ServiceModel {
     }
 
     /**
-     * Xóa dịch vụ, nhưng chặn cứng dịch vụ bắt buộc để tránh phá logic tính tiền về sau.
+     * Xóa dịch vụ, nhưng chặn cứng dịch vụ bắt buộc (is_required=1) để tránh phá logic tính tiền.
      */
     public static function delete($id) {
         $service = self::getById($id);
         if (!$service) {
             throw new RuntimeException('Dịch vụ không tồn tại hoặc đã bị xóa trước đó.');
         }
-        if ((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other')) {
-            throw new RuntimeException('Dịch vụ bắt buộc (điện/nước/rác) không thể xóa.');
+        if ((int)($service['is_required'] ?? 0) === 1) {
+            throw new RuntimeException('Dịch vụ bắt buộc không thể xóa.');
         }
 
         Database::delete('room_services', 'service_id = :service_id', ['service_id' => (int)$id]);
@@ -217,12 +208,9 @@ class ServiceModel {
      * Trả danh sách gán dịch vụ theo phòng để admin và dashboard dùng chung.
      */
     public static function deriveUnit($kind, $billingMode) {
-if ($kind === 'electricity') { return 'kWh'; }
-if ($kind === 'trash') { return 'người/tháng'; }
-if ($billingMode === 'meter') { return $kind === 'water' ? 'm3' : 'tháng'; }
-if ($billingMode === 'per_person') { return 'người/tháng'; }
-return 'tháng';
-}
+        if ($billingMode === 'per_person') { return 'người/tháng'; }
+        return 'tháng';
+    }
 public static function countRoomsUsing($serviceId) {
 $serviceId = (int)$serviceId;
 if (Database::hasConnection()) {
@@ -288,43 +276,43 @@ try { PriceChangeModel::cancelPendingChange((int)$change['id']); } catch (Throwa
 self::undoDeactivate((int)$serviceId);
 }
 public static function getRoomsUsingService($serviceId) {
-$serviceId = (int)$serviceId;
-$service = self::getById($serviceId);
-if (!$service) { return []; }
-$isRequired = (int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other');
-if (Database::hasConnection()) {
-if ($isRequired) {
-return Database::fetchAll("SELECT r.id as room_id, r.name as room_name, r.status as room_status, f.name as floor_name, a.name as area_name, 1 as quantity, NULL as registered_at FROM rooms r JOIN floors f ON f.id = r.floor_id JOIN areas a ON a.id = f.area_id WHERE r.status = 'rented' ORDER BY a.name, f.floor_number, r.name");
-}
-return Database::fetchAll("SELECT rs.room_id, rs.quantity, rs.registered_at, r.name as room_name, r.status as room_status, f.name as floor_name, a.name as area_name FROM room_services rs JOIN rooms r ON r.id = rs.room_id JOIN floors f ON f.id = r.floor_id JOIN areas a ON a.id = f.area_id WHERE rs.service_id = ? ORDER BY a.name, f.floor_number, r.name", [$serviceId]);
-}
-$rooms = Database::getTable('rooms');
-$floors = Database::getTable('floors');
-$areas = Database::getTable('areas');
-$floorMap = [];
-foreach ($floors as $f) { $floorMap[(int)$f['id']] = $f; }
-$areaMap = [];
-foreach ($areas as $a) { $areaMap[(int)$a['id']] = $a; }
-$result = [];
-if ($isRequired) {
-foreach ($rooms as $room) {
-if (($room['status'] ?? '') !== 'rented') { continue; }
-$floor = $floorMap[(int)($room['floor_id'] ?? 0)] ?? [];
-$area = $areaMap[(int)($floor['area_id'] ?? 0)] ?? [];
-$result[] = ['room_id' => (int)$room['id'], 'room_name' => $room['name'] ?? '', 'room_status' => $room['status'] ?? '', 'floor_name' => $floor['name'] ?? '', 'area_name' => $area['name'] ?? '', 'quantity' => 1, 'registered_at' => null];
-}
-} else {
-foreach (Database::getTable('room_services') as $rs) {
-if ((int)($rs['service_id'] ?? 0) !== $serviceId) { continue; }
-$room = null;
-foreach ($rooms as $r) { if ((int)$r['id'] === (int)$rs['room_id']) { $room = $r; break; } }
-if (!$room) { continue; }
-$floor = $floorMap[(int)($room['floor_id'] ?? 0)] ?? [];
-$area = $areaMap[(int)($floor['area_id'] ?? 0)] ?? [];
-$result[] = ['room_id' => (int)$rs['room_id'], 'room_name' => $room['name'] ?? '', 'room_status' => $room['status'] ?? '', 'floor_name' => $floor['name'] ?? '', 'area_name' => $area['name'] ?? '', 'quantity' => (int)($rs['quantity'] ?? 1), 'registered_at' => $rs['registered_at'] ?? null];
-}
-}
-return $result;
+    $serviceId = (int)$serviceId;
+    $service = self::getById($serviceId);
+    if (!$service) { return []; }
+    $isRequired = (int)($service['is_required'] ?? 0) === 1;
+    if (Database::hasConnection()) {
+        if ($isRequired) {
+            return Database::fetchAll("SELECT r.id as room_id, r.name as room_name, r.status as room_status, f.name as floor_name, a.name as area_name, 1 as quantity, NULL as registered_at FROM rooms r JOIN floors f ON f.id = r.floor_id JOIN areas a ON a.id = f.area_id WHERE r.status = 'rented' ORDER BY a.name, f.floor_number, r.name");
+        }
+        return Database::fetchAll("SELECT rs.room_id, rs.quantity, rs.registered_at, r.name as room_name, r.status as room_status, f.name as floor_name, a.name as area_name FROM room_services rs JOIN rooms r ON r.id = rs.room_id JOIN floors f ON f.id = r.floor_id JOIN areas a ON a.id = f.area_id WHERE rs.service_id = ? ORDER BY a.name, f.floor_number, r.name", [$serviceId]);
+    }
+    $rooms = Database::getTable('rooms');
+    $floors = Database::getTable('floors');
+    $areas = Database::getTable('areas');
+    $floorMap = [];
+    foreach ($floors as $f) { $floorMap[(int)$f['id']] = $f; }
+    $areaMap = [];
+    foreach ($areas as $a) { $areaMap[(int)$a['id']] = $a; }
+    $result = [];
+    if ($isRequired) {
+        foreach ($rooms as $room) {
+            if (($room['status'] ?? '') !== 'rented') { continue; }
+            $floor = $floorMap[(int)($room['floor_id'] ?? 0)] ?? [];
+            $area = $areaMap[(int)($floor['area_id'] ?? 0)] ?? [];
+            $result[] = ['room_id' => (int)$room['id'], 'room_name' => $room['name'] ?? '', 'room_status' => $room['status'] ?? '', 'floor_name' => $floor['name'] ?? '', 'area_name' => $area['name'] ?? '', 'quantity' => 1, 'registered_at' => null];
+        }
+    } else {
+        foreach (Database::getTable('room_services') as $rs) {
+            if ((int)($rs['service_id'] ?? 0) !== $serviceId) { continue; }
+            $room = null;
+            foreach ($rooms as $r) { if ((int)$r['id'] === (int)$rs['room_id']) { $room = $r; break; } }
+            if (!$room) { continue; }
+            $floor = $floorMap[(int)($room['floor_id'] ?? 0)] ?? [];
+            $area = $areaMap[(int)($floor['area_id'] ?? 0)] ?? [];
+            $result[] = ['room_id' => (int)$rs['room_id'], 'room_name' => $room['name'] ?? '', 'room_status' => $room['status'] ?? '', 'floor_name' => $floor['name'] ?? '', 'area_name' => $area['name'] ?? '', 'quantity' => (int)($rs['quantity'] ?? 1), 'registered_at' => $rs['registered_at'] ?? null];
+        }
+    }
+    return $result;
 }
 public static function getAssignmentsByRoom($roomId) {
         $roomId = (int)$roomId;
@@ -347,7 +335,7 @@ public static function getAssignmentsByRoom($roomId) {
                 $service['quantity'] = max(1, (int)($row['quantity'] ?? 1));
                 $service['registered_at'] = $row['registered_at'] ?? null;
                 return $service;
-            }, $rows), static fn($service) => !((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other'))));
+            }, $rows), static fn($service) => !((int)($service['is_required'] ?? 0) === 1)));
         }
 
         $services = [];
@@ -365,7 +353,7 @@ public static function getAssignmentsByRoom($roomId) {
             if (!$service) {
                 continue;
             }
-            if ((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other')) {
+            if ((int)($service['is_required'] ?? 0) === 1) {
                 continue;
             }
 
@@ -676,7 +664,6 @@ public static function getAssignmentsByRoom($roomId) {
 
     /**
      * Tính tổng dịch vụ đang gán theo phòng để dashboard cũ tiếp tục hoạt động.
-     * Dịch vụ `meter` trả về 0 vì cần chỉ số tháng riêng mới tính đúng.
      */
     public static function getTotalServiceCost($roomId) {
         $occupantCount = max(1, RoomModel::countOccupants((int)$roomId));
@@ -698,8 +685,6 @@ public static function getAssignmentsByRoom($roomId) {
         $resolvedOccupantCount = max(1, (int)$occupantCount);
 
         switch ($service['billing_mode'] ?? 'fixed') {
-            case 'meter':
-                return 0.0;
             case 'per_person':
                 return $price * $quantity * $resolvedOccupantCount;
             case 'per_unit':

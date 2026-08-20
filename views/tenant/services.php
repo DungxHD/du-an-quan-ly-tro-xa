@@ -93,9 +93,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 <div class="mt-3 flex flex-wrap gap-2">
                                     <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">Số lượng: <?= (int)($service['quantity'] ?? 1) ?></span>
                                     <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">/<?= e($service['unit'] ?? 'đơn vị') ?></span>
-                                    <?php if (($service['billing_mode'] ?? '') === 'meter'): ?>
-                                    <span class="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">Theo chỉ số</span>
-                                    <?php elseif (($service['billing_mode'] ?? '') === 'per_person'): ?>
+                                    <?php if (($service['billing_mode'] ?? '') === 'per_person'): ?>
                                     <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Theo người</span>
                                     <?php elseif (($service['billing_mode'] ?? '') === 'per_unit'): ?>
                                     <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">Theo số lượng</span>
@@ -177,9 +175,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <?= csrf_field() ?>
                         <input type="hidden" name="service_id" value="<?= (int)($service['id'] ?? 0) ?>">
                         <input type="hidden" name="service_action" value="register">
-                        <?php if (($service['billing_mode'] ?? '') === 'meter'): ?>
-                        <p class="text-sm text-gray-500 sm:mr-auto">Chỉ số sẽ được nhập khi lập hóa đơn.</p>
-                        <?php else: ?>
                         <div class="sm:w-40">
                             <label class="block text-sm font-semibold mb-2">Số lượng</label>
                             <input
@@ -190,7 +185,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"
                             >
                         </div>
-                        <?php endif; ?>
                         <button type="submit" class="px-5 py-3 bg-secondary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
                             Đăng ký
                         </button>

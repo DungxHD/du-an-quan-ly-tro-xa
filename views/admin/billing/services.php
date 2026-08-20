@@ -21,7 +21,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
 <div>
 <h2 class="text-3xl font-bold">Quản lý Dịch vụ</h2>
-<p class="text-gray-500 mt-2">Dịch vụ bắt buộc (điện/nước/rác) tự áp cho mọi phòng. Giá/cách tính mới luôn áp dụng từ tháng kế tiếp.</p>
+<p class="text-gray-500 mt-2">Dịch vụ bắt buộc tự áp cho mọi phòng. Giá/cách tính mới luôn áp dụng từ tháng kế tiếp.</p>
 </div>
 <button type="button" id="service-drawer-open" class="px-5 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-opacity-90 transition inline-flex items-center gap-2">
 <span class="material-symbols-outlined text-base">add</span> Thêm dịch vụ mới
@@ -228,9 +228,9 @@ Dịch vụ sẽ được tắt từ tháng <?= str_pad((string)(int)($item['dea
     <p id="applies-lock-note" class="hidden text-xs text-amber-700 mt-1.5 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Đối tượng áp dụng đã khóa theo cách tính giá.</p>
     <p class="text-xs text-gray-500 mt-1"><span class="material-symbols-outlined text-sm align-middle">info</span> "Theo phòng": admin gán cho phòng. "Theo người": cư dân tự đăng ký.</p>
 </div>
-<div id="unit-wrap" class="<?= (($formService['billing_mode'] ?? 'fixed') === 'meter') ? '' : 'hidden' ?>">
+<div id="unit-wrap">
 <label class="block text-sm font-semibold mb-2">Đơn vị tính</label>
-<input type="text" name="unit" id="svc-unit-input" value="<?= e($formService['unit'] ?? '') ?>" placeholder="VD: kWh, m3" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
+<input type="text" name="unit" id="svc-unit-input" value="<?= e($formService['unit'] ?? '') ?>" placeholder="VD: tháng, người, số lượng" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
 <div><label class="block text-sm font-semibold mb-2">Icon dịch vụ</label>
 <input type="hidden" name="icon" id="svc-icon-input" value="<?= e($formService['icon'] ?? 'settings') ?>">
 <button type="button" id="icon-picker-toggle" class="w-full px-4 py-3 border border-gray-200 rounded-xl flex items-center gap-3 hover:border-primary transition text-left bg-white">
@@ -342,10 +342,9 @@ if (btnClose) btnClose.addEventListener('click', closeDrawer);
 backdrop.addEventListener('click', closeDrawer);
 document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeDrawer(); } });
 var bm = document.getElementById('svc-billing-mode');
-var unitWrap = document.getElementById('unit-wrap');
 var at = document.getElementById('svc-applies-to');
 var atLockNote = document.getElementById('applies-lock-note');
-var appliesToByMode = { meter: 'room', per_person: 'person', per_unit: 'room' };
+var appliesToByMode = { per_person: 'person', per_unit: 'room' };
 var atLocked = false;
 if (bm) {
     var syncAppliesTo = function() {
@@ -367,7 +366,6 @@ if (bm) {
     bm.addEventListener('change', syncAppliesTo);
     syncAppliesTo();
 }
-if (bm && unitWrap) { var sync = function(){ unitWrap.classList.toggle('hidden', bm.value !== 'meter'); }; bm.addEventListener('change', sync); sync(); }
 var iconToggle = document.getElementById('icon-picker-toggle');
 var iconPanel = document.getElementById('icon-picker-panel');
 var iconInput = document.getElementById('svc-icon-input');

@@ -26,6 +26,29 @@ class PriceChangeModel {
     }
 
     /**
+     * Chuẩn hóa tháng/năm để mọi nơi dùng chung một format an toàn.
+     */
+    public static function normalizePeriod($month = null, $year = null) {
+        $resolvedMonth = (int)($month ?: date('n'));
+        $resolvedYear = (int)($year ?: date('Y'));
+
+        if ($resolvedMonth < 1 || $resolvedMonth > 12) {
+            $resolvedMonth = (int)date('n');
+        }
+        if ($resolvedYear < 2000 || $resolvedYear > 2100) {
+            $resolvedYear = (int)date('Y');
+        }
+
+        return [
+            'month' => $resolvedMonth,
+            'year' => $resolvedYear,
+            'label' => str_pad((string)$resolvedMonth, 2, '0', STR_PAD_LEFT) . '/' . $resolvedYear,
+            'start_date' => sprintf('%04d-%02d-01', $resolvedYear, $resolvedMonth),
+            'end_date' => date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $resolvedYear, $resolvedMonth))),
+        ];
+    }
+
+    /**
      * Trả danh sách lịch sử đổi giá, có thể lọc theo dịch vụ.
      */
     public static function getAll(array $filters = []) {
@@ -121,7 +144,7 @@ class PriceChangeModel {
             $allowed = ServiceModel::getKindBillingModesMap()[$service['kind'] ?? 'other'] ?? ServiceModel::BILLING_MODES;
             if (!in_array($newBillingMode, $allowed, true)) { throw new RuntimeException('Cách tính này không được phép cho loại dịch vụ này.'); }
         }
-        $period = MeterReadingModel::normalizePeriod($effectiveMonth, $effectiveYear);
+        $period = self::normalizePeriod($effectiveMonth, $effectiveYear);
         $targetOrder = ($period['year'] * 100) + $period['month'];
         $currentOrder = ((int)date('Y') * 100) + (int)date('n');
         if ($targetOrder <= $currentOrder) { throw new RuntimeException('Tháng hiệu lực phải lớn hơn tháng hiện tại.'); }

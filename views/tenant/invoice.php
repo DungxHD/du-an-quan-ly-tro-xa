@@ -79,7 +79,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 text-center">
         <span class="material-symbols-outlined text-6xl text-gray-300">receipt_long</span>
         <h3 class="text-2xl font-bold mt-4">Chưa có hóa đơn cho kỳ <?= e($currentPeriod['label'] ?? '') ?></h3>
-        <p class="text-gray-500 mt-2">Admin chưa tạo hóa đơn tháng này hoặc đang thiếu dữ liệu chỉ số để chốt tiền.</p>
+        <p class="text-gray-500 mt-2">Admin chưa tạo hóa đơn tháng này.</p>
     </div>
     <?php else: ?>
     <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">

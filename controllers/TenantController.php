@@ -150,29 +150,6 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
     }
 
     /**
-     * Tenant xem chỉ số điện/nước của phòng mình theo từng tháng.
-     */
-    public function viewMeterReadings() {
-        $user = $this->getAuthenticatedTenant();
-        $period = MeterReadingModel::normalizePeriod($_GET['month'] ?? null, $_GET['year'] ?? null);
-
-        if (!empty($user['room_id'])) {
-            $meterSummary = MeterReadingModel::getTenantMonthlySummary((int)$user['room_id'], $period['month'], $period['year']);
-        } else {
-            $meterSummary = [
-                'period' => $period,
-                'room' => null,
-                'items' => [],
-                'history' => [],
-                'has_readings' => false,
-            ];
-        }
-
-        $pageTitle = 'Chỉ số điện nước - NhaTroA';
-        require_once BASE_PATH . 'views/tenant/meter.php';
-    }
-
-    /**
      * Tenant xem hóa đơn tháng của phòng mình từ snapshot `payment_items`.
      */
     public function viewInvoice() {
@@ -307,10 +284,6 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
                 ServiceModel::removeFromRoom((int)($user['room_id'] ?? 0), $serviceId);
                 setFlash('tenant_service_message', 'Đã hủy dịch vụ khỏi phòng.');
             } else {
-                // Dịch vụ tính theo chỉ số: số lượng luôn là 1, chỉ số sẽ nhập khi lập hóa đơn.
-                if (($service['billing_mode'] ?? '') === 'meter') {
-                    $quantity = 1;
-                }
                 if ($quantity <= 0) {
                     throw new RuntimeException('Số lượng đăng ký phải lớn hơn 0.');
                 }
@@ -372,6 +345,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $markAll = !empty($_POST['mark_all']);
         $redirectPage = trim((string)($_POST['redirect_page'] ?? 'tenant-notifications'));
         $redirectAllowed = ['tenant-notifications', 'tenant', 'tenant-services', 'tenant-meter', 'tenant-invoice', 'tenant-profile'];
+        $redirectAllowed = ['tenant-notifications', 'tenant', 'tenant-services', 'tenant-invoice', 'tenant-profile', 'tenant-contract'];
         if (!in_array($redirectPage, $redirectAllowed, true)) {
             $redirectPage = 'tenant-notifications';
         }
