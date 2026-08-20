@@ -163,26 +163,27 @@ public function notifications()
         ));
 
         $notificationFilters = [
-            'type' => trim((string)($_GET['type'] ?? '')),
             'category' => trim((string)($_GET['category'] ?? '')),
-            'user_id' => (int)($_GET['user_id'] ?? 0),
-            'recipient_scope' => trim((string)($_GET['recipient_scope'] ?? '')),
         ];
         $notificationOld = pullFlash('admin_notification_old');
         $notificationForm = array_merge([
             'title' => '',
             'content' => '',
-            'type' => 'general',
-            'recipient_scope' => 'all',
-            'user_id' => 0,
         ], is_array($notificationOld) ? $notificationOld : []);
 
         $notificationHistory = NotificationModel::getAdminHistory($notificationFilters);
-        $notificationTypeOptions = NotificationModel::getTypeOptions();
         $notificationCategories = NotificationModel::getAdminCategories();
         $selectedNotificationCategory = $notificationFilters['category'];
         $notificationMessage = pullFlash('admin_notification_message');
         $notificationError = pullFlash('admin_notification_error');
+        
+        // Admin notification bell - recent sent notifications
+        $adminNotificationRecent = array_slice($notificationHistory, 0, 5);
+        $adminNotificationUnreadCount = count(array_filter(
+            $notificationHistory,
+            static fn($n) => (int)($n['is_read'] ?? 0) === 0
+        ));
+
         $pageTitle = 'Quản lý Thông báo - NhaTroA';
         require_once BASE_PATH . 'views/admin/system/notifications.php';
     }
@@ -321,7 +322,7 @@ public function notifications()
         redirectTo('admin-comments', $redirectParams);
     }
 /**
-     * Gửi thông báo cho toàn bộ tenant hoặc một tenant cụ thể.
+     * Gửi thông báo broadcast cho toàn bộ tenant.
      */
     public function sendNotification()
     {
@@ -330,39 +331,31 @@ public function notifications()
         }
         verify_csrf();
 
-        $recipientScope = trim((string)($_POST['recipient_scope'] ?? 'all'));
         $payload = [
             'title' => trim((string)($_POST['title'] ?? '')),
             'content' => trim((string)($_POST['content'] ?? '')),
-            'type' => trim((string)($_POST['type'] ?? 'general')),
-            'recipient_scope' => in_array($recipientScope, ['all', 'user'], true) ? $recipientScope : 'all',
-            'user_id' => (int)($_POST['user_id'] ?? 0),
         ];
         setFlash('admin_notification_old', $payload);
 
         try {
-            $targetUserId = $payload['recipient_scope'] === 'user' ? $payload['user_id'] : null;
-            if ($payload['recipient_scope'] === 'user' && $targetUserId <= 0) {
-                throw new RuntimeException('Vui lòng chọn tenant nhận thông báo.');
+            if ($payload['title'] === '') {
+                throw new RuntimeException('Tiêu đề thông báo là bắt buộc.');
+            }
+            if ($payload['content'] === '') {
+                throw new RuntimeException('Nội dung thông báo là bắt buộc.');
             }
 
             NotificationModel::create([
-                'user_id' => $targetUserId,
+                'user_id' => null,
                 'title' => $payload['title'],
                 'content' => $payload['content'],
-                'type' => $payload['type'],
+                'type' => 'general',
             ]);
 
-            setFlash(
-                'admin_notification_message',
-                $payload['recipient_scope'] === 'all'
-                    ? 'Đã gửi thông báo cho tất cả tenant.'
-                    : 'Đã gửi thông báo cho tenant đã chọn.'
-            );
+            setFlash('admin_notification_message', 'Đã gửi thông báo đến tất cả tenant thành công.');
         } catch (Throwable $exception) {
             setFlash('admin_notification_error', $exception->getMessage());
         }
-
         redirectTo('admin-notifications');
     }
 /**

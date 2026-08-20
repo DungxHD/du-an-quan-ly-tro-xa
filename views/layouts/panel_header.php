@@ -28,10 +28,20 @@ $panelContentClass = $panelContentClass ?? 'p-6 md:p-8 md:ml-64';
 $showFallbackBanner = !Database::hasConnection();
 $tenantNotificationUnreadCount = 0;
 $tenantNotificationRecent = [];
+$adminNotificationUnreadCount = 0;
+$adminNotificationRecent = [];
 
 if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
     $tenantNotificationUnreadCount = NotificationModel::getUnreadCount((int)$_SESSION['user_id']);
     $tenantNotificationRecent = NotificationModel::getRecentForUser((int)$_SESSION['user_id'], 5);
+} elseif ($panelTheme === 'admin' && !empty($_SESSION['user_id'])) {
+    // Admin notification bell - show recent sent notifications as "unread" indicator
+    $adminHistory = NotificationModel::getAdminHistory([]);
+    $adminNotificationRecent = array_slice($adminHistory, 0, 5);
+    $adminNotificationUnreadCount = count(array_filter(
+        $adminHistory,
+        static fn($n) => (int)($n['is_read'] ?? 0) === 0
+    ));
 }
 ?>
 <!DOCTYPE html>
@@ -162,6 +172,59 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
                             <div class="px-4 py-3 border-t border-gray-100">
                                 <a href="<?= BASE_URL ?>?page=tenant-notifications" class="text-sm font-semibold text-primary hover:underline">
                                     Xem tất cả
+                                </a>
+                            </div>
+                        </div>
+                    </details>
+                <?php endif; ?>
+                <?php if ($panelTheme === 'admin'): ?>
+                    <details class="relative">
+                        <summary class="list-none cursor-pointer">
+                            <div class="relative w-11 h-11 rounded-2xl border border-gray-700 bg-gray-900 hover:bg-gray-800 transition flex items-center justify-center">
+                                <span class="material-symbols-outlined text-gray-300">notifications</span>
+                                <?php if ($adminNotificationUnreadCount > 0): ?>
+                                    <span class="absolute -top-1 -right-1 min-w-[1.35rem] h-[1.35rem] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">
+                                        <?= $adminNotificationUnreadCount > 99 ? '99+' : (int)$adminNotificationUnreadCount ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        </summary>
+                        <div class="absolute right-0 mt-3 w-[380px] rounded-2xl border border-gray-700 bg-gray-900 shadow-xl overflow-hidden z-50">
+                            <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="font-semibold text-white">Thông báo đã gửi</p>
+                                    <p class="text-xs text-gray-400"><?= (int)$adminNotificationUnreadCount ?> mới</p>
+                                </div>
+                                <a href="<?= BASE_URL ?>?page=admin-notifications" class="text-xs font-semibold text-primary hover:underline">Xem lịch sử</a>
+                            </div>
+
+                            <div class="max-h-[360px] overflow-y-auto">
+                                <?php if (empty($adminNotificationRecent)): ?>
+                                    <div class="px-4 py-8 text-center text-sm text-gray-500">
+                                        Chưa có thông báo nào.
+                                    </div>
+                                <?php else: ?>
+                                    <?php foreach ($adminNotificationRecent as $notification): ?>
+                                        <a href="<?= BASE_URL ?>?page=admin-notifications" class="block px-4 py-3 border-b border-gray-800 last:border-b-0 hover:bg-gray-800 transition">
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p class="font-semibold text-white"><?= e($notification['title'] ?? '') ?></p>
+                                                    <p class="text-xs text-gray-400 mt-1 line-clamp-2"><?= e($notification['content'] ?? '') ?></p>
+                                                </div>
+                                                <span class="w-2 h-2 rounded-full bg-red-500 mt-1"></span>
+                                            </div>
+                                            <div class="flex items-center justify-between mt-2">
+                                                <span class="text-[11px] font-semibold text-primary uppercase tracking-wide"><?= e($notification['type_label'] ?? '') ?></span>
+                                                <span class="text-[11px] text-gray-500"><?= e(!empty($notification['created_at']) ? date('d/m/Y H:i', strtotime((string)$notification['created_at'])) : '') ?></span>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="px-4 py-3 border-t border-gray-700">
+                                <a href="<?= BASE_URL ?>?page=admin-notifications" class="text-sm font-semibold text-primary hover:underline">
+                                    Xem lịch sử đầy đủ
                                 </a>
                             </div>
                         </div>

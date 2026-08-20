@@ -13,7 +13,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <h2 class="text-3xl font-bold">Thông báo</h2>
             <p class="text-gray-500 mt-2">Admin có thể gửi broadcast cho tất cả cư dân hoặc gửi riêng từng tenant. Loại `price_change` sẽ được sinh tự động khi đổi giá dịch vụ.</p>
         </div>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
                 <p class="text-xs text-gray-500">Tổng tenant</p>
                 <p class="text-xl font-bold"><?= count($tenants ?? []) ?></p>
@@ -23,12 +23,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <p class="text-xl font-bold text-primary"><?= count($notificationHistory ?? []) ?></p>
             </div>
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
-                <p class="text-xs text-gray-500">Loại đang chọn</p>
-                <p class="text-xl font-bold text-secondary"><?= e($notificationTypeOptions[$notificationForm['type'] ?? 'general'] ?? 'Chung') ?></p>
-            </div>
-            <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
                 <p class="text-xs text-gray-500">Đối tượng</p>
-                <p class="text-xl font-bold text-green-600"><?= ($notificationForm['recipient_scope'] ?? 'all') === 'all' ? 'Tất cả' : 'Cá nhân' ?></p>
+                <p class="text-xl font-bold text-green-600">Tất cả tenant (broadcast)</p>
             </div>
         </div>
     </div>
@@ -58,18 +54,13 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <div class="rounded-2xl border border-dashed border-gray-200 p-4 bg-gray-50 space-y-3">
                     <div class="flex items-center justify-between gap-3">
                         <p class="font-semibold text-gray-900"><?= e($notificationForm['title'] ?: 'Tiêu đề thông báo') ?></p>
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                            <?= e($notificationTypeOptions[$notificationForm['type'] ?? 'general'] ?? 'Chung') ?>
-                        </span>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">Broadcast (Tất cả tenant)</span>
                     </div>
                     <p class="text-sm text-gray-600"><?= e($notificationForm['content'] ?: 'Nội dung preview sẽ hiển thị ở đây.') ?></p>
-                    <p class="text-xs text-gray-500">
-                        Đối tượng: <?= ($notificationForm['recipient_scope'] ?? 'all') === 'all' ? 'Tất cả tenant' : 'Một tenant cụ thể' ?>
-                    </p>
                 </div>
 
-                <form method="POST" action="<?= BASE_URL ?>?page=admin-send-notification" class="space-y-4">
-<?= csrf_field() ?>
+<form method="POST" action="<?= BASE_URL ?>?page=admin-send-notification" class="space-y-4">
+                    <?= csrf_field() ?>
                     <div>
                         <label class="block text-sm font-semibold mb-2">Tiêu đề</label>
                         <input
@@ -89,40 +80,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         ><?= e($notificationForm['content'] ?? '') ?></textarea>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Loại</label>
-                            <select name="type" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                                <?php foreach ($notificationTypeOptions as $typeValue => $typeLabel): ?>
-                                <option value="<?= e($typeValue) ?>" <?= ($notificationForm['type'] ?? 'general') === $typeValue ? 'selected' : '' ?>>
-                                    <?= e($typeLabel) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Đối tượng</label>
-                            <select name="recipient_scope" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                                <option value="all" <?= ($notificationForm['recipient_scope'] ?? 'all') === 'all' ? 'selected' : '' ?>>Tất cả tenant</option>
-                                <option value="user" <?= ($notificationForm['recipient_scope'] ?? 'all') === 'user' ? 'selected' : '' ?>>Chọn 1 tenant</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold mb-2">Tenant nhận riêng</label>
-                        <select name="user_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                            <option value="0">Không chọn</option>
-                            <?php foreach ($tenants as $tenant): ?>
-                            <option value="<?= (int)($tenant['id'] ?? 0) ?>" <?= (int)($notificationForm['user_id'] ?? 0) === (int)($tenant['id'] ?? 0) ? 'selected' : '' ?>>
-                                <?= e($tenant['full_name'] ?? '') ?><?= !empty($tenant['room_name']) ? ' - ' . e($tenant['room_name']) : '' ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
                     <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
-                        Gửi thông báo
+                        Gửi thông báo đến tất cả tenant
                     </button>
                 </form>
             </div>
