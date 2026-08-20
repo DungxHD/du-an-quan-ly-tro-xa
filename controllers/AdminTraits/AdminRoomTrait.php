@@ -834,7 +834,7 @@ public function saveRoom()
             redirectTo('admin-rooms', $redirectParams);
         }
         if ((string)($room['status'] ?? '') === 'rented') {
-            setFlash('admin_room_error', 'Phòng "' . ($room['name'] ?? '') . '" đang ở trạng thái đã thuê — hệ thống chặn xóa. Hãy kết thúc hợp đồng hoặc chuyển trạng thái trước.');
+            setFlash('admin_room_error', 'Phòng "' . ($room['name'] ?? '') . '" đang ở trạng thái đã thuê — hệ thống chặn xóa. Hãy chuyển trạng thái trước.');
             redirectTo('admin-rooms', $redirectParams);
         }
         RoomImageModel::deleteByRoom($id);

@@ -15,8 +15,8 @@ $userName = (string)($userRow['full_name'] ?? '');
 <td class="px-6 py-4">
 <?php if ($isRenting): ?>
 <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-green-100 text-green-700 inline-flex items-center gap-1"><span class="material-symbols-outlined text-sm">meeting_room</span>Đang thuê</span>
-<?php if (!empty($userRow['active_contract']['room_name'])): ?>
-<p class="text-xs text-gray-500 mt-1"><?= e($userRow['active_contract']['room_name']) ?></p>
+<?php if (!empty($userRow['room_name'])): ?>
+<p class="text-xs text-gray-500 mt-1"><?= e($userRow['room_name']) ?></p>
 <?php endif; ?>
 <?php else: ?>
 <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-600">Chưa thuê phòng</span>
@@ -24,7 +24,7 @@ $userName = (string)($userRow['full_name'] ?? '');
 </td>
 <td class="px-6 py-4">
 <?php if ($isRenting): ?>
-<span class="inline-flex items-center gap-1 text-sm font-semibold text-gray-400 cursor-not-allowed opacity-70" title="Người đang thuê phòng không thể xóa. Hãy kết thúc hợp đồng trước."><span class="material-symbols-outlined text-sm">lock</span>Không xóa</span>
+<span class="inline-flex items-center gap-1 text-sm font-semibold text-gray-400 cursor-not-allowed opacity-70" title="Người đang thuê phòng không thể xóa. Hãy chuyển người này ra khỏi phòng trước."><span class="material-symbols-outlined text-sm">lock</span>Không xóa</span>
 <?php else: ?>
 <form method="POST" action="<?= BASE_URL ?>?page=admin-delete-account&id=<?= (int)$userRow['id'] ?>" class="inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa tài khoản "<?= e($userName) ?>"? Toàn bộ dữ liệu liên quan sẽ bị xóa.');">
 <?= csrf_field() ?>

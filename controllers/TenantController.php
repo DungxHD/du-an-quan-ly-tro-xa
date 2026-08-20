@@ -23,18 +23,6 @@ class TenantController {
     }
 
     /**
-     * Kiểm tra chuỗi ngày có đúng định dạng `Y-m-d` hay không.
-     */
-    private function isValidDateInput($value) {
-        if ($value === '') {
-            return true;
-        }
-
-        $date = DateTime::createFromFormat('Y-m-d', $value);
-        return $date !== false && $date->format('Y-m-d') === $value;
-    }
-
-    /**
      * Kiểm tra nội dung đánh giá bằng AI moderation.
      * Trả về: ['allowed' => bool, 'reason' => string, 'severity' => string, 'attempts' => int, 'locked_until' => int|null]
      */
@@ -292,47 +280,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
     }
 
     /**
-     * Tenant khai báo và xem lại thông tin phục vụ hợp đồng thuê.
-     * Dữ liệu nhạy cảm được mã hóa AES trong `UserModel` trước khi lưu DB.
-     */
-    public function contract() {
-        $userId = (int)($_SESSION['user_id'] ?? 0);
-        $user = $this->getAuthenticatedTenant();
-        $success = pullFlash('tenant_contract_message', '');
-        $error = pullFlash('tenant_contract_error', '');
-        $activeContract = ContractModel::getActiveByUserId($userId);
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        verify_csrf();
-            $data = [
-                'date_of_birth' => trim((string)($_POST['date_of_birth'] ?? '')),
-                'permanent_address' => trim((string)($_POST['permanent_address'] ?? '')),
-                'identity_number' => preg_replace('/\s+/', '', trim((string)($_POST['identity_number'] ?? ''))),
-                'identity_issue_date' => trim((string)($_POST['identity_issue_date'] ?? '')),
-                'identity_issue_place' => trim((string)($_POST['identity_issue_place'] ?? '')),
-            ];
-
-            if ($data['identity_number'] !== '' && !preg_match('/^(?:\d{9}|\d{12})$/', $data['identity_number'])) {
-                $error = 'CCCD/CMND phải gồm đúng 9 hoặc 12 chữ số.';
-            } elseif (!$this->isValidDateInput($data['date_of_birth'])) {
-                $error = 'Ngày sinh không đúng định dạng.';
-            } elseif (!$this->isValidDateInput($data['identity_issue_date'])) {
-                $error = 'Ngày cấp CCCD/CMND không đúng định dạng.';
-            }
-
-            if (empty($error)) {
-                UserModel::updateContractInfo($userId, $data);
-                setFlash('tenant_contract_message', 'Đã lưu thông tin hợp đồng.');
-                redirectTo('tenant-contract');
-            }
-
-            $user = array_merge($user, $data);
-        }
-
-        $pageTitle = 'Thông tin hợp đồng - NhaTroA';
-        require_once BASE_PATH . 'views/tenant/contract.php';
-    }
-    
     public function registerService() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('tenant-services');
@@ -423,7 +371,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $notificationId = (int)($_POST['notification_id'] ?? 0);
         $markAll = !empty($_POST['mark_all']);
         $redirectPage = trim((string)($_POST['redirect_page'] ?? 'tenant-notifications'));
-        $redirectAllowed = ['tenant-notifications', 'tenant', 'tenant-services', 'tenant-meter', 'tenant-invoice', 'tenant-profile', 'tenant-contract'];
+        $redirectAllowed = ['tenant-notifications', 'tenant', 'tenant-services', 'tenant-meter', 'tenant-invoice', 'tenant-profile'];
         if (!in_array($redirectPage, $redirectAllowed, true)) {
             $redirectPage = 'tenant-notifications';
         }

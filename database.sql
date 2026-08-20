@@ -152,40 +152,6 @@ INSERT INTO `comment_reports` (`id`, `comment_id`, `user_id`, `reason`, `status`
 	(1, 5, 3, 'Nội dung cần cập nhật thêm thông tin hình ảnh.', 'resolved', '2026-04-02 04:00:00'),
 	(2, 2, 5, 'Đánh giá có thông tin chưa rõ về tiện ích.', 'dismissed', '2026-03-23 01:00:00');
 
--- Dumping structure for table manage.contracts
-DROP TABLE IF EXISTS `contracts`;
-CREATE TABLE IF NOT EXISTS `contracts` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` int unsigned NOT NULL,
-  `room_id` int unsigned NOT NULL,
-  `move_in_date` date NOT NULL,
-  `move_out_date` date DEFAULT NULL,
-  `rent_price` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `deposit_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `initial_electricity_index` decimal(10,2) DEFAULT NULL,
-  `initial_water_index` decimal(10,2) DEFAULT NULL,
-  `status` enum('active','terminated') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
-  `contract_date` date DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_contract_user` (`user_id`),
-  KEY `idx_contract_room` (`room_id`,`status`),
-  KEY `idx_contract_active` (`user_id`,`move_out_date`),
-  CONSTRAINT `fk_contract_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_contract_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Dumping data for table manage.contracts: ~8 rows (approximately)
-INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`, `initial_electricity_index`, `initial_water_index`, `status`, `contract_date`, `created_at`) VALUES
-	(1, 3, 1, '2026-01-15', '2027-01-15', 4500000.00, 4500000.00, 1200.00, 35.00, 'active', '2026-01-10', '2026-01-10 01:00:00'),
-	(2, 4, 2, '2026-01-18', '2027-01-18', 3800000.00, 3800000.00, 980.00, 41.00, 'active', '2026-01-13', '2026-01-13 01:00:00'),
-	(3, 5, 3, '2026-01-20', '2027-01-20', 5200000.00, 5200000.00, 1500.00, 52.00, 'active', '2026-01-15', '2026-01-15 01:00:00'),
-	(4, 6, 4, '2026-02-01', '2027-02-01', 3200000.00, 3200000.00, 730.00, 24.00, 'active', '2026-01-27', '2026-01-27 01:00:00'),
-	(5, 7, 5, '2025-08-01', '2025-12-31', 3900000.00, 7800000.00, 420.00, 18.00, 'terminated', '2025-07-25', '2025-07-25 01:00:00'),
-	(6, 7, 5, '2026-04-10', '2027-04-10', 4000000.00, 4000000.00, NULL, NULL, 'active', '2026-08-15', '2026-08-15 17:57:20'),
-	(8, 17, 8, '2026-08-21', '2027-08-21', 5600000.00, 5600000.00, NULL, NULL, 'active', '2026-08-17', '2026-08-17 19:57:58'),
-	(30, 18, 12, '2026-08-25', '2027-08-25', 3500000.00, 250000.00, NULL, NULL, 'active', '2026-08-18', '2026-08-17 22:06:54');
-
 -- Dumping structure for table manage.feedbacks
 DROP TABLE IF EXISTS `feedbacks`;
 CREATE TABLE IF NOT EXISTS `feedbacks` (
@@ -432,7 +398,6 @@ DROP TABLE IF EXISTS `payments`;
 CREATE TABLE IF NOT EXISTS `payments` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `room_id` int unsigned NOT NULL,
-  `contract_id` int unsigned DEFAULT NULL,
   `user_id` int unsigned DEFAULT NULL,
   `month` tinyint NOT NULL,
   `year` smallint NOT NULL,
@@ -443,19 +408,17 @@ CREATE TABLE IF NOT EXISTS `payments` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_room_period` (`room_id`,`month`,`year`),
   KEY `fk_pay_user` (`user_id`),
-  KEY `fk_pay_contract` (`contract_id`),
-  CONSTRAINT `fk_pay_contract` FOREIGN KEY (`contract_id`) REFERENCES `contracts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_pay_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_pay_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.payments: ~5 rows (approximately)
-INSERT INTO `payments` (`id`, `room_id`, `contract_id`, `user_id`, `month`, `year`, `amount`, `status`, `paid_at`, `created_at`) VALUES
-	(1, 1, 1, 3, 3, 2026, 621000.00, 'paid', '2026-03-05 03:00:00', '2026-03-01 01:00:00'),
-	(2, 2, 2, 4, 3, 2026, 462500.00, 'paid', '2026-03-06 03:30:00', '2026-03-01 01:05:00'),
-	(3, 3, 3, 5, 3, 2026, 701000.00, 'unpaid', NULL, '2026-03-01 01:10:00'),
-	(4, 4, 4, 6, 3, 2026, 417000.00, 'paid', '2026-03-07 02:00:00', '2026-03-01 01:15:00'),
-	(5, 1, 1, 3, 4, 2026, 649000.00, 'unpaid', NULL, '2026-04-01 01:00:00');
+INSERT INTO `payments` (`id`, `room_id`, `user_id`, `month`, `year`, `amount`, `status`, `paid_at`, `created_at`) VALUES
+	(1, 1, 3, 3, 2026, 621000.00, 'paid', '2026-03-05 03:00:00', '2026-03-01 01:00:00'),
+	(2, 2, 4, 3, 2026, 462500.00, 'paid', '2026-03-06 03:30:00', '2026-03-01 01:05:00'),
+	(3, 3, 5, 3, 2026, 701000.00, 'unpaid', NULL, '2026-03-01 01:10:00'),
+	(4, 4, 6, 3, 2026, 417000.00, 'paid', '2026-03-07 02:00:00', '2026-03-01 01:15:00'),
+	(5, 1, 3, 4, 2026, 649000.00, 'unpaid', NULL, '2026-04-01 01:00:00');
 
 -- Dumping structure for table manage.payment_items
 DROP TABLE IF EXISTS `payment_items`;
@@ -819,11 +782,6 @@ CREATE TABLE IF NOT EXISTS `users` (
   `avatar` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'default.png',
   `role` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1=Admin, 0=Tenant',
   `room_id` int unsigned DEFAULT NULL COMMENT 'Phòng đang ở',
-  `date_of_birth` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `permanent_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_issue_date` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
-  `identity_issue_place` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Mã hóa AES',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_email` (`email`),
@@ -833,16 +791,16 @@ CREATE TABLE IF NOT EXISTS `users` (
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.users: ~9 rows (approximately)
-INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, `role`, `room_id`, `date_of_birth`, `permanent_address`, `identity_number`, `identity_issue_date`, `identity_issue_place`, `created_at`) VALUES
-	(1, 'Nguyễn Minh Anh', 'admin@nhatroxanh.vn', '0901000001', '$2y$10$jxpuLl0bJGI6Zor8PcekH.J2hcqtNMJ1GRITyo/c1yGYBfJmHb2iy', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:00:00'),
-	(2, 'Trần Quốc Huy', 'manager@nhatroxanh.vn', '0901000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 1, NULL, NULL, NULL, NULL, NULL, NULL, '2026-01-05 02:05:00'),
-	(3, 'Phạm Gia Bảo', 'tenant01@example.com', '0912000001', '$2y$10$w67nsPC8.rgazBKwq/mS5.Z5G2fiPAJuKNXWkpZt/KSi6/7hhdSYq', 'default.png', 0, 1, NULL, NULL, NULL, NULL, NULL, '2026-01-08 03:00:00'),
-	(4, 'Nguyễn Thùy Linh', 'tenant02@example.com', '0912000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 2, NULL, NULL, NULL, NULL, NULL, '2026-01-09 03:00:00'),
-	(5, 'Lê Hoàng Nam', 'tenant03@example.com', '0912000003', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 3, NULL, NULL, NULL, NULL, NULL, '2026-01-10 03:00:00'),
-	(6, 'Đỗ Khánh Vy', 'tenant04@example.com', '0912000004', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 4, NULL, NULL, NULL, NULL, NULL, '2026-01-11 03:00:00'),
-	(7, 'Vũ Đức Long', 'tenant05@example.com', '0912000005', '$2y$10$qGAR8FMJYgK4IdKkvkyZcuXba.z0jAN/7EUZOAu/dcZWHFMx65O7e', 'default.png', 0, 5, NULL, NULL, NULL, NULL, NULL, '2026-01-12 03:00:00'),
-	(17, 'Lương Văn Dũng', 'dungls2k7@gmail.com', '0328528757', '$2y$10$cnKr3wWrDfTzOLaomr4q/.UCwlszc8VQ5a8KSgMk/Tcd54WEm1khS', 'default.png', 0, 8, NULL, NULL, NULL, NULL, NULL, '2026-08-17 19:55:24'),
-	(18, 'Lương Văn Dũng', 'giagiong001@gmail.com', '0328528758', '$2y$10$YqWw1foeQYfUuNbJYWb3mOU/.fyUEVuV7E78AafMTTvBXIYcwe1oC', 'default.png', 0, 12, NULL, NULL, NULL, NULL, NULL, '2026-08-17 20:14:16');
+INSERT INTO `users` (`id`, `full_name`, `email`, `phone`, `password`, `avatar`, `role`, `room_id`, `created_at`) VALUES
+	(1, 'Nguyễn Minh Anh', 'admin@nhatroxanh.vn', '0901000001', '$2y$10$jxpuLl0bJGI6Zor8PcekH.J2hcqtNMJ1GRITyo/c1yGYBfJmHb2iy', 'default.png', 1, NULL, '2026-01-05 02:00:00'),
+	(2, 'Trần Quốc Huy', 'manager@nhatroxanh.vn', '0901000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 1, NULL, '2026-01-05 02:05:00'),
+	(3, 'Phạm Gia Bảo', 'tenant01@example.com', '0912000001', '$2y$10$w67nsPC8.rgazBKwq/mS5.Z5G2fiPAJuKNXWkpZt/KSi6/7hhdSYq', 'default.png', 0, 1, '2026-01-08 03:00:00'),
+	(4, 'Nguyễn Thùy Linh', 'tenant02@example.com', '0912000002', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 2, '2026-01-09 03:00:00'),
+	(5, 'Lê Hoàng Nam', 'tenant03@example.com', '0912000003', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 3, '2026-01-10 03:00:00'),
+	(6, 'Đỗ Khánh Vy', 'tenant04@example.com', '0912000004', '$2y$10$1.VoSqP8VJEtMUmFMwj1Iu7j./IuoZZptrwlYBQVXB55Y/eWDszhO', 'default.png', 0, 4, '2026-01-11 03:00:00'),
+	(7, 'Vũ Đức Long', 'tenant05@example.com', '0912000005', '$2y$10$qGAR8FMJYgK4IdKkvkyZcuXba.z0jAN/7EUZOAu/dcZWHFMx65O7e', 'default.png', 0, 5, '2026-01-12 03:00:00'),
+	(17, 'Lương Văn Dũng', 'dungls2k7@gmail.com', '0328528757', '$2y$10$cnKr3wWrDfTzOLaomr4q/.UCwlszc8VQ5a8KSgMk/Tcd54WEm1khS', 'default.png', 0, 8, '2026-08-17 19:55:24'),
+	(18, 'Lương Văn Dũng', 'giagiong001@gmail.com', '0328528758', '$2y$10$YqWw1foeQYfUuNbJYWb3mOU/.fyUEVuV7E78AafMTTvBXIYcwe1oC', 'default.png', 0, 12, '2026-08-17 20:14:16');
 
 -- Dumping structure for table manage.user_services
 DROP TABLE IF EXISTS `user_services`;

@@ -41,8 +41,7 @@ trait AdminSystemTrait
             }
         }
 
-        // Danh sách người đang thuê = các hợp đồng active trong phòng đang thuê.
-        // Đếm theo từng người ở (1 hợp đồng = 1 người), không theo distinct user.
+        // Danh sách người đang thuê = các tenant đang được gán phòng thuê.
         $rentedRoomIdSet = [];
         foreach ($allRooms as $room) {
             if (($room['status'] ?? '') === 'rented') {
@@ -50,11 +49,15 @@ trait AdminSystemTrait
             }
         }
         $occupantsList = array_values(array_filter(
-            ContractModel::getAll(['status' => 'active']),
-            static function ($contract) use ($rentedRoomIdSet) {
-                return !empty($contract['room_name']) && isset($rentedRoomIdSet[(int)($contract['room_id'] ?? 0)]);
+            $tenantRows,
+            static function ($user) use ($rentedRoomIdSet) {
+                return !empty($user['room_id']) && isset($rentedRoomIdSet[(int)($user['room_id'] ?? 0)]);
             }
         ));
+        foreach ($occupantsList as &$occupant) {
+            $occupant['area_name'] = $occupant['building_name'] ?? null;
+        }
+        unset($occupant);
 
         $tenantsWithRooms = array_values(array_filter(
             $tenantRows,

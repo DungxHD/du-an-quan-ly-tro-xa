@@ -71,9 +71,9 @@ class RoomController extends BaseController {
             redirectTo('detail', ['id' => (int)$id]);
         }
 
-        // Chặn tài khoản đã có phòng/hợp đồng đang thuê không được thuê thêm phòng khác
+        // Chặn tài khoản đã có phòng đang thuê không được thuê thêm phòng khác
         $currentUser = UserModel::getById($userId);
-        if (!empty($currentUser['room_id']) || ContractModel::getActiveByUserId($userId)) {
+        if (!empty($currentUser['room_id'])) {
             setFlash('rent_error', 'Tài khoản của bạn đang thuê phòng khác, không thể gửi yêu cầu thuê thêm phòng.');
             redirectTo('rooms');
         }
@@ -150,8 +150,9 @@ class RoomController extends BaseController {
             setFlash('rent_error', 'Phòng trong yêu cầu không còn tồn tại.');
             redirectTo('rooms');
         }
-        if (ContractModel::getActiveByUserId($userId)) {
-            setFlash('rent_error', 'Bạn đã có hợp đồng đang hoạt động, không thể xác nhận thêm phòng.');
+        $existingUser = UserModel::getById($userId);
+        if (!empty($existingUser['room_id'])) {
+            setFlash('rent_error', 'Bạn đã có phòng đang thuê, không thể xác nhận thêm phòng.');
             redirectTo('rooms');
         }
 
@@ -168,18 +169,7 @@ class RoomController extends BaseController {
             $deposit = (float)($room['price'] ?? 0);
         }
         try {
-            ContractModel::create([
-                'user_id' => $userId,
-                'room_id' => $roomId,
-                'move_in_date' => $moveInDate,
-                'rent_price' => (float)($room['price'] ?? 0),
-                'deposit_amount' => $deposit,
-                'initial_electricity_index' => null,
-                'initial_water_index' => null,
-                'contract_date' => date('Y-m-d'),
-            ]);
-            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
-            ContractModel::syncRoomStatus($roomId);
+            UserModel::assignToRoom($userId, $roomId);
             RentalRequestModel::markPaid($requestId);
 
             $currentUser = UserModel::getById($userId);

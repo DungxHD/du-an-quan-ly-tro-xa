@@ -17,7 +17,7 @@ class HomeController extends BaseController {
                     'text' => 'Website trình bày rõ phòng, giá thuê, tiện ích và thời điểm có thể vào ở để người xem so sánh nhanh hơn.',
                 ],
                 [
-                    'icon' => 'contract',
+                    'icon' => 'contact_phone',
                     'title' => 'Xem phòng rồi liên hệ trực tiếp',
                     'text' => 'Người thuê có thể xem trước khu nhà phù hợp rồi mới liên hệ với chủ trọ, thay vì phải hỏi từng thông tin nhỏ lẻ.',
                 ],

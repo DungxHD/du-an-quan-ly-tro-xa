@@ -3,7 +3,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
 $panelActive = 'tenants';
 $panelTitle = $siteName . ' Admin';
-$panelSubtitle = 'Quản lý người thuê và tạo hợp đồng';
+$panelSubtitle = 'Quản lý người thuê và gán phòng';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
 require BASE_PATH . 'views/layouts/panel_header.php';
 
@@ -23,16 +23,16 @@ $formatMoney = static function ($value) {
 
 $tenantCount = count($tenants);
 $tenantWithoutRoom = count(array_filter($tenants, static fn($tenant) => empty($tenant['room_id'])));
-$activeContractCount = count($activeContractsByUserId);
+$tenantWithRoom = $tenantCount - $tenantWithoutRoom;
 
 /**
- * Danh sách tài khoản CHƯA gán phòng (không room_id, không hợp đồng active)
+ * Danh sách tài khoản CHƯA gán phòng (không room_id)
  * để ô tìm kiếm ở form gán phòng chỉ hiện nhóm có thể gán.
  */
 $assignableTenants = [];
 foreach ($tenants as $assignableTenant) {
     $assignableId = (int)($assignableTenant['id'] ?? 0);
-    if (empty($assignableTenant['room_id']) && !isset($activeContractsByUserId[$assignableId])) {
+    if (empty($assignableTenant['room_id'])) {
         $assignableTenants[] = [
             'id' => $assignableId,
             'name' => (string)($assignableTenant['full_name'] ?? ''),
@@ -46,13 +46,8 @@ foreach ($tenants as $assignableTenant) {
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <h2 class="text-3xl font-bold text-gray-900">Quản lý Người thuê</h2>
-                    <p class="text-gray-500 mt-2">Tạo hợp đồng ngay khi gán tenant vào phòng để dữ liệu cư trú và giá thuê luôn đồng bộ.</p>
+                    <p class="text-gray-500 mt-2">Gán tenant vào phòng để dữ liệu cư trú và trạng thái phòng luôn đồng bộ.</p>
                 </div>
-                <a href="<?= BASE_URL ?>?page=admin-contracts"
-                   class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition">
-                    <span class="material-symbols-outlined text-base">description</span>
-                    Xem toàn bộ hợp đồng
-                </a>
             </div>
 
             <?php if (!empty($tenantMessage)): ?>
@@ -78,12 +73,12 @@ foreach ($tenants as $assignableTenant) {
                 <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                     <p class="text-sm text-gray-500">Chưa có phòng</p>
                     <p class="text-3xl font-bold text-amber-600 mt-2"><?= (int)$tenantWithoutRoom ?></p>
-                    <p class="text-sm text-gray-500 mt-2">Nhóm này có thể gán phòng và tạo hợp đồng mới ngay.</p>
+                    <p class="text-sm text-gray-500 mt-2">Nhóm này có thể gán phòng mới ngay.</p>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                    <p class="text-sm text-gray-500">Hợp đồng active</p>
-                    <p class="text-3xl font-bold text-primary mt-2"><?= (int)$activeContractCount ?></p>
-                    <p class="text-sm text-gray-500 mt-2">Tenant đang có hợp đồng hiệu lực sẽ bị khóa khỏi form gán mới.</p>
+                    <p class="text-sm text-gray-500">Đang thuê phòng</p>
+                    <p class="text-3xl font-bold text-primary mt-2"><?= (int)$tenantWithRoom ?></p>
+                    <p class="text-sm text-gray-500 mt-2">Tenant đang ở phòng sẽ bị khóa khỏi form gán mới.</p>
                 </div>
             </div>
 
@@ -94,7 +89,7 @@ foreach ($tenants as $assignableTenant) {
                             <span class="material-symbols-outlined">person_add</span>
                             Gán người thuê vào phòng
                         </h3>
-                        <p class="text-white/85 text-sm">Một lần submit sẽ đồng thời tạo hợp đồng `active`, cập nhật `users.room_id` và đồng bộ trạng thái phòng theo sức chứa.</p>
+                        <p class="text-white/85 text-sm">Một lần submit sẽ cập nhật `users.room_id` và đồng bộ trạng thái phòng theo sức chứa.</p>
                     </div>
 
                     <form method="POST" action="<?= BASE_URL ?>?page=admin-add-tenant" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -129,66 +124,11 @@ foreach ($tenants as $assignableTenant) {
                             </select>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Ngày vào ở</label>
-                            <input type="date"
-                                   name="move_in_date"
-                                   value="<?= e($assignmentForm['move_in_date'] ?? '') ?>"
-                                   required
-                                   class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Giá thuê trong hợp đồng</label>
-                            <input type="number"
-                                   name="rent_price"
-                                   min="0"
-                                   step="1000"
-                                   value="<?= e($assignmentForm['rent_price'] ?? '') ?>"
-                                   required
-                                   placeholder="Ví dụ: 1800000"
-                                   class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Tiền cọc</label>
-                            <input type="number"
-                                   name="deposit_amount"
-                                   min="0"
-                                   step="1000"
-                                   value="<?= e($assignmentForm['deposit_amount'] ?? '') ?>"
-                                   required
-                                   placeholder="Ví dụ: 2000000"
-                                   class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Chỉ số điện đầu kỳ</label>
-                            <input type="number"
-                                   name="initial_electricity_index"
-                                   min="0"
-                                   step="0.01"
-                                   value="<?= e($assignmentForm['initial_electricity_index'] ?? '') ?>"
-                                   placeholder="Có thể để trống"
-                                   class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Chỉ số nước đầu kỳ</label>
-                            <input type="number"
-                                   name="initial_water_index"
-                                   min="0"
-                                   step="0.01"
-                                   value="<?= e($assignmentForm['initial_water_index'] ?? '') ?>"
-                                   placeholder="Có thể để trống"
-                                   class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                        </div>
-
                         <div class="md:col-span-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-2">
-                            <p class="text-sm text-white/80">Tenant đã có hợp đồng active hoặc đang có phòng sẽ không được phép gán mới để tránh trùng dữ liệu cư trú.</p>
+                            <p class="text-sm text-white/80">Tenant đang có phòng sẽ không được phép gán mới để tránh trùng dữ liệu cư trú.</p>
                             <button type="submit" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-primary rounded-xl font-bold hover:bg-gray-100 transition">
                                 <span class="material-symbols-outlined text-base">library_add</span>
-                                Tạo hợp đồng và gán phòng
+                                Gán phòng cho tenant
                             </button>
                         </div>
                     </form>
@@ -205,8 +145,8 @@ foreach ($tenants as $assignableTenant) {
 
                     <div class="space-y-4 text-sm">
                         <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                            <p class="font-semibold text-gray-900">1. Tenant không được có hợp đồng active trùng</p>
-                            <p class="text-gray-500 mt-1">Model chặn ký đè để tránh trường hợp một tenant ở 2 phòng cùng lúc.</p>
+                            <p class="font-semibold text-gray-900">1. Tenant không được có phòng trùng</p>
+                            <p class="text-gray-500 mt-1">Model chặn gán đè để tránh trường hợp một tenant ở 2 phòng cùng lúc.</p>
                         </div>
                         <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">
                             <p class="font-semibold text-gray-900">2. Phòng chỉ nhận khi còn chỗ</p>
@@ -224,7 +164,7 @@ foreach ($tenants as $assignableTenant) {
                 <div class="p-6 border-b border-gray-100 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                         <h3 class="font-bold text-lg text-gray-900">Danh sách tenant</h3>
-                        <p class="text-sm text-gray-500 mt-1">Bảng này hiển thị trạng thái ở hiện tại và liên kết nhanh sang hợp đồng đang hiệu lực.</p>
+                        <p class="text-sm text-gray-500 mt-1">Bảng này hiển thị trạng thái ở hiện tại của từng tenant.</p>
                     </div>
                     <span class="text-sm text-gray-500">Tổng <?= (int)$tenantCount ?> tenant</span>
                 </div>
@@ -237,7 +177,6 @@ foreach ($tenants as $assignableTenant) {
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Liên hệ</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phòng hiện tại</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Khu / Tầng</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Hợp đồng</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tham gia</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Thao tác</th>
                             </tr>
@@ -246,8 +185,7 @@ foreach ($tenants as $assignableTenant) {
                             <?php foreach ($tenants as $tenant): ?>
                                 <?php
                                 $tenantId = (int)($tenant['id'] ?? 0);
-                                $contract = $activeContractsByUserId[$tenantId] ?? null;
-                                $hasActiveContract = $contract !== null;
+                                $hasRoom = !empty($tenant['room_id']);
                                 $initial = mb_strtoupper(mb_substr((string)($tenant['full_name'] ?? 'T'), 0, 1));
                                 ?>
                             <tr class="hover:bg-gray-50 transition">
@@ -284,31 +222,24 @@ foreach ($tenants as $assignableTenant) {
                                     <p class="text-xs text-gray-500 mt-1"><?= e(fallbackText($tenant['floor_name'] ?? '')) ?></p>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <?php if ($hasActiveContract): ?>
-                                    <div class="space-y-1">
-                                        <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-xs rounded-full font-semibold">
-                                            <span class="material-symbols-outlined text-sm">description</span>
-                                            Hợp đồng active
-                                        </span>
-                                        <p class="text-xs text-gray-500">Ký ngày <?= e($formatDate($contract['contract_date'] ?? '')) ?></p>
-                                    </div>
+                                    <?php if ($hasRoom): ?>
+                                    <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-xs rounded-full font-semibold">
+                                        <span class="material-symbols-outlined text-sm">meeting_room</span>
+                                        Đang ở phòng
+                                    </span>
                                     <?php else: ?>
                                     <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 text-xs rounded-full font-semibold">
                                         <span class="material-symbols-outlined text-sm">pending_actions</span>
-                                        Chưa có hợp đồng
+                                        Chưa có phòng
                                     </span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-500"><?= e($formatDate($tenant['created_at'] ?? '', 'Không rõ')) ?></td>
                                 <td class="px-6 py-4">
-                                    <?php if ($hasActiveContract): ?>
-                                    <a href="<?= BASE_URL ?>?page=admin-view-contract&id=<?= (int)($contract['id'] ?? 0) ?>"
-                                       class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
-                                        <span class="material-symbols-outlined text-base">visibility</span>
-                                        Xem hợp đồng
-                                    </a>
+                                    <?php if ($hasRoom): ?>
+                                    <span class="text-xs text-gray-400">Đã gán phòng</span>
                                     <?php else: ?>
-                                    <span class="text-xs text-gray-400">Dùng form phía trên để tạo mới</span>
+                                    <span class="text-xs text-gray-400">Dùng form phía trên để gán phòng</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -316,7 +247,7 @@ foreach ($tenants as $assignableTenant) {
 
                             <?php if (empty($tenants)): ?>
                             <tr>
-                                <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                                     Chưa có tenant nào trong hệ thống.
                                 </td>
                             </tr>

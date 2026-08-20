@@ -1,17 +1,6 @@
 <?php
 class UserModel {
     /**
-     * Danh sách field hợp đồng cần mã hóa AES ở tầng model.
-     */
-    private const CONTRACT_FIELDS = [
-        'date_of_birth',
-        'permanent_address',
-        'identity_number',
-        'identity_issue_date',
-        'identity_issue_place',
-    ];
-
-    /**
      * Chuẩn hóa số điện thoại về dạng 0xxxxxxxxx.
      * Trả về null nếu không hợp lệ.
      *
@@ -191,24 +180,17 @@ class UserModel {
     }
 
     /**
-     * Lấy danh sách các field hợp đồng nhạy cảm để controller/view dùng thống nhất.
-     */
-    public static function getContractFields() {
-        return self::CONTRACT_FIELDS;
-    }
-
-    /**
-     * Chuẩn hóa record user sau khi đọc ra để mọi nơi luôn nhận được dữ liệu đã giải mã.
+     * Chuẩn hóa record user sau khi đọc ra.
      */
     private static function hydrateUser(array $user) {
         $user['id'] = (int)($user['id'] ?? 0);
         $user['role'] = (int)($user['role'] ?? 0);
         $user['room_id'] = isset($user['room_id']) && $user['room_id'] !== null ? (int)$user['room_id'] : null;
-        return Encryption::decryptFields($user, self::CONTRACT_FIELDS);
+        return $user;
     }
 
     /**
-     * Chuẩn hóa payload trước khi update để field hợp đồng luôn được mã hóa đúng 1 lần.
+     * Chuẩn hóa payload trước khi update.
      */
     private static function prepareUpdatePayload(array $data) {
         if (isset($data['password']) && trim((string)$data['password']) !== '') {
@@ -217,13 +199,7 @@ class UserModel {
             unset($data['password']);
         }
 
-        foreach (self::CONTRACT_FIELDS as $field) {
-            if (array_key_exists($field, $data)) {
-                $data[$field] = trim((string)($data[$field] ?? ''));
-            }
-        }
-
-        return Encryption::encryptFields($data, self::CONTRACT_FIELDS);
+        return $data;
     }
 
     public static function getAll() {
@@ -417,22 +393,10 @@ class UserModel {
     }
 
     /**
-     * Lưu thông tin phục vụ hợp đồng với cơ chế mã hóa AES trước khi ghi DB.
+     * Gán tenant vào phòng (không tạo hợp đồng).
+     * $allowRented = true cho phép gán vào phòng đang thuê (luồng duyệt ở ghép).
      */
-    public static function updateContractInfo($id, array $data) {
-        $payload = [];
-        foreach (self::CONTRACT_FIELDS as $field) {
-            $payload[$field] = trim((string)($data[$field] ?? ''));
-        }
-
-        self::update($id, $payload);
-    }
-    
-    /**
-     * Gán tenant vào phòng và tạo hợp đồng active ngay trong cùng một luồng nghiệp vụ.
-     * Controller chỉ cần truyền payload hợp đồng đã được validate cơ bản.
-     */
-    public static function assignToRoom($userId, $roomId, array $contractData = []) {
+    public static function assignToRoom($userId, $roomId, $allowRented = false) {
         $resolvedUserId = (int)$userId;
         $resolvedRoomId = (int)$roomId;
         $tenant = self::getById($resolvedUserId);
@@ -444,14 +408,11 @@ class UserModel {
         if (!$room) {
             throw new RuntimeException('Phòng được chọn không tồn tại.');
         }
-        if (($room['status'] ?? '') !== 'available') {
-            throw new RuntimeException('Phòng này hiện không mở cho gán hợp đồng mới.');
+        if (($room['status'] ?? '') !== 'available' && !$allowRented) {
+            throw new RuntimeException('Phòng này hiện không mở cho gán người thuê mới.');
         }
         if (!empty($tenant['room_id'])) {
             throw new RuntimeException('Tenant này đang được gán vào một phòng khác.');
-        }
-        if (ContractModel::getActiveByUserId($resolvedUserId)) {
-            throw new RuntimeException('Tenant này đã có hợp đồng còn hiệu lực.');
         }
 
         $currentOccupants = RoomModel::countOccupants($resolvedRoomId);
@@ -460,41 +421,10 @@ class UserModel {
             throw new RuntimeException('Phòng đã đủ sức chứa tối đa.');
         }
 
-        $payload = [
-            'user_id' => $resolvedUserId,
-            'room_id' => $resolvedRoomId,
-            'move_in_date' => trim((string)($contractData['move_in_date'] ?? '')),
-            'rent_price' => (float)($contractData['rent_price'] ?? 0),
-            'deposit_amount' => (float)($contractData['deposit_amount'] ?? 0),
-            'initial_electricity_index' => $contractData['initial_electricity_index'] ?? null,
-            'initial_water_index' => $contractData['initial_water_index'] ?? null,
-            'contract_date' => trim((string)($contractData['contract_date'] ?? '')) ?: date('Y-m-d'),
-        ];
+        Database::update('users', ['room_id' => $resolvedRoomId], 'id = :id', ['id' => $resolvedUserId]);
+        RoomModel::syncRoomStatus($resolvedRoomId);
 
-        $connection = Database::hasConnection() ? Database::getInstance() : null;
-        $useTransaction = $connection instanceof PDO;
-
-        if ($useTransaction) {
-            $connection->beginTransaction();
-        }
-
-        try {
-            $contractId = ContractModel::create($payload);
-            Database::update('users', ['room_id' => $resolvedRoomId], 'id = :id', ['id' => $resolvedUserId]);
-            ContractModel::syncRoomStatus($resolvedRoomId);
-
-            if ($useTransaction) {
-                $connection->commit();
-            }
-
-            return $contractId;
-        } catch (Throwable $exception) {
-            if ($useTransaction && $connection->inTransaction()) {
-                $connection->rollBack();
-            }
-
-            throw $exception;
-        }
+        return true;
     }
     
     public static function countByRole($role) {

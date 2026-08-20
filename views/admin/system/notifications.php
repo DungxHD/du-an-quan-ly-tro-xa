@@ -3,7 +3,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
 $panelActive = 'notifications';
 $panelTitle = $siteName . ' Admin';
-$panelSubtitle = 'Gửi thông báo cho tenant và theo dõi lịch sử đã phát hành';
+$panelSubtitle = 'Gửi thông báo broadcast đến tất cả tenant và theo dõi lịch sử đã phát hành';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
 require BASE_PATH . 'views/layouts/panel_header.php';
 ?>
@@ -11,7 +11,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-bold">Thông báo</h2>
-            <p class="text-gray-500 mt-2">Admin có thể gửi broadcast cho tất cả cư dân hoặc gửi riêng từng tenant. Loại `price_change` sẽ được sinh tự động khi đổi giá dịch vụ.</p>
+            <p class="text-gray-500 mt-2">Admin có thể gửi broadcast cho tất cả tenant.</p>
         </div>
         <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">

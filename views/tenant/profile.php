@@ -12,13 +12,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
                 <div>
                     <h2 class="text-3xl font-bold">Hồ sơ cá nhân</h2>
-                    <p class="text-gray-500 mt-2">Email được khóa cố định. Nếu cần khai báo CCCD và hộ khẩu để làm hợp đồng, chuyển sang mục hợp đồng.</p>
+                    <p class="text-gray-500 mt-2">Cập nhật thông tin cá nhân của bạn.</p>
                 </div>
-                <a href="<?= BASE_URL ?>?page=tenant-contract"
-                   class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition">
-                    <span class="material-symbols-outlined text-base">description</span>
-                    Thông tin hợp đồng
-                </a>
             </div>
             
             <?php if (!empty($success)): ?>
@@ -46,7 +41,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     </div>
                 </div>
                 
-                <!-- Form hồ sơ chỉ xử lý thông tin cơ bản, không trộn với dữ liệu hợp đồng để tránh lưu nhầm. -->
+                <!-- Form hồ sơ chỉ xử lý thông tin cơ bản. -->
                 <form method="POST" data-profile-form class="space-y-5">
 <?= csrf_field() ?>
                     <div>

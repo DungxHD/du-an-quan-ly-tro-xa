@@ -1,12 +1,11 @@
 <?php
 /**
  * CommentModel gom toàn bộ nghiệp vụ đánh giá phòng:
- * - Kiểm tra tenant có đủ điều kiện đánh giá hay không (ở đủ 15 ngày).
+ * - Kiểm tra tenant có đủ điều kiện đánh giá hay không (đang ở trong phòng, đủ số ngày tối thiểu).
  * - Mỗi người chỉ đánh giá mỗi phòng duy nhất một lần.
  * - Sửa đánh giá trong 24h kể từ khi gửi; sau 24h chỉ được xóa.
  */
 class CommentModel {
-    private const REVIEW_WINDOW_DAYS = 15;
 
     /**
      * Lấy cấu hình đánh giá và ép kiểu ngay tại model để controller/view không tự xử lý lẻ tẻ.
@@ -56,7 +55,7 @@ class CommentModel {
 
         $stay = self::getLatestEligibleStay($resolvedUserId, $resolvedRoomId);
         if (!$stay) {
-            return ['allowed' => false, 'message' => 'Chỉ tenant đang ở hoặc vừa chuyển đi trong 15 ngày mới được đánh giá phòng này.'];
+            return ['allowed' => false, 'message' => 'Chỉ tenant đang ở phòng này mới được đánh giá phòng.'];
         }
 
         if (!self::hasReachedMinimumStay(
@@ -508,62 +507,47 @@ class CommentModel {
 
     /**
      * Tìm lần ở gần nhất còn đủ điều kiện đánh giá.
+     * Không còn hợp đồng: chỉ tenant đang được gán trong phòng (users.room_id) mới đủ điều kiện.
      */
     private static function getLatestEligibleStay($userId, $roomId) {
         $resolvedUserId = (int)$userId;
         $resolvedRoomId = (int)$roomId;
-        $boundaryDate = date('Y-m-d', strtotime('-' . self::REVIEW_WINDOW_DAYS . ' days'));
 
         if (Database::hasConnection()) {
-            return Database::fetchOne(
+            $row = Database::fetchOne(
                 "
-                SELECT *
-                FROM contracts
-                WHERE user_id = ?
-                    AND room_id = ?
-                    AND (move_out_date IS NULL OR move_out_date >= ?)
-                ORDER BY
-                    CASE WHEN move_out_date IS NULL THEN 0 ELSE 1 END ASC,
-                    COALESCE(move_out_date, '9999-12-31') DESC,
-                    move_in_date DESC,
-                    id DESC
+                SELECT id, room_id, created_at
+                FROM users
+                WHERE id = ? AND room_id = ?
                 LIMIT 1
                 ",
-                [$resolvedUserId, $resolvedRoomId, $boundaryDate]
+                [$resolvedUserId, $resolvedRoomId]
             );
+        } else {
+            foreach (Database::getTable('users') as $userRow) {
+                if ((int)($userRow['id'] ?? 0) === $resolvedUserId && (int)($userRow['room_id'] ?? 0) === $resolvedRoomId) {
+                    $row = $userRow;
+                    break;
+                }
+            }
+            $row = $row ?? null;
         }
 
-        $rows = array_filter(Database::getTable('contracts'), static function ($row) use ($resolvedUserId, $resolvedRoomId, $boundaryDate) {
-            if ((int)($row['user_id'] ?? 0) !== $resolvedUserId || (int)($row['room_id'] ?? 0) !== $resolvedRoomId) {
-                return false;
-            }
+        if (!$row) {
+            return null;
+        }
 
-            $moveOutDate = $row['move_out_date'] ?? null;
-            return $moveOutDate === null || $moveOutDate === '' || $moveOutDate >= $boundaryDate;
-        });
-
-        usort($rows, static function ($left, $right) {
-            $leftPriority = empty($left['move_out_date']) ? 0 : 1;
-            $rightPriority = empty($right['move_out_date']) ? 0 : 1;
-            if ($leftPriority !== $rightPriority) {
-                return $leftPriority <=> $rightPriority;
-            }
-
-            $dateCompare = strcmp((string)($right['move_out_date'] ?? '9999-12-31'), (string)($left['move_out_date'] ?? '9999-12-31'));
-            if ($dateCompare !== 0) {
-                return $dateCompare;
-            }
-
-            return strcmp((string)($right['move_in_date'] ?? ''), (string)($left['move_in_date'] ?? ''));
-        });
-
-        return !empty($rows) ? array_values($rows)[0] : null;
+        return [
+            'user_id' => $resolvedUserId,
+            'room_id' => $resolvedRoomId,
+            'move_in_date' => (string)($row['created_at'] ?? ''),
+            'move_out_date' => null,
+        ];
     }
 
     /**
      * Kiểm tra tenant đã ở đủ số ngày tối thiểu để được đánh giá chưa.
-     * Hợp đồng còn hạn (move_out_date ở tương lai hoặc rỗng) thì tính đến hôm nay;
-     * chỉ dùng move_out_date khi tenant đã thực sự chuyển đi.
+     * Mốc vào ở lấy từ users.created_at (ngày tạo tài khoản) làm xấp xỉ, tính đến hôm nay.
      */
     private static function hasReachedMinimumStay($moveInDate, $moveOutDate, $minDays) {
         $resolvedMoveIn = trim((string)$moveInDate);

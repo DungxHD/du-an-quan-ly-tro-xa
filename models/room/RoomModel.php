@@ -470,7 +470,7 @@ class RoomModel
 
         if (Database::hasConnection()) {
             $row = Database::fetchOne(
-                "SELECT COUNT(*) AS total FROM contracts WHERE room_id = ? AND status = 'active'",
+                "SELECT COUNT(*) AS total FROM users WHERE room_id = ?",
                 [$roomId]
             );
 
@@ -492,30 +492,54 @@ class RoomModel
     }
 
     /**
-     * Tổng số người đang ở (hợp đồng active) trong các phòng đang thuê (status=rented).
+     * Tổng số người đang ở trong các phòng đang thuê (status=rented).
      * Dùng cho dashboard stats "Người thuê" - tính theo số người thực tế chứ không phải distinct user.
      */
     public static function countTotalOccupantsInRentedRooms()
     {
         if (Database::hasConnection()) {
             $row = Database::fetchOne(
-                "SELECT COUNT(*) AS total FROM contracts c
-                JOIN rooms r ON c.room_id = r.id
-                WHERE c.status = 'active' AND r.status = 'rented'"
+                "SELECT COUNT(*) AS total FROM users u
+                JOIN rooms r ON u.room_id = r.id
+                WHERE r.status = 'rented'"
             );
             return (int)($row['total'] ?? 0);
         }
 
         // Fallback
         $total = 0;
-        foreach (Database::getTable('contracts') as $contract) {
-            if (($contract['status'] ?? '') !== 'active') continue;
-            $room = Database::find('rooms', (int)($contract['room_id'] ?? 0));
+        foreach (Database::getTable('users') as $user) {
+            if (empty($user['room_id'])) continue;
+            $room = Database::find('rooms', (int)($user['room_id'] ?? 0));
             if ($room && ($room['status'] ?? '') === 'rented') {
                 $total++;
             }
         }
         return $total;
+    }
+
+    /**
+     * Đồng bộ trạng thái phòng theo số người đang ở: có người → rented, hết người → available.
+     */
+    public static function syncRoomStatus($roomId)
+    {
+        $roomId = (int)$roomId;
+        if ($roomId <= 0) {
+            return;
+        }
+
+        $room = self::getById($roomId);
+        if (!$room) {
+            return;
+        }
+
+        $occupants = self::countOccupants($roomId);
+        $targetStatus = $occupants > 0 ? 'rented' : 'available';
+        $currentStatus = (string)($room['status'] ?? '');
+
+        if ($currentStatus !== $targetStatus && in_array($currentStatus, ['available', 'rented'], true)) {
+            self::updateStatus($roomId, $targetStatus);
+        }
     }
 
     /**

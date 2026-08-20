@@ -118,28 +118,25 @@ class PaymentModel {
                 'total_amount' => 0.0,
                 'existing_payment' => null,
                 'can_generate' => false,
-                'billing_contract' => null,
             ];
         }
 
         $tenants = self::getRoomTenants((int)($room['id'] ?? 0));
-        $contracts = self::getContractsByRoomAndPeriod((int)($room['id'] ?? 0), $period['month'], $period['year']);
         $existingPayment = self::getPaymentByRoomAndPeriod((int)($room['id'] ?? 0), $period['month'], $period['year']);
-        $billingContract = self::resolveBillingContract($contracts, $room);
         $errors = [];
         $warnings = [];
         $items = [];
         $totalAmount = 0.0;
 
-        if (empty($tenants) && empty($contracts)) {
-            $errors[] = 'Phòng này chưa có người ở hoặc chưa có hợp đồng áp dụng trong kỳ đã chọn.';
+        if (empty($tenants)) {
+            $errors[] = 'Phòng này chưa có người ở.';
         }
 
         if ($existingPayment) {
             $errors[] = 'Đã có hóa đơn tháng này.';
         }
 
-        $rentPrice = self::resolveRoomRentPrice($room, $billingContract, $contracts);
+        $rentPrice = self::resolveRoomRentPrice($room);
         if ($rentPrice <= 0) {
             $errors[] = 'Không xác định được tiền phòng hợp lệ để lập hóa đơn.';
         } else {
@@ -187,8 +184,6 @@ class PaymentModel {
             'period' => $period,
             'room' => $room,
             'tenants' => $tenants,
-            'contracts' => $contracts,
-            'billing_contract' => $billingContract,
             'items' => $items,
             'errors' => array_values(array_unique($errors)),
             'warnings' => array_values(array_unique($warnings)),
@@ -479,6 +474,7 @@ class PaymentModel {
 
     /**
      * Dựng danh sách phòng có thể lập hóa đơn theo kỳ, hỗ trợ lọc khu/tầng.
+     * Chỉ lấy phòng có tenant (user.room_id = room.id).
      */
     private static function getBillableRooms($month, $year, array $filters = []) {
         $rooms = [];
@@ -486,9 +482,8 @@ class PaymentModel {
         foreach (RoomModel::getAll() as $room) {
             $roomId = (int)($room['id'] ?? 0);
             $tenants = self::getRoomTenants($roomId);
-            $contracts = self::getContractsByRoomAndPeriod($roomId, $month, $year);
 
-            if (empty($tenants) && empty($contracts)) {
+            if (empty($tenants)) {
                 continue;
             }
             if (!empty($filters['area_id']) && (int)($room['area_id'] ?? 0) !== (int)$filters['area_id']) {
@@ -505,102 +500,11 @@ class PaymentModel {
     }
 
     /**
-     * Lấy tất cả hợp đồng còn hiệu lực của một phòng trong kỳ để suy ra tiền phòng và danh sách cư dân.
+     * Lấy giá tiền phòng cho hóa đơn: dùng rooms.price (giá niêm yết) vì không còn hợp đồng.
      */
-    private static function getContractsByRoomAndPeriod($roomId, $month, $year) {
-        $resolvedRoomId = (int)$roomId;
-        $period = self::normalizePeriod($month, $year);
-
-        if (Database::hasConnection()) {
-            $rows = Database::fetchAll(
-                "
-                SELECT *
-                FROM contracts
-                WHERE room_id = ?
-                  AND move_in_date <= ?
-                  AND (move_out_date IS NULL OR move_out_date >= ?)
-                ORDER BY move_in_date DESC, id DESC
-                ",
-                [$resolvedRoomId, $period['end_date'], $period['start_date']]
-            );
-
-            return $rows;
-        }
-
-        $rows = array_filter(Database::getTable('contracts'), static function ($contract) use ($resolvedRoomId, $period) {
-            $moveInDate = (string)($contract['move_in_date'] ?? '');
-            $moveOutDate = $contract['move_out_date'] ?? null;
-
-            return (int)($contract['room_id'] ?? 0) === $resolvedRoomId
-                && $moveInDate !== ''
-                && $moveInDate <= $period['end_date']
-                && ($moveOutDate === null || $moveOutDate === '' || $moveOutDate >= $period['start_date']);
-        });
-
-        usort($rows, static function ($left, $right) {
-            $moveInCompare = strcmp((string)($right['move_in_date'] ?? ''), (string)($left['move_in_date'] ?? ''));
-            if ($moveInCompare !== 0) {
-                return $moveInCompare;
-            }
-
-            return (int)($right['id'] ?? 0) <=> (int)($left['id'] ?? 0);
-        });
-
-        return array_values($rows);
+    private static function resolveRoomRentPrice(array $room) {
+        return (float)($room['price'] ?? 0);
     }
-
-    /**
-     * Chọn hợp đồng tham chiếu để snapshot tiền phòng khi schema hiện tại đang lập hóa đơn theo phòng.
-     */
-    private static function resolveBillingContract(array $contracts, array $room) {
-        if (count($contracts) === 1 && (float)($contracts[0]['rent_price'] ?? 0) > 0) {
-            return $contracts[0];
-        }
-
-        if ((float)($room['price'] ?? 0) > 0) {
-            return null;
-        }
-
-        foreach ($contracts as $contract) {
-            if ((float)($contract['rent_price'] ?? 0) > 0) {
-                return $contract;
-            }
-        }
-
-        return null;
-    }
-
-/**
- * Chốt giá tiền phòng theo rule:
- * 1. Nếu có hợp đồng active → tổng rent_price của tất cả hợp đồng.
- * 2. Nếu không có hợp đồng → fallback về rooms.price.
- * 
- * Lý do: Hợp đồng là SSOT. rooms.price chỉ là giá niêm yết,
- * không phản ánh thỏa thuận thực tế với từng tenant.
- */
-private static function resolveRoomRentPrice(array $room, $billingContract, array $contracts) {
-    // Ưu tiên 1: Tổng rent_price từ tất cả hợp đồng active trong kỳ
-    $totalContractPrice = 0.0;
-    $hasActiveContract = false;
-    foreach ($contracts as $contract) {
-        $rentPrice = (float)($contract['rent_price'] ?? 0);
-        if ($rentPrice > 0) {
-            $totalContractPrice += $rentPrice;
-            $hasActiveContract = true;
-        }
-    }
-    if ($hasActiveContract && $totalContractPrice > 0) {
-        return $totalContractPrice;
-    }
-
-    // Ưu tiên 2: Fallback về giá niêm yết của phòng
-    $roomPrice = (float)($room['price'] ?? 0);
-    if ($roomPrice > 0) {
-        return $roomPrice;
-    }
-
-    return 0.0;
-}
 
     /**
      * Gom các dịch vụ theo phòng cần được đưa vào hóa đơn tháng.
@@ -765,7 +669,6 @@ private static function resolveRoomRentPrice(array $room, $billingContract, arra
 
         $paymentId = (int)Database::insert('payments', [
             'room_id' => $roomId,
-            'contract_id' => !empty($preview['billing_contract']['id']) ? (int)$preview['billing_contract']['id'] : null,
             'user_id' => null,
             'month' => (int)($period['month'] ?? date('n')),
             'year' => (int)($period['year'] ?? date('Y')),
@@ -950,7 +853,6 @@ private static function resolveRoomRentPrice(array $room, $billingContract, arra
             'id' => (int)($normalized['id'] ?? 0),
             'room_id' => (int)($normalized['room_id'] ?? 0),
             'room' => $room,
-            'contract_id' => !empty($normalized['contract_id']) ? (int)$normalized['contract_id'] : null,
             'user_id' => !empty($normalized['user_id']) ? (int)$normalized['user_id'] : null,
             'payer' => $payer,
             'tenants' => $tenants,
@@ -974,7 +876,6 @@ private static function resolveRoomRentPrice(array $room, $billingContract, arra
         return [
             'id' => (int)($row['id'] ?? 0),
             'room_id' => (int)($row['room_id'] ?? 0),
-            'contract_id' => isset($row['contract_id']) && $row['contract_id'] !== null ? (int)$row['contract_id'] : null,
             'user_id' => isset($row['user_id']) && $row['user_id'] !== null ? (int)$row['user_id'] : null,
             'month' => (int)($row['month'] ?? 0),
             'year' => (int)($row['year'] ?? 0),

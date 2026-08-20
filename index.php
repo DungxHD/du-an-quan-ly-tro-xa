@@ -193,7 +193,6 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'invoice', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=tenant-invoice'],
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=tenant-notifications'],
             ['id' => 'profile', 'label' => 'Hồ sơ', 'icon' => 'person', 'url' => BASE_URL . '?page=tenant-profile'],
-            ['id' => 'contract', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=tenant-contract'],
             ['id' => 'roommate', 'label' => 'Ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=tenant-roommate'],
             ['id' => 'feedback', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=tenant-feedback'],
 
@@ -463,10 +462,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->addTenant();
         break;
-    case 'admin-contracts':
-        requireAdmin();
-        (new AdminController())->contracts();
-        break;
     case 'admin-notifications':
         requireAdmin();
         (new AdminController())->notifications();
@@ -488,14 +483,6 @@ switch ($page) {
         (new AdminController())->resolveFeedback();
         break;
     case 'admin-invoices':
-        requireAdmin();
-        redirectTo('admin-meter-readings');
-        break;
-    case 'admin-view-contract':
-        requireAdmin();
-        (new AdminController())->viewContract($id);
-        break;
-    case 'admin-generate-invoice':
         requireAdmin();
         (new AdminController())->generateInvoice();
         break;
@@ -531,10 +518,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->toggleComment();
         break;
-    case 'admin-terminate-contract':
-        requireAdmin();
-        (new AdminController())->terminateContract($id);
-        break;
     case 'admin-stats':
         requireAdmin();
         (new AdminController())->stats();
@@ -562,10 +545,6 @@ switch ($page) {
     case 'tenant-profile':
         requireTenant();
         (new TenantController())->profile();
-        break;
-    case 'tenant-contract':
-        requireTenant();
-        (new TenantController())->contract();
         break;
     case 'tenant-register-service':
         requireTenant();

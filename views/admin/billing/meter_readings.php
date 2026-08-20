@@ -220,9 +220,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             </td>
                             <td class="px-4 py-4 align-top">
                                 <p class="font-medium text-gray-800"><?= e(($row['area_name'] ?? 'Chưa có khu') . ' • ' . ($row['floor_name'] ?? 'Chưa có tầng')) ?></p>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    Hợp đồng từ <?= e(!empty($row['contract_move_in_date']) ? date('d/m/Y', strtotime((string)$row['contract_move_in_date'])) : 'Chưa rõ') ?>
-                                </p>
+                                <p class="text-xs text-gray-500 mt-1">Phòng đang thuê</p>
                             </td>
 
                             <?php foreach ($meterServices as $service): ?>
