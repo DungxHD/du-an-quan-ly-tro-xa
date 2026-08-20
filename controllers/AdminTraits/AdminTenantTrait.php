@@ -36,8 +36,6 @@ trait AdminTenantTrait
             'move_in_date' => date('Y-m-d'),
             'rent_price' => '',
             'deposit_amount' => '',
-            'initial_electricity_index' => '',
-            'initial_water_index' => '',
         ], is_array($oldTenantAssignment) ? $oldTenantAssignment : []);
 
         $pageTitle = 'Quản lý Người thuê - NhaTroA';
@@ -132,17 +130,12 @@ trait AdminTenantTrait
      */
     private function normalizeTenantAssignmentInput(array $source)
     {
-        $electricityIndex = trim((string)($source['initial_electricity_index'] ?? ''));
-        $waterIndex = trim((string)($source['initial_water_index'] ?? ''));
-
         return [
             'user_id' => (int)($source['user_id'] ?? 0),
             'room_id' => (int)($source['room_id'] ?? 0),
             'move_in_date' => trim((string)($source['move_in_date'] ?? '')),
             'rent_price' => (float)($source['rent_price'] ?? 0),
             'deposit_amount' => (float)($source['deposit_amount'] ?? 0),
-            'initial_electricity_index' => $electricityIndex === '' ? null : (float)$electricityIndex,
-            'initial_water_index' => $waterIndex === '' ? null : (float)$waterIndex,
             'contract_date' => date('Y-m-d'),
         ];
     }
@@ -163,8 +156,6 @@ trait AdminTenantTrait
             'move_in_date' => $payload['move_in_date'],
             'rent_price' => $_POST['rent_price'] ?? '',
             'deposit_amount' => $_POST['deposit_amount'] ?? '',
-            'initial_electricity_index' => $_POST['initial_electricity_index'] ?? '',
-            'initial_water_index' => $_POST['initial_water_index'] ?? '',
         ];
 
         if ($payload['user_id'] <= 0) {
@@ -196,16 +187,6 @@ trait AdminTenantTrait
 
         if ($payload['deposit_amount'] < 0) {
             setFlash('admin_tenant_error', 'Tiền cọc không được nhỏ hơn 0.');
-            setFlash('admin_tenant_old', $oldInput);
-            redirectTo('admin-tenants');
-        }
-        if ($payload['initial_electricity_index'] !== null && $payload['initial_electricity_index'] < 0) {
-            setFlash('admin_tenant_error', 'Chỉ số điện đầu kỳ không được nhỏ hơn 0.');
-            setFlash('admin_tenant_old', $oldInput);
-            redirectTo('admin-tenants');
-        }
-        if ($payload['initial_water_index'] !== null && $payload['initial_water_index'] < 0) {
-            setFlash('admin_tenant_error', 'Chỉ số nước đầu kỳ không được nhỏ hơn 0.');
             setFlash('admin_tenant_old', $oldInput);
             redirectTo('admin-tenants');
         }
@@ -413,8 +394,6 @@ trait AdminTenantTrait
                 'move_in_date' => $moveInDate,
                 'rent_price' => (float)($room['price'] ?? 0),
                 'deposit_amount' => (float)($room['price'] ?? 0),
-                'initial_electricity_index' => null,
-                'initial_water_index' => null,
                 'contract_date' => date('Y-m-d'),
             ]);
             Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
@@ -603,8 +582,6 @@ trait AdminTenantTrait
                 'move_in_date' => $moveInDate,
                 'rent_price' => (float)($room['price'] ?? 0),
                 'deposit_amount' => $deposit,
-                'initial_electricity_index' => null,
-                'initial_water_index' => null,
                 'contract_date' => date('Y-m-d'),
             ]);
             Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
@@ -695,8 +672,6 @@ trait AdminTenantTrait
                 'move_in_date' => date('Y-m-d'),
                 'rent_price' => (float)($room['price'] ?? 0),
                 'deposit_amount' => (float)($room['price'] ?? 0),
-                'initial_electricity_index' => null,
-                'initial_water_index' => null,
                 'contract_date' => date('Y-m-d'),
             ]);
             Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $requesterId]);

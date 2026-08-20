@@ -162,8 +162,6 @@ CREATE TABLE IF NOT EXISTS `contracts` (
   `move_out_date` date DEFAULT NULL,
   `rent_price` decimal(10,2) NOT NULL DEFAULT '0.00',
   `deposit_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `initial_electricity_index` decimal(10,2) DEFAULT NULL,
-  `initial_water_index` decimal(10,2) DEFAULT NULL,
   `status` enum('active','terminated') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `contract_date` date DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -176,15 +174,15 @@ CREATE TABLE IF NOT EXISTS `contracts` (
 ) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table manage.contracts: ~8 rows (approximately)
-INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`, `initial_electricity_index`, `initial_water_index`, `status`, `contract_date`, `created_at`) VALUES
-	(1, 3, 1, '2026-01-15', '2027-01-15', 4500000.00, 4500000.00, 1200.00, 35.00, 'active', '2026-01-10', '2026-01-10 01:00:00'),
-	(2, 4, 2, '2026-01-18', '2027-01-18', 3800000.00, 3800000.00, 980.00, 41.00, 'active', '2026-01-13', '2026-01-13 01:00:00'),
-	(3, 5, 3, '2026-01-20', '2027-01-20', 5200000.00, 5200000.00, 1500.00, 52.00, 'active', '2026-01-15', '2026-01-15 01:00:00'),
-	(4, 6, 4, '2026-02-01', '2027-02-01', 3200000.00, 3200000.00, 730.00, 24.00, 'active', '2026-01-27', '2026-01-27 01:00:00'),
-	(5, 7, 5, '2025-08-01', '2025-12-31', 3900000.00, 7800000.00, 420.00, 18.00, 'terminated', '2025-07-25', '2025-07-25 01:00:00'),
-	(6, 7, 5, '2026-04-10', '2027-04-10', 4000000.00, 4000000.00, NULL, NULL, 'active', '2026-08-15', '2026-08-15 17:57:20'),
-	(8, 17, 8, '2026-08-21', '2027-08-21', 5600000.00, 5600000.00, NULL, NULL, 'active', '2026-08-17', '2026-08-17 19:57:58'),
-	(30, 18, 12, '2026-08-25', '2027-08-25', 3500000.00, 250000.00, NULL, NULL, 'active', '2026-08-18', '2026-08-17 22:06:54');
+INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`, `status`, `contract_date`, `created_at`) VALUES
+	(1, 3, 1, '2026-01-15', '2027-01-15', 4500000.00, 4500000.00, 'active', '2026-01-10', '2026-01-10 01:00:00'),
+	(2, 4, 2, '2026-01-18', '2027-01-18', 3800000.00, 3800000.00, 'active', '2026-01-13', '2026-01-13 01:00:00'),
+	(3, 5, 3, '2026-01-20', '2027-01-20', 5200000.00, 5200000.00, 'active', '2026-01-15', '2026-01-15 01:00:00'),
+	(4, 6, 4, '2026-02-01', '2027-02-01', 3200000.00, 3200000.00, 'active', '2026-01-27', '2026-01-27 01:00:00'),
+	(5, 7, 5, '2025-08-01', '2025-12-31', 3900000.00, 7800000.00, 'terminated', '2025-07-25', '2025-07-25 01:00:00'),
+	(6, 7, 5, '2026-04-10', '2027-04-10', 4000000.00, 4000000.00, 'active', '2026-08-15', '2026-08-15 17:57:20'),
+	(8, 17, 8, '2026-08-21', '2027-08-21', 5600000.00, 5600000.00, 'active', '2026-08-17', '2026-08-17 19:57:58'),
+	(30, 18, 12, '2026-08-25', '2027-08-25', 3500000.00, 250000.00, 'active', '2026-08-18', '2026-08-17 22:06:54');
 
 -- Dumping structure for table manage.feedbacks
 DROP TABLE IF EXISTS `feedbacks`;
@@ -264,35 +262,6 @@ INSERT INTO `maintenance_requests` (`id`, `room_id`, `admin_id`, `reason`, `dura
 	(2, 3, 2, 'Bảo trì điều hòa và vệ sinh lưới lọc định kỳ.', 1, '2026-04-08', 'active', NULL, '2026-04-06 03:00:00', '2026-04-08 01:00:00'),
 	(3, 4, 1, 'Kiểm tra ổ điện bàn học và thay ổ cắm bị lỏng.', 1, '2026-04-12', 'rejected', 6, '2026-04-10 02:30:00', '2026-04-10 08:00:00'),
 	(4, 5, 2, 'Kiểm tra quạt thông gió nhà vệ sinh.', 1, '2026-04-14', 'active', NULL, '2026-04-12 03:00:00', '2026-08-15 18:44:32');
-
--- Dumping structure for table manage.meter_readings
-DROP TABLE IF EXISTS `meter_readings`;
-CREATE TABLE IF NOT EXISTS `meter_readings` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `room_id` int unsigned NOT NULL,
-  `service_id` int unsigned NOT NULL,
-  `month` tinyint NOT NULL,
-  `year` smallint NOT NULL,
-  `old_index` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `new_index` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_meter_period` (`room_id`,`service_id`,`month`,`year`),
-  KEY `fk_mr_service` (`service_id`),
-  CONSTRAINT `fk_mr_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_mr_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Dumping data for table manage.meter_readings: ~8 rows (approximately)
-INSERT INTO `meter_readings` (`id`, `room_id`, `service_id`, `month`, `year`, `old_index`, `new_index`, `created_at`) VALUES
-	(1, 1, 1, 2, 2026, 1200.00, 1320.00, '2026-03-01 01:00:00'),
-	(2, 1, 1, 3, 2026, 1320.00, 1448.00, '2026-04-01 01:00:00'),
-	(3, 2, 1, 2, 2026, 980.00, 1075.00, '2026-03-01 01:05:00'),
-	(4, 2, 1, 3, 2026, 1075.00, 1168.00, '2026-04-01 01:05:00'),
-	(5, 3, 1, 2, 2026, 1500.00, 1632.00, '2026-03-01 01:10:00'),
-	(6, 3, 1, 3, 2026, 1632.00, 1770.00, '2026-04-01 01:10:00'),
-	(7, 4, 1, 2, 2026, 730.00, 812.00, '2026-03-01 01:15:00'),
-	(8, 4, 1, 3, 2026, 812.00, 901.00, '2026-04-01 01:15:00');
 
 -- Dumping structure for table manage.notifications
 DROP TABLE IF EXISTS `notifications`;
@@ -467,7 +436,7 @@ CREATE TABLE IF NOT EXISTS `payment_items` (
   `unit_price` decimal(10,2) NOT NULL DEFAULT '0.00',
   `quantity` decimal(10,2) NOT NULL DEFAULT '1.00',
   `amount` decimal(12,2) NOT NULL DEFAULT '0.00',
-  `billing_mode` enum('fixed','meter','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `billing_mode` enum('fixed','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_pi_payment` (`payment_id`),
@@ -478,27 +447,27 @@ CREATE TABLE IF NOT EXISTS `payment_items` (
 
 -- Dumping data for table manage.payment_items: ~25 rows (approximately)
 INSERT INTO `payment_items` (`id`, `payment_id`, `service_id`, `item_name`, `unit_price`, `quantity`, `amount`, `billing_mode`, `created_at`) VALUES
-	(1, 1, 1, 'Tiền điện', 3500.00, 120.00, 420000.00, 'meter', '2026-03-01 01:01:00'),
+	(1, 1, 1, 'Tiền điện', 3500.00, 120.00, 420000.00, 'fixed', '2026-03-01 01:01:00'),
 	(2, 1, 2, 'Tiền nước', 30000.00, 1.00, 30000.00, 'per_person', '2026-03-01 01:01:00'),
 	(3, 1, 3, 'Tiền rác', 20000.00, 1.00, 20000.00, 'per_person', '2026-03-01 01:01:00'),
 	(4, 1, 4, 'Wifi', 51000.00, 1.00, 51000.00, 'per_person', '2026-03-01 01:01:00'),
 	(5, 1, 5, 'Giữ xe', 100000.00, 1.00, 100000.00, 'fixed', '2026-03-01 01:01:00'),
-	(6, 2, 1, 'Tiền điện', 3500.00, 95.00, 332500.00, 'meter', '2026-03-01 01:06:00'),
+	(6, 2, 1, 'Tiền điện', 3500.00, 95.00, 332500.00, 'fixed', '2026-03-01 01:06:00'),
 	(7, 2, 2, 'Tiền nước', 30000.00, 1.00, 30000.00, 'per_person', '2026-03-01 01:06:00'),
 	(8, 2, 3, 'Tiền rác', 20000.00, 1.00, 20000.00, 'per_person', '2026-03-01 01:06:00'),
 	(9, 2, 4, 'Wifi', 51000.00, 1.00, 51000.00, 'per_person', '2026-03-01 01:06:00'),
 	(10, 2, 5, 'Giữ xe', 29000.00, 1.00, 29000.00, 'fixed', '2026-03-01 01:06:00'),
-	(11, 3, 1, 'Tiền điện', 3500.00, 132.00, 462000.00, 'meter', '2026-03-01 01:11:00'),
+	(11, 3, 1, 'Tiền điện', 3500.00, 132.00, 462000.00, 'fixed', '2026-03-01 01:11:00'),
 	(12, 3, 2, 'Tiền nước', 30000.00, 2.00, 60000.00, 'per_person', '2026-03-01 01:11:00'),
 	(13, 3, 3, 'Tiền rác', 20000.00, 2.00, 40000.00, 'per_person', '2026-03-01 01:11:00'),
 	(14, 3, 4, 'Wifi', 51000.00, 2.00, 102000.00, 'per_person', '2026-03-01 01:11:00'),
 	(15, 3, 6, 'Vệ sinh', 50000.00, 1.00, 50000.00, 'fixed', '2026-03-01 01:11:00'),
-	(16, 4, 1, 'Tiền điện', 3500.00, 82.00, 287000.00, 'meter', '2026-03-01 01:16:00'),
+	(16, 4, 1, 'Tiền điện', 3500.00, 82.00, 287000.00, 'fixed', '2026-03-01 01:16:00'),
 	(17, 4, 2, 'Tiền nước', 30000.00, 1.00, 30000.00, 'per_person', '2026-03-01 01:16:00'),
 	(18, 4, 3, 'Tiền rác', 20000.00, 1.00, 20000.00, 'per_person', '2026-03-01 01:16:00'),
 	(19, 4, 4, 'Wifi', 51000.00, 1.00, 51000.00, 'per_person', '2026-03-01 01:16:00'),
 	(20, 4, 6, 'Vệ sinh', 29000.00, 1.00, 29000.00, 'fixed', '2026-03-01 01:16:00'),
-	(21, 5, 1, 'Tiền điện', 3500.00, 128.00, 448000.00, 'meter', '2026-04-01 01:01:00'),
+	(21, 5, 1, 'Tiền điện', 3500.00, 128.00, 448000.00, 'fixed', '2026-04-01 01:01:00'),
 	(22, 5, 2, 'Tiền nước', 30000.00, 1.00, 30000.00, 'per_person', '2026-04-01 01:01:00'),
 	(23, 5, 3, 'Tiền rác', 20000.00, 1.00, 20000.00, 'per_person', '2026-04-01 01:01:00'),
 	(24, 5, 4, 'Wifi', 51000.00, 1.00, 51000.00, 'per_person', '2026-04-01 01:01:00'),
@@ -527,7 +496,7 @@ CREATE TABLE IF NOT EXISTS `price_changes` (
 
 -- Dumping data for table manage.price_changes: ~2 rows (approximately)
 INSERT INTO `price_changes` (`id`, `service_id`, `old_price`, `new_price`, `old_billing_mode`, `new_billing_mode`, `effective_month`, `effective_year`, `applied`, `created_by`, `created_at`) VALUES
-	(1, 1, 3200.00, 3500.00, 'meter', 'meter', 2, 2026, 1, 1, '2026-01-20 02:00:00'),
+	(1, 1, 3200.00, 3500.00, 'fixed', 'fixed', 2, 2026, 1, 1, '2026-01-20 02:00:00'),
 	(2, 4, 49000.00, 51000.00, 'per_person', 'per_person', 3, 2026, 1, 2, '2026-02-15 02:00:00');
 
 -- Dumping structure for table manage.rental_requests
@@ -736,8 +705,8 @@ CREATE TABLE IF NOT EXISTS `services` (
   `icon` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'settings',
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `is_required` tinyint(1) NOT NULL DEFAULT '0',
-  `billing_mode` enum('fixed','meter','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'fixed',
-  `kind` enum('other','electricity','water','trash') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other',
+  `billing_mode` enum('fixed','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'fixed',
+  `kind` enum('other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other',
   `applies_to` enum('room','person') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'room',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `delete_year` smallint DEFAULT NULL,
@@ -747,11 +716,11 @@ CREATE TABLE IF NOT EXISTS `services` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table manage.services: ~7 rows (approximately)
+-- Dumping data for table manage.services: ~4 rows (approximately)
 INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `is_required`, `billing_mode`, `kind`, `applies_to`, `is_active`, `delete_year`, `delete_month`, `deactivate_month`, `deactivate_year`) VALUES
-	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tính theo chỉ số công tơ điện thực tế của từng phòng.', 1, 'meter', 'electricity', 'room', 1, NULL, NULL, NULL, NULL),
-	(2, 'Tiền nước', 30000.00, 'người/tháng', 'water_drop', 'Tính theo số người đang ở trong phòng.', 1, 'per_person', 'water', 'room', 1, NULL, NULL, NULL, NULL),
-	(3, 'Tiền rác', 20000.00, 'người/tháng', 'delete', 'Phí thu gom rác sinh hoạt.', 1, 'per_person', 'trash', 'room', 1, NULL, NULL, NULL, NULL),
+	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tiền điện hàng tháng cố định cho mỗi phòng.', 1, 'fixed', 'other', 'room', 1, NULL, NULL, NULL, NULL),
+	(2, 'Tiền nước', 30000.00, 'người/tháng', 'water_drop', 'Tính theo số người đang ở trong phòng.', 1, 'per_person', 'other', 'room', 1, NULL, NULL, NULL, NULL),
+	(3, 'Tiền rác', 20000.00, 'người/tháng', 'delete', 'Phí thu gom rác sinh hoạt.', 1, 'per_person', 'other', 'room', 1, NULL, NULL, NULL, NULL),
 	(4, 'Wifi', 51000.00, 'người/tháng', 'wifi', 'Internet cáp quang dùng chung toàn khu.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL),
 	(5, 'Giữ xe', 100000.00, 'xe/tháng', 'two_wheeler', 'Phí gửi xe máy có mái che.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
 	(6, 'Vệ sinh', 50000.00, 'phòng/tháng', 'cleaning_services', 'Vệ sinh hành lang, cầu thang và khu sinh hoạt chung.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),

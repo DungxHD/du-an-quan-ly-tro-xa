@@ -173,13 +173,10 @@ class ContractModel {
     }
 
     /**
-     * Tạo mới hợp đồng thuê với snapshot giá thuê và chỉ số đầu kỳ.
+     * Tạo mới hợp đồng thuê với snapshot giá thuê.
      * Tự động đặt ngày kết thúc = ngày vào + 1 năm.
      */
     public static function create(array $data) {
-        $electricityIndex = $data['initial_electricity_index'] ?? null;
-        $waterIndex = $data['initial_water_index'] ?? null;
-
         // Tự động tính ngày kết thúc = ngày vào + 1 năm
         $moveInDate = trim((string)($data['move_in_date'] ?? ''));
         $moveOutDate = null;
@@ -197,8 +194,6 @@ class ContractModel {
             'move_out_date' => $moveOutDate,
             'rent_price' => (float)($data['rent_price'] ?? 0),
             'deposit_amount' => (float)($data['deposit_amount'] ?? 0),
-            'initial_electricity_index' => $electricityIndex === null ? null : (float)$electricityIndex,
-            'initial_water_index' => $waterIndex === null ? null : (float)$waterIndex,
             'status' => 'active',
             'contract_date' => trim((string)($data['contract_date'] ?? '')) ?: date('Y-m-d'),
         ];
@@ -299,12 +294,6 @@ class ContractModel {
         $row['start_date'] = trim((string)($row['move_in_date'] ?? ''));
         $row['end_date'] = trim((string)($row['move_out_date'] ?? ''));
         $row['deposit'] = $row['deposit_amount'];
-        $row['initial_electricity_index'] = isset($row['initial_electricity_index']) && $row['initial_electricity_index'] !== null
-            ? (float)$row['initial_electricity_index']
-            : null;
-        $row['initial_water_index'] = isset($row['initial_water_index']) && $row['initial_water_index'] !== null
-            ? (float)$row['initial_water_index']
-            : null;
         $row['room_price'] = isset($row['room_price']) ? (float)$row['room_price'] : 0.0;
         $row['max_occupancy'] = isset($row['max_occupancy']) ? (int)$row['max_occupancy'] : 0;
         $row['floor_number'] = isset($row['floor_number']) ? (int)$row['floor_number'] : 0;

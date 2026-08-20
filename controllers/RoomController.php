@@ -174,8 +174,6 @@ class RoomController extends BaseController {
                 'move_in_date' => $moveInDate,
                 'rent_price' => (float)($room['price'] ?? 0),
                 'deposit_amount' => $deposit,
-                'initial_electricity_index' => null,
-                'initial_water_index' => null,
                 'contract_date' => date('Y-m-d'),
             ]);
             Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);

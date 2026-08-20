@@ -180,7 +180,7 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune', 'url' => BASE_URL . '?page=admin-settings'],
             ['id' => 'areas', 'label' => 'Quản lý khu', 'icon' => 'apartment', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
-            ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
+            ['id' => 'invoices', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-invoices'],
             ['id' => 'comments', 'label' => 'Đánh giá', 'icon' => 'star', 'url' => BASE_URL . '?page=admin-comments'],
             ['id' => 'feedbacks', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-feedbacks'],
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=admin-notifications'],
@@ -189,7 +189,6 @@ function getPanelNavigation($role, $active = '')
         'tenant' => [
             ['id' => 'dashboard', 'label' => 'Thông tin phòng', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=tenant'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=tenant-services'],
-            ['id' => 'meter', 'label' => 'Điện nước', 'icon' => 'speed', 'url' => BASE_URL . '?page=tenant-meter'],
             ['id' => 'invoice', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=tenant-invoice'],
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=tenant-notifications'],
             ['id' => 'profile', 'label' => 'Hồ sơ', 'icon' => 'person', 'url' => BASE_URL . '?page=tenant-profile'],
@@ -322,10 +321,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->priceChanges();
         break;
-    case 'admin-meter-readings':
-        requireAdmin();
-        (new AdminController())->meterReadings();
-        break;
     case 'admin-save-amenity':
         requireAdmin();
         (new AdminController())->saveAmenity();
@@ -337,10 +332,6 @@ switch ($page) {
     case 'admin-save-price-change':
         requireAdmin();
         (new AdminController())->savePriceChange();
-        break;
-    case 'admin-save-meter-readings':
-        requireAdmin();
-        (new AdminController())->saveMeterReadings();
         break;
     case 'admin-delete-amenity':
         requireAdmin();
@@ -489,7 +480,7 @@ switch ($page) {
         break;
     case 'admin-invoices':
         requireAdmin();
-        redirectTo('admin-meter-readings');
+        (new AdminController())->invoices();
         break;
     case 'admin-view-contract':
         requireAdmin();
@@ -546,10 +537,6 @@ switch ($page) {
     case 'tenant-services':
         requireTenant();
         (new TenantController())->services();
-        break;
-    case 'tenant-meter':
-        requireTenant();
-        (new TenantController())->viewMeterReadings();
         break;
     case 'tenant-invoice':
         requireTenant();

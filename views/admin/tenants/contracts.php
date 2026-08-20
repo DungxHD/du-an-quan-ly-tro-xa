@@ -176,26 +176,18 @@ $terminatedContracts = count(array_filter($contracts, static fn($contract) => ($
                                     <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">
                                         <p class="text-gray-500">Ngày chuyển đi</p>
                                         <p class="font-semibold text-gray-900 mt-1"><?= e($formatDate($selectedContract['move_out_date'] ?? '', 'Chưa kết thúc')) ?></p>
-                                    </div>
-                                    <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                                        <p class="text-gray-500">Chỉ số điện đầu kỳ</p>
-                                        <p class="font-semibold text-gray-900 mt-1"><?= e($selectedContract['initial_electricity_index'] !== null ? number_format((float)$selectedContract['initial_electricity_index'], 2, '.', '') : 'Chưa khai báo') ?></p>
-                                    </div>
-                                    <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                                        <p class="text-gray-500">Chỉ số nước đầu kỳ</p>
-                                        <p class="font-semibold text-gray-900 mt-1"><?= e($selectedContract['initial_water_index'] !== null ? number_format((float)$selectedContract['initial_water_index'], 2, '.', '') : 'Chưa khai báo') ?></p>
-                                    </div>
-                                    <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                                        <p class="text-gray-500">Giá niêm yết phòng hiện tại</p>
-                                        <p class="font-semibold text-gray-900 mt-1"><?= e($formatMoney($selectedContract['room_price'] ?? 0)) ?></p>
-                                    </div>
-                                </div>
+</div>
+                                     <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                         <p class="text-gray-500">Giá niêm yết phòng hiện tại</p>
+                                         <p class="font-semibold text-gray-900 mt-1"><?= e($formatMoney($selectedContract['room_price'] ?? 0)) ?></p>
+                                     </div>
+                                 </div>
                             </section>
 
                             <section>
                                 <h4 class="text-lg font-bold text-gray-900">3. Ghi chú quản trị</h4>
                                 <div class="p-5 rounded-2xl bg-gray-50 border border-gray-100 text-sm text-gray-600 leading-7">
-                                    Hợp đồng này lưu theo cơ chế snapshot để đảm bảo giá thuê, tiền cọc và chỉ số đầu kỳ không bị thay đổi khi dữ liệu phòng thay đổi về sau.
+                                    Hợp đồng này lưu theo cơ chế snapshot để đảm bảo giá thuê, tiền cọc không bị thay đổi khi dữ liệu phòng thay đổi về sau.
                                     Khi tenant chuyển đi, admin cần kết thúc hợp đồng để hệ thống trả `users.room_id = NULL` và đồng bộ lại trạng thái phòng.
                                 </div>
                             </section>
@@ -260,7 +252,7 @@ $terminatedContracts = count(array_filter($contracts, static fn($contract) => ($
                         <div class="mt-4 space-y-3 text-sm">
                             <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">Đối chiếu họ tên, CCCD/CMND và địa chỉ thường trú sau khi giải mã.</div>
                             <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">Kiểm tra snapshot giá thuê và tiền cọc khớp với thỏa thuận thực tế.</div>
-                            <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">Ghi rõ chỉ số điện/nước đầu kỳ để chốt tháng đầu không sai lệch.</div>
+                            <div class="p-4 rounded-2xl bg-gray-50 border border-gray-100">Đối chiếu snapshot danh sách dịch vụ bắt buộc gắn với phòng.</div>
                         </div>
                     </section>
                 </div>

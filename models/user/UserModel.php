@@ -466,8 +466,6 @@ class UserModel {
             'move_in_date' => trim((string)($contractData['move_in_date'] ?? '')),
             'rent_price' => (float)($contractData['rent_price'] ?? 0),
             'deposit_amount' => (float)($contractData['deposit_amount'] ?? 0),
-            'initial_electricity_index' => $contractData['initial_electricity_index'] ?? null,
-            'initial_water_index' => $contractData['initial_water_index'] ?? null,
             'contract_date' => trim((string)($contractData['contract_date'] ?? '')) ?: date('Y-m-d'),
         ];
 

@@ -275,7 +275,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <div class="px-6 py-4 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
                     <div>
                         <h3 class="font-bold text-lg">Trạng thái tạo hóa đơn theo phòng</h3>
-                        <p class="text-sm text-gray-500 mt-1">Phòng đã có hóa đơn sẽ hiện nút xem. Phòng thiếu chỉ số hoặc thiếu dữ liệu sẽ bị khóa tạo.</p>
+                        <p class="text-sm text-gray-500 mt-1">Phòng đã có hóa đơn sẽ hiện nút xem. Phòng thiếu dữ liệu sẽ bị khóa tạo.</p>
                     </div>
                     <form method="POST" action="<?= BASE_URL ?>?page=admin-generate-invoice">
 <?= csrf_field() ?>
