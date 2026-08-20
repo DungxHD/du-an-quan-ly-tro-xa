@@ -790,7 +790,7 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_group`, `update
 	('otp_max_verify_attempts', '5', 'auth', '2026-01-05 02:00:00'),
 	('otp_resend_seconds', '60', 'auth', '2026-01-05 02:00:00'),
 	('otp_ttl_minutes', '2', 'auth', '2026-01-05 02:00:00'),
-	('resend_api_key', 're_CLYjohwQ_7th4km5uAAmJJB8YoECZfKtR', 'email', '2026-08-18 01:49:03'),
+	('resend_api_key', 're_8rGXXvMj_8N7VB8fanWc6beCaSp9G1gsM', 'email', '2026-08-21 00:30:00'),
 	('site_description', 'Hệ thống quản lý nhà trọ dành cho sinh viên và người đi làm tại TP.HCM.', 'brand', '2026-01-05 02:00:00'),
 	('site_name', 'Nhà trọ Xanh', 'brand', '2026-01-05 02:00:00'),
 	('site_slogan', 'Không gian sống tiện nghi, an toàn và minh bạch.', 'brand', '2026-01-05 02:00:00'),

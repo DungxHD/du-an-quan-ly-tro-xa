@@ -10,7 +10,10 @@ class PasswordResetModel {
         $otpHash = password_hash($otp, PASSWORD_DEFAULT);
 
         $ttlMinutes = (int)RoomModel::getSetting('otp_ttl_minutes', 2);
-        $expiresAt = date('Y-m-d H:i:s', time() + $ttlMinutes * 60);
+        // [DEV-QWEN-A][FIX][2026-08-20] Lưu expires_at theo UTC (gmdate) để khớp với
+        // UTC_TIMESTAMP() trong getLatestValidOtp. Trước đây dùng date() (giờ địa phương +7)
+        // khiến OTP không bao giờ hết hạn đúng (kéo dài ~7 giờ) và OTP hết hạn vẫn verify được.
+        $expiresAt = gmdate('Y-m-d H:i:s', time() + $ttlMinutes * 60);
 
         Database::insert('password_reset_otps', [
             'user_id' => (int)$userId,
@@ -41,7 +44,8 @@ class PasswordResetModel {
         $rows = array_filter(Database::getTable('password_reset_otps'), function ($row) use ($userId) {
             return (int)$row['user_id'] === (int)$userId
                 && empty($row['used_at'])
-                && strtotime($row['expires_at']) > time();
+                // expires_at được lưu theo UTC (xem createOtp) nên parse rõ ' UTC'
+                && strtotime($row['expires_at'] . ' UTC') > time();
         });
         usort($rows, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
         return $rows[0] ?? null;
@@ -67,7 +71,8 @@ class PasswordResetModel {
             return 'invalid';
         }
 
-        Database::update('password_reset_otps', ['used_at' => date('Y-m-d H:i:s')], 'id = :id', ['id' => (int)$otpRecord['id']]);
+        // [DEV-QWEN-A][FIX][2026-08-20] used_at theo UTC để nhất quán với expires_at (UTC).
+        Database::update('password_reset_otps', ['used_at' => gmdate('Y-m-d H:i:s')], 'id = :id', ['id' => (int)$otpRecord['id']]);
         return true;
     }
 
@@ -80,6 +85,18 @@ class PasswordResetModel {
         $maxPerDay = (int)RoomModel::getSetting('otp_max_send_per_24h', 5);
 
         if (Database::hasConnection()) {
+            // [DEV-QWEN-A][FIX][2026-08-20] Kiểm tra max_daily TRƯỚC resend_wait:
+            // trước đây nếu lần gửi cuối < 60s mà đã đủ 5 lần/24h thì chỉ báo "chờ X giây",
+            // khiến user tưởng còn lượt gửi, hết giờ chờ lại bị chặn tiếp (không rõ lý do).
+            $count24h = Database::fetchOne(
+                "SELECT COUNT(*) as cnt FROM password_reset_send_attempts
+                 WHERE user_id = ? AND ip = ? AND sent_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)",
+                [(int)$userId, $ip]
+            );
+            if ((int)$count24h['cnt'] >= $maxPerDay) {
+                return ['allowed' => false, 'reason' => 'max_daily'];
+            }
+
             $lastSend = Database::fetchOne(
                 "SELECT sent_at FROM password_reset_send_attempts
                  WHERE user_id = ? AND ip = ?
@@ -93,34 +110,25 @@ class PasswordResetModel {
                 }
             }
 
-            $count24h = Database::fetchOne(
-                "SELECT COUNT(*) as cnt FROM password_reset_send_attempts
-                 WHERE user_id = ? AND ip = ? AND sent_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)",
-                [(int)$userId, $ip]
-            );
-            if ((int)$count24h['cnt'] >= $maxPerDay) {
-                return ['allowed' => false, 'reason' => 'max_daily'];
-            }
-
             return ['allowed' => true];
         }
 
         $attempts = array_filter(Database::getTable('password_reset_send_attempts'), function ($row) use ($userId, $ip) {
             return (int)$row['user_id'] === (int)$userId && $row['ip'] === $ip;
         });
+        $count24h = count(array_filter($attempts, function ($row) {
+            return strtotime($row['sent_at']) >= time() - 86400;
+        }));
+        if ($count24h >= $maxPerDay) {
+            return ['allowed' => false, 'reason' => 'max_daily'];
+        }
+
         usort($attempts, fn($a, $b) => strcmp($b['sent_at'] ?? '', $a['sent_at'] ?? ''));
         if (!empty($attempts)) {
             $secondsSinceLast = time() - strtotime($attempts[0]['sent_at']);
             if ($secondsSinceLast < $resendSeconds) {
                 return ['allowed' => false, 'reason' => 'resend_wait', 'wait_seconds' => $resendSeconds - $secondsSinceLast];
             }
-        }
-
-        $count24h = count(array_filter($attempts, function ($row) {
-            return strtotime($row['sent_at']) >= time() - 86400;
-        }));
-        if ($count24h >= $maxPerDay) {
-            return ['allowed' => false, 'reason' => 'max_daily'];
         }
 
         return ['allowed' => true];
