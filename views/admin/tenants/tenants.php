@@ -124,46 +124,8 @@ foreach ($tenants as $assignableTenant) {
                             </select>
                         </div>
 
-<<<<<<< HEAD
-                        <div class="md:col-span-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-2">
+<div class="md:col-span-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-2">
                             <p class="text-sm text-white/80">Tenant đang có phòng sẽ không được phép gán mới để tránh trùng dữ liệu cư trú.</p>
-=======
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Ngày vào ở</label>
-                            <input type="date"
-                                   name="move_in_date"
-                                   value="<?= e($assignmentForm['move_in_date'] ?? '') ?>"
-                                   required
-                                   class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Giá thuê trong hợp đồng</label>
-                            <input type="number"
-                                   name="rent_price"
-                                   min="0"
-                                   step="1000"
-                                   value="<?= e($assignmentForm['rent_price'] ?? '') ?>"
-                                   required
-                                   placeholder="Ví dụ: 1800000"
-                                   class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Tiền cọc</label>
-                            <input type="number"
-                                   name="deposit_amount"
-                                   min="0"
-                                   step="1000"
-                                   value="<?= e($assignmentForm['deposit_amount'] ?? '') ?>"
-required
-                                    placeholder="Ví dụ: 2000000"
-                                    class="w-full px-4 py-3 rounded-xl text-gray-900 outline-none">
-                         </div>
-
-                         <div class="md:col-span-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-2">
-                            <p class="text-sm text-white/80">Tenant đã có hợp đồng active hoặc đang có phòng sẽ không được phép gán mới để tránh trùng dữ liệu cư trú.</p>
->>>>>>> 9a4cf30de020267bafe7ea0047c1ee518bd1f25e
                             <button type="submit" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-primary rounded-xl font-bold hover:bg-gray-100 transition">
                                 <span class="material-symbols-outlined text-base">library_add</span>
                                 Gán phòng cho tenant

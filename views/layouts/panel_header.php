@@ -35,13 +35,8 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
     $tenantNotificationUnreadCount = NotificationModel::getUnreadCount((int)$_SESSION['user_id']);
     $tenantNotificationRecent = NotificationModel::getRecentForUser((int)$_SESSION['user_id'], 5);
 } elseif ($panelTheme === 'admin' && !empty($_SESSION['user_id'])) {
-    // Admin notification bell - show recent sent notifications as "unread" indicator
-    $adminHistory = NotificationModel::getAdminHistory([]);
-    $adminNotificationRecent = array_slice($adminHistory, 0, 5);
-    $adminNotificationUnreadCount = count(array_filter(
-        $adminHistory,
-        static fn($n) => (int)($n['is_read'] ?? 0) === 0
-    ));
+    $adminNotificationUnreadCount = NotificationModel::getUnreadCount((int)$_SESSION['user_id']);
+    $adminNotificationRecent = NotificationModel::getRecentForUser((int)$_SESSION['user_id'], 5);
 }
 ?>
 <!DOCTYPE html>
@@ -132,8 +127,9 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
 <?= csrf_field() ?>
                                     <input type="hidden" name="mark_all" value="1">
                                     <input type="hidden" name="redirect_page" value="<?= e($_GET['page'] ?? 'tenant-notifications') ?>">
-                                    <button type="submit" class="text-xs font-semibold text-primary hover:underline">
-                                        Đánh dấu tất cả
+                                    <button type="submit" class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                                        <span class="material-symbols-outlined text-sm">done_all</span>
+                                        Đã đọc tất cả
                                     </button>
                                 </form>
                             </div>
@@ -192,10 +188,18 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
                         <div class="absolute right-0 mt-3 w-[380px] rounded-2xl border border-gray-700 bg-gray-900 shadow-xl overflow-hidden z-50">
                             <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between gap-3">
                                 <div>
-                                    <p class="font-semibold text-white">Thông báo đã gửi</p>
-                                    <p class="text-xs text-gray-400"><?= (int)$adminNotificationUnreadCount ?> mới</p>
+                                    <p class="font-semibold text-white">Thông báo</p>
+                                    <p class="text-xs text-gray-400"><?= (int)$adminNotificationUnreadCount ?> chưa đọc</p>
                                 </div>
-                                <a href="<?= BASE_URL ?>?page=admin-notifications" class="text-xs font-semibold text-primary hover:underline">Xem lịch sử</a>
+                                <form method="POST" action="<?= BASE_URL ?>?page=admin-mark-notification-read">
+<?= csrf_field() ?>
+                                    <input type="hidden" name="mark_all" value="1">
+                                    <input type="hidden" name="redirect_page" value="<?= e($_GET['page'] ?? 'admin-notifications') ?>">
+                                    <button type="submit" class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                                        <span class="material-symbols-outlined text-sm">done_all</span>
+                                        Đã đọc tất cả
+                                    </button>
+                                </form>
                             </div>
 
                             <div class="max-h-[360px] overflow-y-auto">
@@ -205,19 +209,26 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
                                     </div>
                                 <?php else: ?>
                                     <?php foreach ($adminNotificationRecent as $notification): ?>
-                                        <a href="<?= BASE_URL ?>?page=admin-notifications" class="block px-4 py-3 border-b border-gray-800 last:border-b-0 hover:bg-gray-800 transition">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <p class="font-semibold text-white"><?= e($notification['title'] ?? '') ?></p>
-                                                    <p class="text-xs text-gray-400 mt-1 line-clamp-2"><?= e($notification['content'] ?? '') ?></p>
+                                        <form method="POST" action="<?= BASE_URL ?>?page=admin-mark-notification-read" class="border-b border-gray-800 last:border-b-0">
+<?= csrf_field() ?>
+                                            <input type="hidden" name="notification_id" value="<?= (int)($notification['id'] ?? 0) ?>">
+                                            <input type="hidden" name="redirect_page" value="admin-notifications">
+                                            <button type="submit" class="w-full px-4 py-3 text-left hover:bg-gray-800 transition <?= (int)($notification['is_read'] ?? 0) === 0 ? 'bg-gray-800' : 'bg-transparent' ?>">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p class="font-semibold text-white"><?= e($notification['title'] ?? '') ?></p>
+                                                        <p class="text-xs text-gray-400 mt-1 line-clamp-2"><?= e($notification['content'] ?? '') ?></p>
+                                                    </div>
+                                                    <?php if ((int)($notification['is_read'] ?? 0) === 0): ?>
+                                                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 mt-1"></span>
+                                                    <?php endif; ?>
                                                 </div>
-                                                <span class="w-2 h-2 rounded-full bg-red-500 mt-1"></span>
-                                            </div>
-                                            <div class="flex items-center justify-between mt-2">
-                                                <span class="text-[11px] font-semibold text-primary uppercase tracking-wide"><?= e($notification['type_label'] ?? '') ?></span>
-                                                <span class="text-[11px] text-gray-500"><?= e(!empty($notification['created_at']) ? date('d/m/Y H:i', strtotime((string)$notification['created_at'])) : '') ?></span>
-                                            </div>
-                                        </a>
+                                                <div class="flex items-center justify-between mt-2">
+                                                    <span class="text-[11px] font-semibold text-primary uppercase tracking-wide"><?= e($notification['type_label'] ?? '') ?></span>
+                                                    <span class="text-[11px] text-gray-500"><?= e(!empty($notification['created_at']) ? date('d/m/Y H:i', strtotime((string)$notification['created_at'])) : '') ?></span>
+                                                </div>
+                                            </button>
+                                        </form>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>

@@ -1,18 +1,21 @@
 <?php
 class ServiceModel {
-    private const BILLING_MODES = ['fixed', 'per_person', 'per_unit'];
+    private const BILLING_MODES = ['meter', 'per_person', 'per_unit'];
     private const APPLIES_TO = ['room', 'person'];
-    private const KINDS = ['other'];
+    private const KINDS = ['other', 'electricity', 'water', 'trash'];
     public static function getKindOptions() {
-        return ['other' => 'Dịch vụ khác'];
+        return ['other' => 'Dịch vụ khác', 'electricity' => 'Tiền điện (bắt buộc)', 'water' => 'Tiền nước (bắt buộc)', 'trash' => 'Tiền rác (bắt buộc)'];
     }
     public static function getKindBillingModesMap() {
         return [
+            'electricity' => ['meter'],
+            'water' => ['meter', 'per_person'],
+            'trash' => ['per_person'],
             'other' => self::BILLING_MODES,
         ];
     }
     public static function isLockedKind($kind) {
-        return false;
+        return in_array((string)$kind, ['electricity', 'water', 'trash'], true);
     }
 
     /**
@@ -20,9 +23,9 @@ class ServiceModel {
      */
     public static function getBillingModeOptions() {
         return [
-            'fixed' => 'Cố định',
-            'per_person' => 'Theo người',
-            'per_unit' => 'Theo số lượng',
+            'meter' => 'Tính theo chỉ số',
+            'per_person' => 'Tính theo cá nhân',
+            'per_unit' => 'Tính theo số lượng',
         ];
     }
 
@@ -48,9 +51,9 @@ class ServiceModel {
             'icon' => trim((string)($service['icon'] ?? 'settings')),
             'description' => trim((string)($service['description'] ?? '')),
             'is_required' => !empty($service['is_required']) ? 1 : 0,
-            'billing_mode' => in_array(($service['billing_mode'] ?? 'fixed'), self::BILLING_MODES, true)
+            'billing_mode' => in_array(($service['billing_mode'] ?? 'meter'), self::BILLING_MODES, true)
                 ? $service['billing_mode']
-                : 'fixed',
+                : 'meter',
             'applies_to' => in_array(($service['applies_to'] ?? 'room'), self::APPLIES_TO, true)
                 ? $service['applies_to']
                 : 'room',
@@ -169,6 +172,11 @@ class ServiceModel {
      */
     public static function save(array $data, $id = null) {
         $payload = self::normalizeServiceRow($data);
+        if (self::isLockedKind($payload['kind'])) {
+            $payload['is_required'] = 1;
+            $payload['is_active'] = 1;
+            $payload['applies_to'] = 'room';
+        }
         unset($payload['id']);
 
         $resolvedId = (int)$id;
@@ -188,8 +196,8 @@ class ServiceModel {
         if (!$service) {
             throw new RuntimeException('Dịch vụ không tồn tại hoặc đã bị xóa trước đó.');
         }
-        if ((int)($service['is_required'] ?? 0) === 1) {
-            throw new RuntimeException('Dịch vụ bắt buộc không thể xóa.');
+        if ((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other')) {
+            throw new RuntimeException('Dịch vụ bắt buộc (điện/nước/rác) không thể xóa.');
         }
 
         Database::delete('room_services', 'service_id = :service_id', ['service_id' => (int)$id]);
@@ -208,6 +216,9 @@ class ServiceModel {
      * Trả danh sách gán dịch vụ theo phòng để admin và dashboard dùng chung.
      */
     public static function deriveUnit($kind, $billingMode) {
+        if ($kind === 'electricity') { return 'kWh'; }
+        if ($kind === 'trash') { return 'người/tháng'; }
+        if ($billingMode === 'meter') { return $kind === 'water' ? 'm3' : 'tháng'; }
         if ($billingMode === 'per_person') { return 'người/tháng'; }
         return 'tháng';
     }
@@ -279,7 +290,7 @@ public static function getRoomsUsingService($serviceId) {
     $serviceId = (int)$serviceId;
     $service = self::getById($serviceId);
     if (!$service) { return []; }
-    $isRequired = (int)($service['is_required'] ?? 0) === 1;
+    $isRequired = (int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other');
     if (Database::hasConnection()) {
         if ($isRequired) {
             return Database::fetchAll("SELECT r.id as room_id, r.name as room_name, r.status as room_status, f.name as floor_name, a.name as area_name, 1 as quantity, NULL as registered_at FROM rooms r JOIN floors f ON f.id = r.floor_id JOIN areas a ON a.id = f.area_id WHERE r.status = 'rented' ORDER BY a.name, f.floor_number, r.name");
@@ -335,7 +346,7 @@ public static function getAssignmentsByRoom($roomId) {
                 $service['quantity'] = max(1, (int)($row['quantity'] ?? 1));
                 $service['registered_at'] = $row['registered_at'] ?? null;
                 return $service;
-            }, $rows), static fn($service) => !((int)($service['is_required'] ?? 0) === 1)));
+            }, $rows), static fn($service) => !((int)($service['is_required'] ?? 0) === 1 || self::isLockedKind($service['kind'] ?? 'other'))));
         }
 
         $services = [];
@@ -684,11 +695,12 @@ public static function getAssignmentsByRoom($roomId) {
         $quantity = max(1, (int)($service['quantity'] ?? 1));
         $resolvedOccupantCount = max(1, (int)$occupantCount);
 
-        switch ($service['billing_mode'] ?? 'fixed') {
+        switch ($service['billing_mode'] ?? 'meter') {
+            case 'meter':
+                return 0.0; // Cần chỉ số tháng riêng (meter_readings) mới tính đúng.
             case 'per_person':
                 return $price * $quantity * $resolvedOccupantCount;
             case 'per_unit':
-            case 'fixed':
             default:
                 return $price * $quantity;
         }

@@ -353,29 +353,15 @@ class Database
             ],
             'roommate_requests' => [],
             'rental_requests' => [],
-            'contracts' => [
-                [
-                    'id' => 1,
-                    'user_id' => 2,
-                    'room_id' => 2,
-                    'move_in_date' => date('Y-m-d', strtotime('-45 days')),
-                    'move_out_date' => null,
-                    'rent_price' => 1800000,
-                    'deposit_amount' => 2000000,
-                    'status' => 'active',
-                    'contract_date' => date('Y-m-d', strtotime('-46 days')),
-                    'created_at' => date('Y-m-d H:i:s', strtotime('-46 days')),
-                ],
-            ],
             'maintenance_requests' => [],
             'services' => [
-                ['id' => 1, 'name' => 'Tiền điện', 'description' => 'Phí điện sinh hoạt tính theo phòng.', 'price' => 3500, 'unit' => 'tháng', 'icon' => 'bolt', 'is_required' => 1, 'billing_mode' => 'fixed', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 2, 'name' => 'Tiền nước', 'description' => 'Phí nước sinh hoạt tính theo đầu người.', 'price' => 50000, 'unit' => 'người', 'icon' => 'water_drop', 'is_required' => 1, 'billing_mode' => 'per_person', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 3, 'name' => 'Tiền rác', 'description' => 'Phí thu gom rác tính theo đầu người.', 'price' => 20000, 'unit' => 'người', 'icon' => 'delete', 'is_required' => 1, 'billing_mode' => 'per_person', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 4, 'name' => 'Wifi', 'description' => 'Internet tốc độ cao cho từng phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'wifi', 'is_required' => 0, 'billing_mode' => 'fixed', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 5, 'name' => 'Giữ xe máy', 'description' => 'Miễn phí, dùng để quản lý số lượng xe của từng người.', 'price' => 0, 'unit' => 'xe', 'icon' => 'two_wheeler', 'is_required' => 0, 'billing_mode' => 'per_unit', 'applies_to' => 'person', 'is_active' => 1],
-                ['id' => 6, 'name' => 'Sạc xe điện', 'description' => 'Thu phí theo số lượng xe điện đăng ký.', 'price' => 100000, 'unit' => 'xe', 'icon' => 'electric_bike', 'is_required' => 0, 'billing_mode' => 'per_unit', 'applies_to' => 'person', 'is_active' => 1],
-                ['id' => 7, 'name' => 'Máy giặt', 'description' => 'Dịch vụ máy giặt dùng chung, có thể gán theo phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'local_laundry_service', 'is_required' => 0, 'billing_mode' => 'fixed', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 1, 'name' => 'Tiền điện', 'description' => 'Tính theo chỉ số công tơ điện hàng tháng của phòng.', 'price' => 3500, 'unit' => 'kWh', 'icon' => 'bolt', 'is_required' => 1, 'billing_mode' => 'meter', 'kind' => 'electricity', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 2, 'name' => 'Tiền nước', 'description' => 'Tính theo chỉ số đồng hồ nước (mét khối) hàng tháng của phòng.', 'price' => 30000, 'unit' => 'm3', 'icon' => 'water_drop', 'is_required' => 1, 'billing_mode' => 'meter', 'kind' => 'water', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 3, 'name' => 'Tiền rác', 'description' => 'Phí thu gom rác sinh hoạt tính theo mỗi cá nhân.', 'price' => 20000, 'unit' => 'người/tháng', 'icon' => 'delete', 'is_required' => 1, 'billing_mode' => 'per_person', 'kind' => 'trash', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 4, 'name' => 'Wifi', 'description' => 'Internet tốc độ cao cho từng phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'wifi', 'is_required' => 0, 'billing_mode' => 'per_person', 'kind' => 'other', 'applies_to' => 'person', 'is_active' => 1],
+                ['id' => 5, 'name' => 'Giữ xe máy', 'description' => 'Thu phí theo số lượng xe gửi.', 'price' => 100000, 'unit' => 'xe', 'icon' => 'two_wheeler', 'is_required' => 0, 'billing_mode' => 'per_unit', 'kind' => 'other', 'applies_to' => 'person', 'is_active' => 1],
+                ['id' => 6, 'name' => 'Sạc xe điện', 'description' => 'Thu phí theo số lượng xe điện đăng ký.', 'price' => 100000, 'unit' => 'xe', 'icon' => 'electric_bike', 'is_required' => 0, 'billing_mode' => 'per_unit', 'kind' => 'other', 'applies_to' => 'person', 'is_active' => 1],
+                ['id' => 7, 'name' => 'Máy giặt', 'description' => 'Dịch vụ máy giặt dùng chung, có thể gán theo phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'local_laundry_service', 'is_required' => 0, 'billing_mode' => 'per_unit', 'kind' => 'other', 'applies_to' => 'room', 'is_active' => 1],
             ],
             'room_services' => [
                 ['id' => 1, 'room_id' => 2, 'service_id' => 4, 'quantity' => 1, 'registered_at' => $now, 'created_at' => $now],
@@ -383,6 +369,11 @@ class Database
             ],
             'user_services' => [
                 ['id' => 1, 'user_id' => 2, 'service_id' => 5, 'quantity' => 1, 'registered_at' => $now, 'created_at' => $now],
+            ],
+            'meter_readings' => [
+                ['id' => 1, 'room_id' => 2, 'service_id' => 1, 'month' => 6, 'year' => (int)date('Y'), 'old_index' => 126.5, 'new_index' => 143.5, 'created_at' => date('Y-m-d H:i:s', strtotime('-55 days'))],
+                ['id' => 2, 'room_id' => 2, 'service_id' => 1, 'month' => 7, 'year' => (int)date('Y'), 'old_index' => 143.5, 'new_index' => 162.0, 'created_at' => date('Y-m-d H:i:s', strtotime('-25 days'))],
+                ['id' => 3, 'room_id' => 2, 'service_id' => 1, 'month' => 8, 'year' => (int)date('Y'), 'old_index' => 162.0, 'new_index' => 178.0, 'created_at' => date('Y-m-d H:i:s', strtotime('-2 days'))],
             ],
             'price_changes' => [
                 [

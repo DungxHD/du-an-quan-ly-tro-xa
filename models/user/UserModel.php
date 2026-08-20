@@ -393,7 +393,7 @@ class UserModel {
     }
 
     /**
-     * Gán tenant vào phòng (không tạo hợp đồng).
+     * Gán tenant vào phòng.
      * $allowRented = true cho phép gán vào phòng đang thuê (luồng duyệt ở ghép).
      */
     public static function assignToRoom($userId, $roomId, $allowRented = false) {
@@ -421,19 +421,8 @@ class UserModel {
             throw new RuntimeException('Phòng đã đủ sức chứa tối đa.');
         }
 
-<<<<<<< HEAD
-        Database::update('users', ['room_id' => $resolvedRoomId], 'id = :id', ['id' => $resolvedUserId]);
+Database::update('users', ['room_id' => $resolvedRoomId], 'id = :id', ['id' => $resolvedUserId]);
         RoomModel::syncRoomStatus($resolvedRoomId);
-=======
-        $payload = [
-            'user_id' => $resolvedUserId,
-            'room_id' => $resolvedRoomId,
-            'move_in_date' => trim((string)($contractData['move_in_date'] ?? '')),
-            'rent_price' => (float)($contractData['rent_price'] ?? 0),
-            'deposit_amount' => (float)($contractData['deposit_amount'] ?? 0),
-            'contract_date' => trim((string)($contractData['contract_date'] ?? '')) ?: date('Y-m-d'),
-        ];
->>>>>>> 9a4cf30de020267bafe7ea0047c1ee518bd1f25e
 
         return true;
     }

@@ -170,16 +170,7 @@ class RoomController extends BaseController {
         }
         try {
             UserModel::assignToRoom($userId, $roomId);
-            ContractModel::create([
-                'user_id' => $userId,
-                'room_id' => $roomId,
-                'move_in_date' => $moveInDate,
-                'rent_price' => (float)($room['price'] ?? 0),
-                'deposit_amount' => $deposit,
-                'contract_date' => date('Y-m-d'),
-            ]);
             Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
-            ContractModel::syncRoomStatus($roomId);
             RentalRequestModel::markPaid($requestId);
 
             $currentUser = UserModel::getById($userId);

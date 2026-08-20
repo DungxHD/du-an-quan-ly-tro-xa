@@ -152,38 +152,6 @@ INSERT INTO `comment_reports` (`id`, `comment_id`, `user_id`, `reason`, `status`
 	(1, 5, 3, 'Nội dung cần cập nhật thêm thông tin hình ảnh.', 'resolved', '2026-04-02 04:00:00'),
 	(2, 2, 5, 'Đánh giá có thông tin chưa rõ về tiện ích.', 'dismissed', '2026-03-23 01:00:00');
 
--- Dumping structure for table manage.contracts
-DROP TABLE IF EXISTS `contracts`;
-CREATE TABLE IF NOT EXISTS `contracts` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `user_id` int unsigned NOT NULL,
-  `room_id` int unsigned NOT NULL,
-  `move_in_date` date NOT NULL,
-  `move_out_date` date DEFAULT NULL,
-  `rent_price` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `deposit_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `status` enum('active','terminated') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
-  `contract_date` date DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_contract_user` (`user_id`),
-  KEY `idx_contract_room` (`room_id`,`status`),
-  KEY `idx_contract_active` (`user_id`,`move_out_date`),
-  CONSTRAINT `fk_contract_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_contract_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Dumping data for table manage.contracts: ~8 rows (approximately)
-INSERT INTO `contracts` (`id`, `user_id`, `room_id`, `move_in_date`, `move_out_date`, `rent_price`, `deposit_amount`, `status`, `contract_date`, `created_at`) VALUES
-	(1, 3, 1, '2026-01-15', '2027-01-15', 4500000.00, 4500000.00, 'active', '2026-01-10', '2026-01-10 01:00:00'),
-	(2, 4, 2, '2026-01-18', '2027-01-18', 3800000.00, 3800000.00, 'active', '2026-01-13', '2026-01-13 01:00:00'),
-	(3, 5, 3, '2026-01-20', '2027-01-20', 5200000.00, 5200000.00, 'active', '2026-01-15', '2026-01-15 01:00:00'),
-	(4, 6, 4, '2026-02-01', '2027-02-01', 3200000.00, 3200000.00, 'active', '2026-01-27', '2026-01-27 01:00:00'),
-	(5, 7, 5, '2025-08-01', '2025-12-31', 3900000.00, 7800000.00, 'terminated', '2025-07-25', '2025-07-25 01:00:00'),
-	(6, 7, 5, '2026-04-10', '2027-04-10', 4000000.00, 4000000.00, 'active', '2026-08-15', '2026-08-15 17:57:20'),
-	(8, 17, 8, '2026-08-21', '2027-08-21', 5600000.00, 5600000.00, 'active', '2026-08-17', '2026-08-17 19:57:58'),
-	(30, 18, 12, '2026-08-25', '2027-08-25', 3500000.00, 250000.00, 'active', '2026-08-18', '2026-08-17 22:06:54');
-
 -- Dumping structure for table manage.feedbacks
 DROP TABLE IF EXISTS `feedbacks`;
 CREATE TABLE IF NOT EXISTS `feedbacks` (
@@ -433,7 +401,7 @@ CREATE TABLE IF NOT EXISTS `payment_items` (
   `unit_price` decimal(10,2) NOT NULL DEFAULT '0.00',
   `quantity` decimal(10,2) NOT NULL DEFAULT '1.00',
   `amount` decimal(12,2) NOT NULL DEFAULT '0.00',
-  `billing_mode` enum('fixed','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `billing_mode` enum('fixed','meter','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_pi_payment` (`payment_id`),
@@ -702,8 +670,8 @@ CREATE TABLE IF NOT EXISTS `services` (
   `icon` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'settings',
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `is_required` tinyint(1) NOT NULL DEFAULT '0',
-  `billing_mode` enum('fixed','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'fixed',
-  `kind` enum('other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other',
+  `billing_mode` enum('meter','per_person','per_unit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'meter',
+  `kind` enum('other','electricity','water','trash') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'other',
   `applies_to` enum('room','person') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'room',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `delete_year` smallint DEFAULT NULL,
@@ -715,13 +683,39 @@ CREATE TABLE IF NOT EXISTS `services` (
 
 -- Dumping data for table manage.services: ~4 rows (approximately)
 INSERT INTO `services` (`id`, `name`, `price`, `unit`, `icon`, `description`, `is_required`, `billing_mode`, `kind`, `applies_to`, `is_active`, `delete_year`, `delete_month`, `deactivate_month`, `deactivate_year`) VALUES
-	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tiền điện hàng tháng cố định cho mỗi phòng.', 1, 'fixed', 'other', 'room', 1, NULL, NULL, NULL, NULL),
-	(2, 'Tiền nước', 30000.00, 'người/tháng', 'water_drop', 'Tính theo số người đang ở trong phòng.', 1, 'per_person', 'other', 'room', 1, NULL, NULL, NULL, NULL),
-	(3, 'Tiền rác', 20000.00, 'người/tháng', 'delete', 'Phí thu gom rác sinh hoạt.', 1, 'per_person', 'other', 'room', 1, NULL, NULL, NULL, NULL),
+	(1, 'Tiền điện', 3500.00, 'kWh', 'bolt', 'Tính theo chỉ số công tơ điện hàng tháng của phòng.', 1, 'meter', 'electricity', 'room', 1, NULL, NULL, NULL, NULL),
+	(2, 'Tiền nước', 30000.00, 'm3', 'water_drop', 'Tính theo chỉ số đồng hồ nước (mét khối) hàng tháng của phòng.', 1, 'meter', 'water', 'room', 1, NULL, NULL, NULL, NULL),
+	(3, 'Tiền rác', 20000.00, 'người/tháng', 'delete', 'Phí thu gom rác sinh hoạt tính theo mỗi cá nhân.', 1, 'per_person', 'trash', 'room', 1, NULL, NULL, NULL, NULL),
 	(4, 'Wifi', 51000.00, 'người/tháng', 'wifi', 'Internet cáp quang dùng chung toàn khu.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL),
-	(5, 'Giữ xe', 100000.00, 'xe/tháng', 'two_wheeler', 'Phí gửi xe máy có mái che.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
-	(6, 'Vệ sinh', 50000.00, 'phòng/tháng', 'cleaning_services', 'Vệ sinh hành lang, cầu thang và khu sinh hoạt chung.', 0, 'fixed', 'other', 'person', 1, NULL, NULL, NULL, NULL),
+	(5, 'Giữ xe', 100000.00, 'xe/tháng', 'two_wheeler', 'Phí gửi xe máy có mái che.', 0, 'per_unit', 'other', 'room', 1, NULL, NULL, NULL, NULL),
+	(6, 'Vệ sinh', 50000.00, 'phòng/tháng', 'cleaning_services', 'Vệ sinh hành lang, cầu thang và khu sinh hoạt chung.', 0, 'per_unit', 'other', 'room', 1, NULL, NULL, NULL, NULL),
 	(7, 'Máy giặt', 50000.00, 'người/tháng', 'local_laundry_service', 'Sử dụng máy giặt chung không giới hạn theo tháng.', 0, 'per_person', 'other', 'person', 1, NULL, NULL, NULL, NULL);
+
+-- Dumping structure for table manage.meter_readings
+DROP TABLE IF EXISTS `meter_readings`;
+CREATE TABLE IF NOT EXISTS `meter_readings` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `room_id` int unsigned NOT NULL,
+  `service_id` int unsigned NOT NULL,
+  `month` tinyint NOT NULL,
+  `year` smallint NOT NULL,
+  `old_index` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `new_index` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_meter_period` (`room_id`,`service_id`,`month`,`year`),
+  KEY `fk_mr_service` (`service_id`),
+  CONSTRAINT `fk_mr_room` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mr_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dumping data for table manage.meter_readings: ~5 rows (approximately)
+INSERT INTO `meter_readings` (`id`, `room_id`, `service_id`, `month`, `year`, `old_index`, `new_index`, `created_at`) VALUES
+	(1, 1, 1, 7, 2026, 1000.00, 1100.00, '2026-08-04 00:34:48'),
+	(2, 1, 2, 7, 2026, 50.00, 60.00, '2026-08-04 00:34:48'),
+	(3, 1, 1, 8, 2026, 1100.00, 1101.00, '2026-08-08 08:35:20'),
+	(5, 3, 1, 8, 2026, 0.00, 1.00, '2026-08-13 04:34:39'),
+	(6, 13, 1, 8, 2026, 0.00, 150.00, '2026-08-15 10:36:37');
 
 -- Dumping structure for table manage.settings
 DROP TABLE IF EXISTS `settings`;

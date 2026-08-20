@@ -257,7 +257,8 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
     }
 
     /**
-
+     * Đăng ký dịch vụ cá nhân cho phòng tenant.
+     */
     public function registerService() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirectTo('tenant-services');
@@ -344,8 +345,7 @@ $pageTitle = 'Thông tin phòng - NhaTroA';
         $notificationId = (int)($_POST['notification_id'] ?? 0);
         $markAll = !empty($_POST['mark_all']);
         $redirectPage = trim((string)($_POST['redirect_page'] ?? 'tenant-notifications'));
-        $redirectAllowed = ['tenant-notifications', 'tenant', 'tenant-services', 'tenant-meter', 'tenant-invoice', 'tenant-profile'];
-        $redirectAllowed = ['tenant-notifications', 'tenant', 'tenant-services', 'tenant-invoice', 'tenant-profile', 'tenant-contract'];
+        $redirectAllowed = ['tenant-notifications', 'tenant', 'tenant-services', 'tenant-invoice', 'tenant-profile'];
         if (!in_array($redirectPage, $redirectAllowed, true)) {
             $redirectPage = 'tenant-notifications';
         }

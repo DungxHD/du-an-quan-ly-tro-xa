@@ -89,8 +89,19 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
         <section class="2xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <h3 class="font-bold text-lg">Lịch sử thông báo đã gửi</h3>
-                <p class="text-sm text-gray-500 mt-1">Danh sách này giúp admin tra lại thông báo broadcast, thông báo riêng và các bản tin tự sinh từ đổi giá.</p>
+                <div>
+                    <h3 class="font-bold text-lg">Lịch sử thông báo đã gửi</h3>
+                    <p class="text-sm text-gray-500 mt-1">Danh sách này giúp admin tra lại thông báo broadcast, thông báo riêng và các bản tin tự sinh từ đổi giá.</p>
+                </div>
+                <form method="POST" action="<?= BASE_URL ?>?page=admin-mark-notification-read">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="mark_all" value="1">
+                    <input type="hidden" name="redirect_page" value="admin-notifications">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition text-sm">
+                        <span class="material-symbols-outlined text-lg">done_all</span>
+                        Đánh dấu đọc tất cả
+                    </button>
+                </form>
             </div>
 
             <div class="px-6 pt-4 pb-3 border-b border-gray-100 overflow-x-auto">

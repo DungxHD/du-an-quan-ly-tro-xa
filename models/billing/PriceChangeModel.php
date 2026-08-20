@@ -135,7 +135,7 @@ class PriceChangeModel {
         $service = ServiceModel::getById((int)$serviceId);
         if (!$service) { throw new RuntimeException('Dịch vụ cần đổi giá không tồn tại.'); }
         $currentPrice = (float)($service['price'] ?? 0);
-        $currentMode = (string)($service['billing_mode'] ?? 'fixed');
+        $currentMode = (string)($service['billing_mode'] ?? 'meter');
         $hasPriceChange = $newPrice !== null && abs((float)$newPrice - $currentPrice) > 0.001;
         $hasModeChange = $newBillingMode !== null && $newBillingMode !== $currentMode;
         if (!$hasPriceChange && !$hasModeChange) { throw new RuntimeException('Giá và cách tính mới đang trùng hiện tại, không có thay đổi.'); }
@@ -219,7 +219,7 @@ return $result;
     }
     public static function getEffectiveConfigForPeriod(array $service, $month, $year) {
         $basePrice = (float)($service['price'] ?? 0);
-        $baseMode = (string)($service['billing_mode'] ?? 'fixed');
+        $baseMode = (string)($service['billing_mode'] ?? 'meter');
         $history = self::getHistoryByServiceId((int)($service['id'] ?? 0));
         $targetOrder = ((int)$year * 100) + (int)$month;
         $currentOrder = ((int)date('Y') * 100) + (int)date('n');
@@ -246,7 +246,7 @@ return $result;
         return ['price' => $price, 'billing_mode' => $mode];
     }
     public static function getEffectivePriceForPeriod($serviceId, $month, $year, $fallbackPrice = 0.0) {
-        $service = ServiceModel::getById((int)$serviceId) ?? ['price' => $fallbackPrice, 'billing_mode' => 'fixed'];
+        $service = ServiceModel::getById((int)$serviceId) ?? ['price' => $fallbackPrice, 'billing_mode' => 'meter'];
         return self::getEffectiveConfigForPeriod($service, $month, $year)['price'];
     }
     public static function buildNotificationContent(array $service, $oldPrice, $newPrice, $effectiveMonth, $effectiveYear, $newBillingMode = null) {

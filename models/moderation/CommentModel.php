@@ -507,7 +507,7 @@ class CommentModel {
 
     /**
      * Tìm lần ở gần nhất còn đủ điều kiện đánh giá.
-     * Không còn hợp đồng: chỉ tenant đang được gán trong phòng (users.room_id) mới đủ điều kiện.
+     * Chỉ tenant đang được gán trong phòng (users.room_id) mới đủ điều kiện.
      */
     private static function getLatestEligibleStay($userId, $roomId) {
         $resolvedUserId = (int)$userId;

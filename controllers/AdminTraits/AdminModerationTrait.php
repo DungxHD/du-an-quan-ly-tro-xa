@@ -358,6 +358,54 @@ public function notifications()
         }
         redirectTo('admin-notifications');
     }
+
+    /**
+     * Admin đánh dấu một hoặc tất cả thông báo là đã đọc để tắt badge chuông.
+     */
+    public function markNotificationRead()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirectTo('admin-notifications');
+        }
+        verify_csrf();
+
+        $adminUserId = (int)($_SESSION['user_id'] ?? 0);
+        $notificationId = (int)($_POST['notification_id'] ?? 0);
+        $markAll = !empty($_POST['mark_all']);
+        $redirectPage = trim((string)($_POST['redirect_page'] ?? 'admin-notifications'));
+        $redirectAllowed = ['admin-notifications'];
+        if (!in_array($redirectPage, $redirectAllowed, true)) {
+            $redirectPage = 'admin-notifications';
+        }
+
+        if ($adminUserId <= 0) {
+            setFlash('admin_notification_error', 'Phiên đăng nhập không hợp lệ.');
+            redirectTo('admin-notifications');
+            return;
+        }
+
+        try {
+            if ($markAll) {
+                NotificationModel::markAllAsRead($adminUserId);
+                setFlash('admin_notification_message', 'Đã đánh dấu tất cả thông báo là đã đọc.');
+                redirectTo($redirectPage);
+            }
+
+            if ($notificationId <= 0) {
+                throw new RuntimeException('Thông báo cần đánh dấu không hợp lệ.');
+            }
+
+            NotificationModel::markAsRead($notificationId, $adminUserId);
+            if ($redirectPage === 'admin-notifications') {
+                redirectTo('admin-notifications', ['notification_id' => $notificationId]);
+            }
+
+            redirectTo($redirectPage);
+        } catch (Throwable $exception) {
+            setFlash('admin_notification_error', $exception->getMessage());
+            redirectTo('admin-notifications');
+        }
+    }
 /**
      * Tạo mới hoặc cập nhật cấu hình dịch vụ.
      */
@@ -410,8 +458,8 @@ public function notifications()
             setFlash('admin_service_old', array_merge($data, ['id' => $id]));
             redirectTo('admin-services');
         }
-        // Đối tượng áp dụng bị khóa theo cách tính giá: theo người → người, theo số lượng → phòng.
-        $appliesToByBillingMode = ['per_person' => 'person', 'per_unit' => 'room'];
+        // Đối tượng áp dụng bị khóa theo cách tính giá: theo chỉ số → phòng, theo người → người, theo số lượng → phòng.
+        $appliesToByBillingMode = ['meter' => 'room', 'per_person' => 'person', 'per_unit' => 'room'];
         if (isset($appliesToByBillingMode[$data['billing_mode']])) {
             $data['applies_to'] = $appliesToByBillingMode[$data['billing_mode']];
         }
@@ -869,20 +917,20 @@ public function deleteService($id)
     {
         return [
             [
-                'value' => 'fixed',
-                'label' => 'Cố định',
-                'badge_class' => 'bg-slate-100 text-slate-700',
-                'tooltip' => 'Thu cố định theo chu kỳ, thường dùng cho wifi hoặc phí trọn gói.',
+                'value' => 'meter',
+                'label' => 'Tính theo chỉ số',
+                'badge_class' => 'bg-cyan-100 text-cyan-700',
+                'tooltip' => 'Tính theo công tơ/chỉ số tiêu thụ thực tế như điện hoặc nước. Chỉ số được nhập hàng tháng trước khi lập hóa đơn.',
             ],
             [
                 'value' => 'per_person',
-                'label' => 'Theo người',
+                'label' => 'Tính theo cá nhân',
                 'badge_class' => 'bg-purple-100 text-purple-700',
                 'tooltip' => 'Nhân với số người đang ở hoặc người được áp dụng.',
             ],
             [
                 'value' => 'per_unit',
-                'label' => 'Theo số lượng',
+                'label' => 'Tính theo số lượng',
                 'badge_class' => 'bg-amber-100 text-amber-700',
                 'tooltip' => 'Nhân theo số lượng đăng ký như số xe, số bình, số thiết bị.',
             ],
@@ -924,7 +972,7 @@ public function deleteService($id)
             'unit' => trim((string)($source['unit'] ?? 'tháng')),
             'icon' => trim((string)($source['icon'] ?? 'settings')),
             'description' => trim((string)($source['description'] ?? '')),
-            'billing_mode' => trim((string)($source['billing_mode'] ?? 'fixed')),
+            'billing_mode' => trim((string)($source['billing_mode'] ?? 'meter')),
             'applies_to' => trim((string)($source['applies_to'] ?? 'room')),
             'is_required' => !empty($source['is_required']) ? 1 : 0,
             'is_active' => !empty($source['is_active']) ? 1 : 0,

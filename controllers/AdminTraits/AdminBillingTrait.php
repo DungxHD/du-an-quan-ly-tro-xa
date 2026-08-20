@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // [DEV-QWEN-A][REFACTOR][NHOM-6] Tach tu AdminController.php. KHONG require model - autoloader index.php lo.
 
 trait AdminBillingTrait
@@ -18,6 +18,14 @@ trait AdminBillingTrait
         $areaId = (int)($_GET['area_id'] ?? 0);
         $floorId = (int)($_GET['floor_id'] ?? 0);
         $status = trim((string)($_GET['status'] ?? ''));
+
+        $filters = [
+            'room_id' => (int)($_GET['room_id'] ?? 0),
+            'search' => $search,
+            'area_id' => $areaId,
+            'floor_id' => $floorId,
+            'status' => $status,
+        ];
 
         $period = PaymentModel::normalizePeriod($month, $year);
 
@@ -43,6 +51,47 @@ trait AdminBillingTrait
 
         $invoiceMessage = pullFlash('admin_invoice_message');
         $invoiceError = pullFlash('admin_invoice_error');
+
+$invoiceRoomRows = PaymentModel::getRoomInvoiceOverview($period['month'], $period['year'], [
+            'area_id' => $areaId > 0 ? $areaId : null,
+            'floor_id' => $floorId > 0 ? $floorId : null,
+        ]);
+
+        $meterRoomMap = [];
+        foreach ($invoiceRoomRows as $roomRow) {
+            $roomId = (int)($roomRow['room_id'] ?? 0);
+            if ($roomId <= 0) {
+                continue;
+            }
+            $meterServices = MeterReadingModel::getMeterServicesForRoom($roomId, $period['month'], $period['year']);
+            if (empty($meterServices)) {
+                continue;
+            }
+            $meterCells = [];
+            foreach ($meterServices as $meterService) {
+                $serviceId = (int)($meterService['id'] ?? 0);
+                $reading = MeterReadingModel::getReadingByPeriod($roomId, $serviceId, $period['month'], $period['year']);
+                $baseline = MeterReadingModel::resolvePeriodBaseline($roomId, $meterService, $period['month'], $period['year']);
+                $meterCells[$serviceId] = [
+                    'old_index' => $reading ? (float)($reading['old_index'] ?? 0) : (float)($baseline['old_index'] ?? 0),
+                    'new_value' => $reading ? (string)($reading['new_index'] ?? '') : '',
+                    'need_old' => !$reading && $baseline['error'] !== null,
+                    'has_reading' => $reading !== null,
+                ];
+            }
+$meterRoomMap[$roomId] = ['services' => $meterServices, 'cells' => $meterCells];
+        }
+
+        $invoiceId = (int)($_GET['invoice_id'] ?? 0);
+        $selectedInvoice = null;
+        if ($invoiceId > 0) {
+            $selectedInvoice = PaymentModel::getInvoiceById($invoiceId);
+            if (empty($selectedInvoice)) {
+                setFlash('admin_invoice_error', 'Hóa đơn không tồn tại hoặc đã bị xóa.');
+            }
+        }
+
+        $invoiceStatusOptions = ['unpaid' => 'Chưa trả', 'paid' => 'Đã trả'];
 
         $redirectParams = array_filter([
             'month' => $period['month'],
@@ -88,6 +137,26 @@ public function generateInvoice()
             } else {
                 if ($roomId <= 0) {
                     throw new RuntimeException('Vui lòng chọn phòng cần tạo hóa đơn.');
+                }
+
+                $submittedReadings = $_POST['meter_readings'] ?? [];
+                if (!empty($submittedReadings[$roomId]) && is_array($submittedReadings[$roomId])) {
+                    $saveResult = MeterReadingModel::saveReadings(
+                        $period['month'],
+                        $period['year'],
+                        [$roomId => $submittedReadings[$roomId]],
+                        ['room_id' => $roomId]
+                    );
+                    if (!empty($saveResult['form_error']) || !empty($saveResult['errors'][$roomId])) {
+                        $roomErrors = $saveResult['errors'][$roomId] ?? [];
+                        $errorText = $saveResult['form_error'] ?? 'Kiểm tra lại các ô nhập chỉ số.';
+                        if (is_array($roomErrors)) {
+                            $errorText .= ' ' . implode(' ', array_values($roomErrors));
+                        }
+                        setFlash('admin_invoice_error', 'Chưa lưu được chỉ số: ' . $errorText);
+                        redirectTo('admin-invoices', $redirectParams);
+                        return;
+                    }
                 }
 
                 $result = PaymentModel::generateInvoices($period['month'], $period['year'], $roomId);
@@ -218,5 +287,6 @@ public function generateInvoice()
 
         redirectTo('admin-invoices', $redirectParams);
     }
+
 
 }

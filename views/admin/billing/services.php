@@ -59,7 +59,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 <?php foreach ($services as $item): ?>
 <?php
 $itemId = (int)($item['id'] ?? 0);
-$mode = $billingModeMeta[$item['billing_mode'] ?? 'fixed'] ?? $billingModeMeta['fixed'];
+$mode = $billingModeMeta[$item['billing_mode'] ?? ''] ?? (reset($billingModeMeta) ?: ['label' => '—', 'badge_class' => 'bg-gray-100 text-gray-600']);
 $pendDel = !empty($pendingDeleteByService[$itemId]);
 $pendDeac = !empty($pendingDeactivateByService[$itemId]);
 $pendDeac = !empty($pendingDeactivateByService[$itemId]);
@@ -69,7 +69,7 @@ $hasPendingPrice = false; $hasPendingMode = false;
 $pendingPriceInfo = null; $pendingModeInfo = null;
 foreach ($hist as $h) {
 if (!$hasPendingPrice && abs((float)($h['new_price'] ?? 0) - (float)($item['price'] ?? 0)) > 0.001) { $hasPendingPrice = true; $pendingPriceInfo = $h; }
-if (!$hasPendingMode && !empty($h['new_billing_mode']) && $h['new_billing_mode'] !== ($item['billing_mode'] ?? 'fixed')) { $hasPendingMode = true; $pendingModeInfo = $h; }
+if (!$hasPendingMode && !empty($h['new_billing_mode']) && $h['new_billing_mode'] !== ($item['billing_mode'] ?? 'meter')) { $hasPendingMode = true; $pendingModeInfo = $h; }
 }
 $hasAnyPending = $hasPendingPrice || $hasPendingMode || $pendDeac;
 ?>
@@ -212,12 +212,12 @@ Dịch vụ sẽ được tắt từ tháng <?= str_pad((string)(int)($item['dea
     <?php $allowedModeValues = (isset($kindBillingModes) && is_array($kindBillingModes) && array_key_exists($formKind, $kindBillingModes)) ? $kindBillingModes[$formKind] : array_column($serviceBillingModes ?? [], 'value'); ?>
     <select name="billing_mode" id="svc-billing-mode" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
     <?php foreach (($serviceBillingModes ?? []) as $mode): ?>
-    <?php if (in_array($mode['value'], $allowedModeValues, true) && ($mode['value'] !== 'fixed' || ($isEditing && ($formService['billing_mode'] ?? '') === 'fixed'))): ?>
-    <option value="<?= e($mode['value']) ?>" <?= ($formService['billing_mode'] ?? 'fixed') === $mode['value'] ? 'selected' : '' ?>><?= e($mode['label']) ?></option>
+    <?php if (in_array($mode['value'], $allowedModeValues, true)): ?>
+    <option value="<?= e($mode['value']) ?>" <?= ($formService['billing_mode'] ?? 'meter') === $mode['value'] ? 'selected' : '' ?>><?= e($mode['label']) ?></option>
     <?php endif; ?>
     <?php endforeach; ?>
     </select>
-    <?php if (ServiceModel::isLockedKind($formKind)): ?><p class="text-xs text-amber-700 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Cách tính đã khóa theo loại dịch vụ.</p><?php endif; ?></div>
+    <?php if (ServiceModel::isLockedKind($formKind)): ?><p class="text-xs text-amber-700 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Dịch vụ bắt buộc — cách tính đã khóa theo loại dịch vụ.</p><?php endif; ?></div>
 <div id="applies-to-wrap" class="<?= ServiceModel::isLockedKind($formKind) ? 'hidden' : '' ?>">
     <label class="block text-sm font-semibold mb-2">Đối tượng áp dụng</label>
     <select name="applies_to" id="svc-applies-to" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
@@ -228,9 +228,9 @@ Dịch vụ sẽ được tắt từ tháng <?= str_pad((string)(int)($item['dea
     <p id="applies-lock-note" class="hidden text-xs text-amber-700 mt-1.5 flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Đối tượng áp dụng đã khóa theo cách tính giá.</p>
     <p class="text-xs text-gray-500 mt-1"><span class="material-symbols-outlined text-sm align-middle">info</span> "Theo phòng": admin gán cho phòng. "Theo người": cư dân tự đăng ký.</p>
 </div>
-<div id="unit-wrap">
+<div id="unit-wrap" class="<?= (($formService['billing_mode'] ?? 'meter') === 'meter') ? '' : 'hidden' ?>">
 <label class="block text-sm font-semibold mb-2">Đơn vị tính</label>
-<input type="text" name="unit" id="svc-unit-input" value="<?= e($formService['unit'] ?? '') ?>" placeholder="VD: tháng, người, số lượng" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
+<input type="text" name="unit" id="svc-unit-input" value="<?= e($formService['unit'] ?? '') ?>" placeholder="VD: kWh, m3" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none"></div>
 <div><label class="block text-sm font-semibold mb-2">Icon dịch vụ</label>
 <input type="hidden" name="icon" id="svc-icon-input" value="<?= e($formService['icon'] ?? 'settings') ?>">
 <button type="button" id="icon-picker-toggle" class="w-full px-4 py-3 border border-gray-200 rounded-xl flex items-center gap-3 hover:border-primary transition text-left bg-white">
@@ -344,7 +344,8 @@ document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeD
 var bm = document.getElementById('svc-billing-mode');
 var at = document.getElementById('svc-applies-to');
 var atLockNote = document.getElementById('applies-lock-note');
-var appliesToByMode = { per_person: 'person', per_unit: 'room' };
+var unitWrap = document.getElementById('unit-wrap');
+var appliesToByMode = { meter: 'room', per_person: 'person', per_unit: 'room' };
 var atLocked = false;
 if (bm) {
     var syncAppliesTo = function() {
@@ -361,6 +362,9 @@ if (bm) {
             atLockNote.classList.add('hidden');
             atLockNote.classList.remove('flex');
             atLocked = false;
+        }
+        if (unitWrap) {
+            unitWrap.classList.toggle('hidden', bm.value !== 'meter');
         }
     };
     bm.addEventListener('change', syncAppliesTo);

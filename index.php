@@ -477,10 +477,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->invoices();
         break;
-    case 'admin-view-contract':
-        requireAdmin();
-        (new AdminController())->viewContract($id);
-        break;
     case 'admin-generate-invoice':
         requireAdmin();
         (new AdminController())->generateInvoice();
@@ -492,6 +488,10 @@ switch ($page) {
     case 'admin-send-notification':
         requireAdmin();
         (new AdminController())->sendNotification();
+        break;
+    case 'admin-mark-notification-read':
+        requireAdmin();
+        (new AdminController())->markNotificationRead();
         break;
     case 'admin-accounts':
         requireAdmin();

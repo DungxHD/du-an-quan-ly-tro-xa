@@ -516,7 +516,7 @@ class PaymentModel {
     }
 
     /**
-     * Lấy giá tiền phòng cho hóa đơn: dùng rooms.price (giá niêm yết) vì không còn hợp đồng.
+     * Lấy giá tiền phòng cho hóa đơn: dùng rooms.price (giá niêm yết).
      */
     private static function resolveRoomRentPrice(array $room) {
         return (float)($room['price'] ?? 0);
@@ -559,6 +559,26 @@ class PaymentModel {
         $errors = [];
 
         switch ($billingMode) {
+            case 'meter':
+                $reading = MeterReadingModel::getReadingByPeriod((int)($room['id'] ?? 0), $serviceId, (int)$month, (int)$year);
+                if (!$reading) {
+                    $errors[] = $serviceName . ': chưa có chỉ số của kỳ này nên không thể tạo hóa đơn.';
+                    break;
+                }
+                $consumption = max(0, (float)($reading['new_index'] ?? 0) - (float)($reading['old_index'] ?? 0));
+                return [
+                    'item' => self::buildItemRow(
+                        $serviceId,
+                        $serviceName,
+                        $unitPrice,
+                        $consumption,
+                        'meter',
+                        self::formatNumber($reading['old_index'] ?? 0) . ' -> ' . self::formatNumber($reading['new_index'] ?? 0)
+                    ),
+                    'warnings' => [],
+                    'errors' => [],
+                ];
+
             case 'per_person':
                 if ($occupantCount <= 0) {
                     $warnings[] = $serviceName . ': phòng chưa có tenant đang gán trực tiếp nên số người được tính là 0.';
@@ -614,7 +634,7 @@ class PaymentModel {
             (float)($service['price'] ?? 0)
         );
         $baseQuantity = max(1, (float)($service['quantity'] ?? 1));
-        $billingMode = PriceChangeModel::getEffectiveConfigForPeriod($service, (int)$month, (int)$year)['billing_mode'] ?? 'fixed';
+        $billingMode = PriceChangeModel::getEffectiveConfigForPeriod($service, (int)$month, (int)$year)['billing_mode'] ?? 'per_unit';
 
         switch ($billingMode) {
             case 'per_person':
@@ -680,7 +700,7 @@ class PaymentModel {
                 'unit_price' => (float)($item['unit_price'] ?? 0),
                 'quantity' => (float)($item['quantity'] ?? 0),
                 'amount' => (float)($item['amount'] ?? 0),
-                'billing_mode' => $item['billing_mode'] ?? 'fixed',
+                'billing_mode' => $item['billing_mode'] ?? 'per_unit',
             ]);
         }
 
@@ -893,7 +913,7 @@ class PaymentModel {
             'unit_price' => (float)($row['unit_price'] ?? 0),
             'quantity' => (float)($row['quantity'] ?? 0),
             'amount' => (float)($row['amount'] ?? 0),
-            'billing_mode' => $row['billing_mode'] ?? 'fixed',
+            'billing_mode' => $row['billing_mode'] ?? 'per_unit',
             'created_at' => $row['created_at'] ?? null,
         ];
     }

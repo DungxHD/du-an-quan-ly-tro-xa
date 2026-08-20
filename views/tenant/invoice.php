@@ -148,7 +148,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 </td>
                                 <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($formatMoney($item['unit_price'] ?? 0)) ?></td>
                                 <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($formatNumber($item['quantity'] ?? 0)) ?></td>
-                                <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($item['billing_mode'] ?? 'fixed') ?></td>
+                                <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($item['billing_mode'] ?? '') ?></td>
                                 <td class="px-4 py-4 align-top font-semibold text-primary"><?= e($formatMoney($item['amount'] ?? 0)) ?></td>
                             </tr>
                             <?php endforeach; ?>
