@@ -51,7 +51,7 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
                 </div>
             <?php endif; ?>
 
-            <!-- FORM ĐĂNG NH��P -->
+            <!-- FORM ĐĂNG NHẬP -->
             <?php if ($action === 'login' || empty($action)): ?>
                 <form method="POST" class="space-y-4" data-login-form <?= !empty($errors) ? 'data-shake' : '' ?>>
     <?= csrf_field() ?>
@@ -121,7 +121,7 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
                     </button>
                 </div>
 
-            <!-- FORM Đ��I M��T KH��U - B����C 1: NH��P IDENTIFIER -->
+            <!-- FORM ĐỔI MẬT KHẨU - BƯỚC 1: NHẬP IDENTIFIER -->
             <?php elseif ($action === 'change_password' && $cp_step === 1): ?>
                 <form method="POST" class="space-y-4" data-change-form-step1 <?= !empty($errors['identifier']) ? 'data-shake' : '' ?>>
     <?= csrf_field() ?>
@@ -163,7 +163,7 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
                     <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
                 </div>
 
-            <!-- FORM Đ��I M��T KH��U - B����C 2: NH��P M��T KH��U C��/M��I -->
+            <!-- FORM ĐỔI MẬT KHẨU - BƯỚC 2: NHẬP MẬT KHẨU CŨ/MỚI -->
             <?php elseif ($action === 'change_password' && $cp_step === 2): ?>
                 <form method="POST" class="space-y-4" data-change-form-step2 <?= !empty($errors) ? 'data-shake' : '' ?>>
     <?= csrf_field() ?>
@@ -299,7 +299,7 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
                     <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
                 </div>
 
-            <!-- FORM QU��N M��T KH��U - B����C 1: NH��P IDENTIFIER -->
+            <!-- FORM QUÊN MẬT KHẨU - BƯỚC 1: NHẬP IDENTIFIER -->
             <?php elseif ($action === 'forgot_password' && $fp_step === 1): ?>
                 <form method="POST" class="space-y-4" data-forgot-form-step1 <?= !empty($errors['identifier']) ? 'data-shake' : '' ?>>
     <?= csrf_field() ?>
@@ -341,7 +341,7 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
                     <a href="<?= BASE_URL ?>?page=login" class="text-gray-500 hover:text-primary text-sm">Quay lại đăng nhập</a>
                 </div>
 
-            <!-- FORM QU��N M��T KH��U - B����C 2: NH��P OTP (INLINE, KH��NG REDIRECT) -->
+            <!-- FORM QUÊN MẬT KHẨU - BƯỚC 2: NHẬP OTP (INLINE, KHÔNG REDIRECT) -->
             <?php elseif ($action === 'forgot_password' && $fp_step === 2): ?>
                 <?php if (!empty($errors['no_email'])): ?>
                     <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
@@ -462,7 +462,7 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
             <div class="mt-6 p-4 bg-blue-50 rounded-lg text-xs text-blue-900">
                 <p class="font-semibold mb-1">Tài khoản demo (mật khẩu: 123456):</p>
                 <p>Admin: admin@nhatroxanh.vn</p>
-                <p>Tenant: tenant01@example.com</p>
+                <p>Tenant: tenant1@gmail.com</p>
             </div>
 
             <div class="mt-6 text-center text-sm text-gray-600">
@@ -523,7 +523,7 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
       btn.querySelector('.icon-eye').classList.toggle('hidden', wasHidden);
       btn.querySelector('.icon-eye-off').classList.toggle('hidden', !wasHidden);
       btn.setAttribute('aria-pressed', String(wasHidden));
-      btn.setAttribute('aria-label', wasHidden ? '��n mật khẩu' : 'Hiện mật khẩu');
+      btn.setAttribute('aria-label', wasHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
     });
   });
 

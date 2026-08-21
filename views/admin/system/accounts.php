@@ -714,4 +714,4 @@ if (editDrawer && editBackdrop) {
     }
 })();
 </script>
-<?php require BASE_PATH . 'views\layouts\panel_footer.php'; ?>
+<?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>

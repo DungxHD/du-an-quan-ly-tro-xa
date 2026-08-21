@@ -83,20 +83,20 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
 </head>
 
 <body class="nta-panel-body <?= e($panelBodyClass) ?> font-sans antialiased page-transition-wrapper" data-panel-theme="<?= e($panelTheme) ?>">
-    <nav class="nta-panel-topbar fixed top-0 w-full z-40 <?= e($panelShellClass) ?>" id="panelNav">
+<nav class="nta-panel-topbar fixed top-0 w-full z-40 <?= e($panelShellClass) ?>" id="panelNav">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 min-w-0">
-                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-card">
-                    <span class="material-symbols-outlined text-white text-[26px]"><?= e($panelHeaderIcon) ?></span>
+                <div class="panel-brand-mark">
+                    <span class="material-symbols-outlined text-white text-[26px]" aria-hidden="true"><?= e($panelHeaderIcon) ?></span>
                 </div>
                 <div class="min-w-0">
-                    <p class="font-bold text-lg truncate"><?= e($panelTitle) ?></p>
-                    <p class="text-xs <?= $panelTheme === 'admin' ? 'text-gray-400' : 'text-gray-500' ?> truncate">
+                    <p class="panel-title"><?= e($panelTitle) ?></p>
+                    <p class="panel-subtitle <?= $panelTheme === 'admin' ? 'text-gray-400' : 'text-gray-500' ?>">
                         <?= e($panelSubtitle !== '' ? $panelSubtitle : $siteName . ' panel') ?>
                     </p>
                 </div>
             </div>
-            <div class="hidden md:flex items-center gap-3">
+            <div class="panel-topbar-actions hidden md:flex items-center gap-3">
                 <button type="button" class="nta-theme-toggle inline-flex items-center justify-center w-10 h-10 rounded-xl <?= $panelTheme === 'admin' ? 'border border-gray-700 text-gray-300 hover:bg-gray-800' : 'border border-gray-200 text-gray-600 hover:bg-gray-50' ?> transition" data-theme-toggle aria-pressed="false" aria-label="Đổi giao diện sáng tối">
                     <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
                 </button>
@@ -253,8 +253,8 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
         </div>
     </nav>
 
-    <div class="flex pt-16 min-h-screen">
-        <aside class="nta-panel-sidebar w-64 <?= e($panelSidebarClass) ?> min-h-[calc(100vh-4rem)] fixed left-0 top-16 p-4 hidden md:block">
+    <div class="panel-shell-layout flex pt-16 min-h-screen">
+        <aside class="nta-panel-sidebar w-64 <?= e($panelSidebarClass) ?> min-h-[calc(100vh-4rem)] fixed left-0 top-16 hidden md:block">
             <nav class="space-y-1" id="panelSidebarNav">
                 <?php foreach ($panelNavItems as $item): ?>
                     <?php if (!empty($item['children'])): ?>
@@ -303,7 +303,7 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
         </aside>
 
         <main class="nta-panel-content flex-1 <?= e($panelContentClass) ?>">
-            <div class="md:hidden mb-4 flex items-center gap-2 overflow-x-auto pb-2">
+            <div class="panel-mobile-nav md:hidden mb-4 flex items-center gap-2 overflow-x-auto pb-2">
                 <button type="button" class="nta-theme-toggle shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 transition" data-theme-toggle aria-pressed="false" aria-label="Đổi giao diện sáng tối">
                     <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
                 </button>
@@ -337,7 +337,7 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
             </div>
 
             <?php if ($showFallbackBanner): ?>
-                <section class="mb-6 rounded-2xl border-2 border-red-400 bg-red-50 px-6 py-4">
+                <section class="panel-fallback mb-6 rounded-2xl border-2 border-red-400 bg-red-50 px-6 py-4">
                     <div class="flex items-start gap-3">
                         <span class="material-symbols-outlined text-red-600 text-2xl mt-0.5">warning</span>
                         <div>

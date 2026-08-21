@@ -444,9 +444,9 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 
 <!-- [DEV-QWEN-A][NHOM-2][LIGHTBOX-V2] Click anh chinh/phu de zoom, next/prev, Esc/click ngoai de dong -->
 <div id="roomLightbox" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/90" onclick="if(event.target===this) closeRoomLightbox();">
-    <button type="button" onclick="closeRoomLightbox()" class="absolute top-4 right-4 z-[10001] w-11 h-11 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl" aria-label="Dong">&times;</button>
-    <button type="button" onclick="roomLightboxStep(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh truoc">&#10094;</button>
-    <button type="button" onclick="roomLightboxStep(1)" class="absolute right-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh sau">&#10095;</button>
+    <button type="button" onclick="closeRoomLightbox()" class="absolute top-4 right-4 z-[10001] w-11 h-11 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl" aria-label="Đóng ảnh">&times;</button>
+    <button type="button" onclick="roomLightboxStep(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Ảnh trước">&#10094;</button>
+    <button type="button" onclick="roomLightboxStep(1)" class="absolute right-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Ảnh sau">&#10095;</button>
     <img id="roomLightboxImg" src="" alt="Anh phong" class="max-w-[92vw] max-h-[88vh] object-contain rounded-lg" onclick="event.stopPropagation()" onerror="if(this.dataset.fallbackApplied==='1'){return;}this.dataset.fallbackApplied='1';this.src='<?= e($fallbackImage) ?>';">
     <div id="roomLightboxCounter" class="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 text-white text-sm"></div>
 </div>

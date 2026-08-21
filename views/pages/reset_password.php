@@ -171,7 +171,7 @@ $success = $success ?? '';
       btn.querySelector('.icon-eye').classList.toggle('hidden', wasHidden);
       btn.querySelector('.icon-eye-off').classList.toggle('hidden', !wasHidden);
       btn.setAttribute('aria-pressed', String(wasHidden));
-      btn.setAttribute('aria-label', wasHidden ? '��n mật khẩu' : 'Hiện mật khẩu');
+      btn.setAttribute('aria-label', wasHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
     });
   });
 
