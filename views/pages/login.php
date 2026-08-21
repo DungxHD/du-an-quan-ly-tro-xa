@@ -461,8 +461,8 @@ $otpResendSeconds = max(0, (int)RoomModel::getSetting('otp_resend_seconds', 60))
 
             <div class="mt-6 p-4 bg-blue-50 rounded-lg text-xs text-blue-900">
                 <p class="font-semibold mb-1">Tài khoản demo (mật khẩu: 123456):</p>
-                <p>Admin: admin@nhatroxanh.vn</p>
-                <p>Tenant: tenant1@gmail.com</p>
+                <p>Admin: dungls2k7@gmail.com</p>
+                <p>Tenant: bao.pham@example.com</p>
             </div>
 
             <div class="mt-6 text-center text-sm text-gray-600">

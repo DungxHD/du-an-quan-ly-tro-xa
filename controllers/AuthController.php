@@ -538,4 +538,16 @@ class AuthController extends BaseController
         $_SESSION['role']      = (int)$user['role'];
         $_SESSION['room_id']   = $user['room_id'] ?? null;
     }
+
+    /**
+     * Điều hướng sau khi xác thực thành công
+     * Nếu có user object truyền vào -> dùng role/room_id từ object
+     * Không thì dùng session hiện tại
+     */
+    private function redirectAuthenticated(?array $user = null): void
+    {
+        $role   = $user['role'] ?? $_SESSION['role'] ?? 0;
+        $roomId = $user['room_id'] ?? $_SESSION['room_id'] ?? null;
+        redirectTo($role === 1 ? 'admin' : ($roomId ? 'tenant' : 'rooms'));
     }
+}
