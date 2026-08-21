@@ -180,12 +180,3 @@ $navClass = static function ($id) use ($activePage) {
     </div>
 </aside>
 
-<main class="public-main">
-    <?php if ($isFallbackMode): ?>
-    <section class="public-fallback-banner border-b">
-        <div class="w-[min(100%-28px,1240px)] mx-auto px-0 py-3 text-sm text-amber-700 flex flex-wrap items-center justify-between gap-2">
-            <span>Đang chạy bằng dữ liệu demo fallback để giao diện luôn hoạt động ổn định.</span>
-            <a href="<?= $roomsUrl ?>" class="font-semibold hover:underline">Xem phòng ngay</a>
-        </div>
-    </section>
-    <?php endif; ?>
