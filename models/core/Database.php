@@ -17,8 +17,8 @@ class Database
 
     private $host = 'localhost';
     private $db_name = 'manage';
-    private $username = 'xqppuafuhosting_duanmau';
-    private $password = 'LuongVanDung@2k7';
+    private $username = 'root';
+    private $password = '';
 
     private function __construct()
     {

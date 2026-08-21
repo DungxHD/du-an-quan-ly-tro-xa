@@ -157,12 +157,3 @@ $navClass = static function ($id) use ($activePage) {
     </div>
 </aside>
 
-<main class="pt-16">
-    <?php if ($isFallbackMode): ?>
-    <section class="bg-amber-50 border-b border-amber-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 text-sm text-amber-700 flex flex-wrap items-center justify-between gap-2">
-            <span>Đang chạy bằng dữ liệu demo fallback để giao diện luôn hoạt động ổn định.</span>
-            <a href="<?= $roomsUrl ?>" class="font-semibold hover:underline">Xem phòng ngay</a>
-        </div>
-    </section>
-    <?php endif; ?>
