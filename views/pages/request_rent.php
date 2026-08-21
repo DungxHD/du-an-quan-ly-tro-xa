@@ -19,7 +19,7 @@ if ($isPendingOtherRoom) {
             <span class="material-symbols-outlined">arrow_back</span> Quay lại trang phòng
         </a>
 
-        <div class="rent-request-heading bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div class="rent-request-heading bg-white rounded-3xl shadow-card border border-gray-100 p-6 mb-6">
             <h2 class="text-2xl font-bold">Yêu cầu thuê phòng</h2>
             <p class="mt-1 text-gray-600"><?= e($room['name'] ?? '') ?> · <?= number_format(((float)($room['price'] ?? 0)) / 1000000, 1) ?>M/tháng</p>
         </div>
@@ -44,7 +44,7 @@ if ($isPendingOtherRoom) {
                 . ' - STK: ' . $qrAccount
                 . ' - Chu TK: ' . $qrHolder;
             ?>
-            <div class="bg-white rounded-2xl shadow-sm border border-amber-100 p-6 text-center">
+            <div class="bg-white rounded-3xl shadow-card border border-amber-100 p-6 text-center">
                 <?php if ($payConfirmed): ?>
                 <span class="material-symbols-outlined text-5xl text-sky-500">qr_code_2</span>
                 <h3 class="mt-3 text-lg font-bold">Yêu cầu của bạn đã được admin chấp nhận</h3>
@@ -109,7 +109,7 @@ if ($isPendingOtherRoom) {
             </div>
             <?php endif; ?>
 
-            <form method="POST" action="<?= BASE_URL ?>?page=submit-rent-request&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <form method="POST" action="<?= BASE_URL ?>?page=submit-rent-request&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-white rounded-3xl shadow-card border border-gray-100 p-6 space-y-4">
                 <?= csrf_field() ?>
                 <div>
                     <label class="block text-sm font-semibold mb-2">Ngày dự kiến vào ở *</label>

@@ -30,7 +30,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
             <?php endif; ?>
             
-            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
                 <div class="flex items-center gap-4 mb-8 pb-8 border-b border-gray-100">
                     <div class="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white text-3xl font-bold">
                         <?= e(mb_substr((string)($user['full_name'] ?? 'U'), 0, 1)) ?>

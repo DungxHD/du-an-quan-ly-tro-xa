@@ -21,7 +21,7 @@ $canAdd = $occupants < $maxOcc;
 $amenities = (array)($roomExtra['amenities'] ?? []);
 ?>
 <!-- [DEV-QWEN-A][NHOM-2][ROOM-INFO-V2] Chi tiết mở sẵn; ô số người bấm để xem danh sách cư dân -->
-<div class="tenant-room-hero bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+<div class="tenant-room-hero bg-white rounded-3xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
     <div class="p-6 flex items-center justify-between gap-4">
         <div class="flex items-center gap-4">
             <span class="material-symbols-outlined text-primary text-4xl">door_open</span>
@@ -128,7 +128,7 @@ $blockedReason = empty($ownerComment) && empty($commentEligibility['allowed'])
     ? trim((string)($commentEligibility['message'] ?? ''))
     : '';
 ?>
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+<div class="bg-white rounded-3xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
     <div class="p-6 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-4">
             <span class="material-symbols-outlined text-primary text-4xl">star</span>
@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <?php else: ?>
 <!-- No room assigned -->
-<div class="tenant-empty bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center">
+<div class="tenant-empty bg-white p-12 rounded-3xl shadow-sm border border-gray-100 text-center">
     <span class="material-symbols-outlined text-6xl text-gray-300 mb-4">home_work</span>
     <h2 class="text-2xl font-bold mb-2">Bạn chưa được gán vào phòng nào</h2>
     <p class="text-gray-500 mb-6">Vui lòng liên hệ chủ trọ để được gán vào phòng của bạn.</p>

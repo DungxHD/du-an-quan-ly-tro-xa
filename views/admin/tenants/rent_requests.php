@@ -43,7 +43,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         <!-- ================= CỘT 1: YÊU CẦU THUÊ PHÒNG ================= -->
-        <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="font-bold text-lg text-gray-900">Yêu cầu thuê phòng</h3>
                 <p class="text-sm text-gray-500 mt-1">Người dùng muốn thuê một phòng cụ thể.</p>
@@ -131,7 +131,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </section>
 
         <!-- ================= CỘT 2: YÊU CẦU Ở GHÉP ================= -->
-        <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="font-bold text-lg text-gray-900">Yêu cầu ở ghép</h3>
                 <p class="text-sm text-gray-500 mt-1">Người thuê xin ở ghép cùng người đang có phòng. Admin có thể duyệt hoặc từ chối. Yêu cầu đã duyệt không thể gỡ.</p>

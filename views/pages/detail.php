@@ -32,7 +32,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
             <!-- Gallery -->
             <div class="room-gallery lg:col-span-3 reveal-left">
-                <div class="room-gallery-main aspect-video rounded-2xl overflow-hidden mb-4 shadow-xl">
+                <div class="room-gallery-main aspect-video rounded-3xl overflow-hidden mb-4 shadow-card">
                     <img src="<?= e($primaryImage) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover" onerror="if(this.dataset.fallbackApplied==='1'){return;}this.dataset.fallbackApplied='1';this.src='<?= e($fallbackImage) ?>';">
                 </div>
                 <?php $subImages = array_slice($galleryImages, 1); ?>
@@ -49,7 +49,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 
             <!-- Info -->
             <div class="room-summary-column lg:col-span-2 reveal-right">
-                <div class="room-summary-card bg-white p-8 rounded-2xl shadow-xl border border-gray-100 sticky top-20">
+                <div class="room-summary-card bg-white p-8 rounded-3xl shadow-card border border-gray-100 sticky top-20">
                     <span class="inline-block px-3 py-1 <?= e(($room['status'] ?? '') === 'available' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700') ?> text-xs font-semibold rounded-full mb-3">
                         <?= e($room['availabilityLabel'] ?? 'Đang mở cho thuê') ?>
                     </span>
@@ -109,7 +109,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
         </div>
 
         <!-- Description -->
-        <div class="mt-12 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 reveal">
+        <div class="mt-12 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 reveal">
             <h2 class="text-2xl font-bold mb-4">Mô tả chi tiết</h2>
             <p class="text-gray-600 leading-relaxed"><?= nl2br(e($room['description'])) ?></p>
         </div>
@@ -170,7 +170,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
             }
         }
         ?>
-        <div class="mt-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 reveal">
+        <div class="mt-8 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 reveal">
             <h2 class="text-2xl font-bold mb-6">Tiện ích của phòng</h2>
             <?php if (empty($merged)): ?>
                 <p class="text-gray-500">Phòng chưa có tiện ích nào được cập nhật.</p>
@@ -187,7 +187,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
         </div>
 
         <!-- Comments -->
-        <div class="mt-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 reveal">
+        <div class="mt-8 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 reveal">
             <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <h2 class="text-2xl font-bold">Đánh giá</h2>
                 <span class="rounded-full bg-surface px-4 py-2 text-sm font-semibold text-gray-700">
@@ -218,7 +218,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <section class="xl:col-span-1">
-                    <div class="rounded-2xl border border-gray-100 bg-surface p-5 sticky top-20 space-y-4">
+                    <div class="rounded-3xl border border-gray-100 bg-surface p-5 sticky top-20 space-y-4 shadow-sm hover:shadow-card transition-all">
                         <div>
                             <h3 class="text-lg font-bold"><?= $ownerComment ? 'Đánh giá của bạn' : 'Viết đánh giá' ?></h3>
                             <p class="text-sm text-gray-500 mt-1">
@@ -227,7 +227,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                         </div>
 
                         <?php if ($ownerComment): ?>
-                            <article class="rounded-2xl border border-primary/15 bg-white p-5">
+                            <article class="rounded-3xl border border-primary/15 bg-white p-5 shadow-sm hover:shadow-card transition-all">
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <p class="font-semibold text-gray-900"><?= e($ownerComment['full_name'] ?? 'Bạn') ?></p>
@@ -342,7 +342,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                         </p>
                     <?php else: ?>
                         <?php foreach ($publicComments as $c): ?>
-                            <article class="flex gap-4 p-5 bg-surface rounded-2xl border border-gray-100">
+                            <article class="flex gap-4 p-5 bg-surface rounded-3xl border border-gray-100 shadow-sm hover:shadow-card transition-all">
                                 <?php if (!empty($c['avatar'])): ?>
                                     <img src="<?= e($c['avatar']) ?>" alt="<?= e($c['full_name']) ?>" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
                                 <?php else: ?>

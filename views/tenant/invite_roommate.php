@@ -44,7 +44,7 @@ $genderLabels = ['male' => 'Nam', 'female' => 'Nữ', 'other' => 'Khác'];
     <?php endif; ?>
 
     <!-- Form tìm kiếm người để mời -->
-    <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Tìm người để mời ở ghép</h3>
         <form method="GET" action="<?= BASE_URL ?>" class="flex flex-col gap-3 sm:flex-row">
             <input type="hidden" name="page" value="tenant-roommate">
@@ -86,7 +86,7 @@ $genderLabels = ['male' => 'Nam', 'female' => 'Nữ', 'other' => 'Khác'];
     </div>
 
     <!-- Danh sách yêu cầu đã gửi -->
-    <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Yêu cầu mời ở ghép của bạn</h3>
         <?php if (empty($myRequests)): ?>
         <p class="text-center text-gray-500 py-8">Chưa có yêu cầu nào.</p>

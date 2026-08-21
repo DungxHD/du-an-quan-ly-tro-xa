@@ -25,11 +25,11 @@ $memberUrl = $sessionRoomId ? $tenantUrl : $roomsUrl;
 $memberLabel = $sessionRoomId ? 'Khu cư dân' : 'Tìm phòng';
 
 $navClass = static function ($id) use ($activePage) {
-    $base = 'nav-link px-3 py-2 rounded-lg text-sm font-semibold transition';
+    $base = 'nav-link px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300 hover:-translate-y-0.5';
     if ($id !== '' && $id === $activePage) {
-        return $base . ' bg-primary/10 text-primary';
+        return $base . ' bg-primary/10 text-primary shadow-sm';
     }
-    return $base . ' hover:bg-gray-50';
+    return $base . ' hover:bg-gray-50 hover:text-primary';
 };
 ?>
 <!DOCTYPE html>
@@ -65,13 +65,13 @@ $navClass = static function ($id) use ($activePage) {
         }
     </script>
 </head>
-<body class="nta-public-body bg-surface text-gray-900 font-sans antialiased">
+<body class="nta-public-body bg-surface text-gray-900 font-sans antialiased page-transition-wrapper">
 
-<nav class="nta-public-nav fixed top-0 w-full bg-white/80 backdrop-blur-xl shadow-sm z-40 border-b border-gray-100" id="mainNav">
+<nav class="nta-public-nav fixed top-0 w-full bg-white/70 backdrop-blur-2xl shadow-card z-40 border-b border-gray-100/50 transition-all duration-300" id="mainNav">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
             <a href="<?= $homeUrl ?>" class="flex items-center gap-3 group">
-                <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center shadow-sm transition group-hover:scale-[1.03]">
+                <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center shadow-card transition-all duration-300 group-hover:scale-[1.05] group-hover:shadow-hover">
                     <span class="material-symbols-outlined">home</span>
                 </span>
                 <span class="leading-tight">
@@ -105,14 +105,14 @@ $navClass = static function ($id) use ($activePage) {
                         <span class="text-sm font-semibold"><?= e($userName) ?></span>
                     </div>
                     <?php if ($isAdmin): ?>
-                        <a href="<?= $adminUrl ?>" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-95 transition">Quản trị</a>
+                        <a href="<?= $adminUrl ?>" class="nta-button nta-button--primary !rounded-xl">Quản trị</a>
                     <?php else: ?>
-                        <a href="<?= $memberUrl ?>" class="px-4 py-2 rounded-xl bg-secondary text-white text-sm font-bold hover:opacity-95 transition"><?= e($memberLabel) ?></a>
+                        <a href="<?= $memberUrl ?>" class="nta-button nta-button--secondary !rounded-xl"><?= e($memberLabel) ?></a>
                     <?php endif; ?>
-                    <a href="<?= $logoutUrl ?>" class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-bold hover:opacity-95 transition">Đăng xuất</a>
+                    <a href="<?= $logoutUrl ?>" class="nta-button nta-button--danger !rounded-xl">Đăng xuất</a>
                 <?php else: ?>
-                    <a href="<?= $registerUrl ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-bold hover:bg-gray-50 transition">Đăng ký</a>
-                    <a href="<?= $loginUrl ?>" class="px-5 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-95 transition">Đăng nhập</a>
+                    <a href="<?= $registerUrl ?>" class="nta-button nta-button--outline !rounded-xl">Đăng ký</a>
+                    <a href="<?= $loginUrl ?>" class="nta-button nta-button--primary !rounded-xl">Đăng nhập</a>
                 <?php endif; ?>
             </div>
 
@@ -128,8 +128,8 @@ $navClass = static function ($id) use ($activePage) {
     </div>
 </nav>
 
-<div id="mobileMenuBackdrop" class="nta-mobile-backdrop hidden fixed inset-0 bg-gray-900/40 backdrop-blur-[2px] z-40"></div>
-<aside id="mobileMenu" class="nta-mobile-drawer fixed top-0 right-0 h-full w-[86%] max-w-sm bg-white z-50 translate-x-full transition-transform duration-300">
+<div id="mobileMenuBackdrop" class="nta-mobile-backdrop hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity duration-300"></div>
+<aside id="mobileMenu" class="nta-mobile-drawer fixed top-0 right-0 h-full w-[86%] max-w-sm bg-surface z-50 translate-x-full transition-transform duration-300 shadow-modal">
     <div class="p-5 border-b border-gray-100 flex items-center justify-between">
         <div class="flex items-center gap-3">
             <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center">

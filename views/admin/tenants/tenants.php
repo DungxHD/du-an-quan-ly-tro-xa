@@ -65,17 +65,17 @@ foreach ($tenants as $assignableTenant) {
             <?php endif; ?>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                <div class="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm">
                     <p class="text-sm text-gray-500">Tổng tenant</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2"><?= (int)$tenantCount ?></p>
                     <p class="text-sm text-gray-500 mt-2">Chỉ tính tài khoản người thuê có `role = 0`.</p>
                 </div>
-                <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                <div class="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm">
                     <p class="text-sm text-gray-500">Chưa có phòng</p>
                     <p class="text-3xl font-bold text-amber-600 mt-2"><?= (int)$tenantWithoutRoom ?></p>
                     <p class="text-sm text-gray-500 mt-2">Nhóm này có thể gán phòng mới ngay.</p>
                 </div>
-                <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                <div class="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm">
                     <p class="text-sm text-gray-500">Đang thuê phòng</p>
                     <p class="text-3xl font-bold text-primary mt-2"><?= (int)$tenantWithRoom ?></p>
                     <p class="text-sm text-gray-500 mt-2">Tenant đang ở phòng sẽ bị khóa khỏi form gán mới.</p>
@@ -264,7 +264,7 @@ foreach ($tenants as $assignableTenant) {
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     <?php foreach ($rooms as $room): ?>
-                    <div class="p-4 rounded-2xl border border-gray-100 bg-gray-50">
+                    <div class="p-4 rounded-3xl border border-gray-100 bg-gray-50">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="font-bold text-gray-900"><?= e($room['name'] ?? 'Phòng') ?></p>

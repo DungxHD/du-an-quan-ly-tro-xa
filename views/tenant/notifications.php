@@ -71,7 +71,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <section class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <section class="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="text-xl font-bold flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">notifications</span>
@@ -87,7 +87,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php else: ?>
             <div class="p-6 space-y-4">
                 <?php foreach ($tenantNotifications as $notification): ?>
-                <article class="rounded-2xl border p-5 transition <?= (int)($notification['is_read'] ?? 0) === 0 ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white' ?>">
+                <article class="rounded-3xl border p-5 transition <?= (int)($notification['is_read'] ?? 0) === 0 ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white' ?>">
                     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                         <div class="flex-1">
                             <div class="flex flex-wrap items-center gap-2">
@@ -126,7 +126,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </section>
 
         <section class="space-y-4">
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
                 <p class="text-sm text-gray-500">Thông báo đang chọn</p>
                 <?php if (empty($selectedNotification)): ?>
                 <p class="text-lg font-bold mt-2">Chưa chọn thông báo</p>

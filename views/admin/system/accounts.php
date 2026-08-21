@@ -50,7 +50,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 </div>
 
 <!-- TÀI KHOẢN QUẢN TRỊ -->
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
 <h3 class="font-bold text-lg">Tài khoản quản trị</h3>
 <span class="text-xs font-semibold text-gray-500 inline-flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>Không thể thêm hoặc xóa tài khoản quản trị</span>
@@ -83,7 +83,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 </div>
 
 <!-- TÀI KHOẢN NGƯỜI DÙNG -->
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-4">
 <form method="GET" action="<?= BASE_URL ?>?page=admin-accounts" id="account-search-form" class="flex flex-col lg:flex-row lg:items-center gap-3">
 <div class="relative flex-1">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
@@ -98,7 +98,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 </form>
 </div>
 
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
 <h3 class="font-bold text-lg">Tài khoản người dùng</h3>
 <span id="accounts-total-label" class="text-xs text-gray-500"><?= (int)$totalUsers ?> tài khoản · <?= (int)$perPage ?> tài khoản/trang</span>

@@ -47,7 +47,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     ?>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <section class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <section class="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
             <form method="POST" action="<?= BASE_URL ?>?page=tenant-edit-comment" class="space-y-5">
 <?= csrf_field() ?>
                 <input type="hidden" name="comment_id" value="<?= (int)($comment['id'] ?? 0) ?>">
@@ -109,7 +109,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </section>
 
         <section class="space-y-4">
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
                 <p class="text-sm text-gray-500">Phòng</p>
                 <p class="text-xl font-bold mt-1"><?= e($comment['room_name'] ?? 'Phòng hiện tại') ?></p>
                 <p class="text-sm text-gray-500 mt-3">Tạo lúc</p>
@@ -120,7 +120,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-sm text-amber-800">
+            <div class="bg-amber-50 border border-amber-200 rounded-3xl p-5 text-sm text-amber-800">
                 Sau khi hết hạn sửa, bạn chỉ có thể xóa đánh giá này. Nếu cần hỗ trợ, hãy liên hệ admin.
             </div>
         </section>

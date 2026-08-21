@@ -537,3 +537,26 @@ document.querySelectorAll('form[data-room-filter-form]').forEach((form) => {
         grid.setAttribute('aria-live', 'polite');
     }
 }());
+
+/* Page Transition Manager */
+document.addEventListener('DOMContentLoaded', () => {
+    const links = document.querySelectorAll('a[href]:not([target="_blank"]):not([href^="tel:"]):not([href^="mailto:"]):not([href^="#"]):not([data-no-transition])');
+    const wrapper = document.querySelector('.page-transition-wrapper');
+    
+    if (wrapper) {
+        links.forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+                
+                const url = link.getAttribute('href');
+                if (url && !url.includes('api-') && !url.includes('javascript:')) {
+                    e.preventDefault();
+                    wrapper.classList.add('fade-out');
+                    setTimeout(() => {
+                        window.location.href = url;
+                    }, 180);
+                }
+            });
+        });
+    }
+});

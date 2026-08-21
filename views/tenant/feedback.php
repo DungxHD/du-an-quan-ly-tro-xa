@@ -31,7 +31,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     <?php endif; ?>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
         <form method="POST" action="<?= BASE_URL ?>?page=tenant-send-feedback" enctype="multipart/form-data" class="space-y-5">
             <?= csrf_field() ?>
 
@@ -65,7 +65,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
 
     <?php if (!empty($myFeedbacks)): ?>
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
         <h3 class="text-xl font-bold mb-1">Lịch sử phản ánh của bạn</h3>
         <p class="text-sm text-gray-500 mb-4">Theo dõi trạng thái xử lý và câu trả lời từ chủ trọ.</p>
 

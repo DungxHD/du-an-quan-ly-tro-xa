@@ -53,7 +53,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <?php endif; ?>
 
     <!-- SECTION 1: Dịch vụ phòng (bắt buộc + gán phòng) -->
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
             <h3 class="text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary">meeting_room</span>
@@ -71,7 +71,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php else: ?>
             <div class="space-y-4">
                 <?php foreach ($roomServices as $service): ?>
-                <div class="bg-primary/5 border border-primary/10 rounded-2xl p-5">
+                <div class="bg-primary/5 border border-primary/10 rounded-3xl p-5">
                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                         <div class="flex items-start gap-4">
                             <div class="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
@@ -128,7 +128,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </section>
 
     <!-- SECTION 2: Dịch vụ có thể đăng ký thêm -->
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-secondary">add_circle</span>
@@ -145,7 +145,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php else: ?>
             <div class="space-y-4">
                 <?php foreach ($availableServices as $service): ?>
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                <div class="bg-white border border-gray-200 rounded-3xl p-5 shadow-sm">
                     <div class="flex items-start gap-4">
                         <div class="w-12 h-12 bg-secondary/10 text-secondary rounded-xl flex items-center justify-center">
                             <span class="material-symbols-outlined text-2xl"><?= e($service['icon'] ?? 'settings') ?></span>

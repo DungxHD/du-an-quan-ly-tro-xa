@@ -45,7 +45,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
     <?php endif; ?>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <form method="GET" action="<?= BASE_URL ?>" class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input type="hidden" name="page" value="admin-comments">
 
@@ -80,7 +80,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </form>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="font-bold text-lg">Danh sách đánh giá</h3>
             <p class="text-sm text-gray-500 mt-1">Thứ tự: sao cao trước, cùng số sao thì đánh giá mới nhất trước.</p>

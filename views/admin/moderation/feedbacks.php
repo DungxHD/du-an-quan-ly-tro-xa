@@ -33,7 +33,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <?php endif; ?>
 
     <!-- Bộ lọc -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
         <form method="GET" class="flex flex-wrap gap-4">
             <input type="hidden" name="page" value="admin-feedbacks">
             <div class="flex-1 min-w-[200px]">
@@ -57,7 +57,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
 
     <!-- Bảng danh sách -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <?php if (empty($feedbacks)): ?>
             <div class="px-6 py-10 text-center text-gray-500">Chưa có phản ánh nào.</div>
         <?php else: ?>

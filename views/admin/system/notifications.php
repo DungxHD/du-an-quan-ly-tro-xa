@@ -45,7 +45,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div class="grid grid-cols-1 2xl:grid-cols-3 gap-6">
         <section class="2xl:col-span-1">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20 space-y-5">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 sticky top-20 space-y-5">
                 <div>
                     <h3 class="text-lg font-bold">Gửi thông báo mới</h3>
                     <p class="text-sm text-gray-500 mt-1">Form này dùng cho thông báo thủ công. Riêng đổi giá dịch vụ sẽ tự tạo thông báo `price_change`.</p>
@@ -87,7 +87,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
         </section>
 
-        <section class="2xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <section class="2xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                     <h3 class="font-bold text-lg">Lịch sử thông báo đã gửi</h3>

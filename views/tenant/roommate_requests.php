@@ -36,7 +36,7 @@ $genderLabels = ['male' => 'Nam', 'female' => 'Nữ', 'other' => 'Khác'];
     <?php else: ?>
     <div class="space-y-4">
         <?php foreach ($pendingRequests as $request): ?>
-        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900"><?= e($request['requester_name'] ?? 'Người dùng') ?></h3>

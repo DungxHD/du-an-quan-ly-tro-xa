@@ -53,7 +53,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Sidebar bộ lọc -->
             <aside class="lg:col-span-1">
-                <form method="GET" id="room-filter-form" class="rooms-filter-panel bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20" data-price-min-gap="500000">
+                <form method="GET" id="room-filter-form" class="rooms-filter-panel bg-white p-6 rounded-3xl shadow-card border border-gray-100 sticky top-20" data-price-min-gap="500000">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-lg flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">filter_list</span>

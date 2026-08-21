@@ -13,11 +13,11 @@ $panelSidebarClass = $panelTheme === 'admin'
     ? 'bg-gray-900 text-gray-300'
     : 'bg-white text-gray-700 border-r border-gray-100';
 $panelAccentClass = $panelTheme === 'admin'
-    ? 'bg-primary text-white'
-    : 'bg-primary text-white shadow-sm';
+    ? 'bg-primary text-white shadow-card font-bold'
+    : 'bg-primary text-white shadow-card font-bold';
 $panelLinkBaseClass = $panelTheme === 'admin'
-    ? 'text-gray-300 hover:bg-gray-800'
-    : 'text-gray-700 hover:bg-gray-100';
+    ? 'text-gray-300 hover:bg-gray-800 transition-transform duration-200 hover:translate-x-1 font-medium'
+    : 'text-gray-700 hover:bg-gray-100 transition-transform duration-200 hover:translate-x-1 font-medium';
 $panelHeaderIcon = $panelTheme === 'admin' ? 'admin_panel_settings' : 'apartment';
 $panelTopLink = $panelTopLink ?? [
     'label' => $panelTheme === 'admin' ? 'Xem website' : 'Trang chủ',
@@ -82,12 +82,12 @@ if ($panelTheme === 'tenant' && !empty($_SESSION['user_id'])) {
     </script>
 </head>
 
-<body class="nta-panel-body <?= e($panelBodyClass) ?> font-sans antialiased" data-panel-theme="<?= e($panelTheme) ?>">
+<body class="nta-panel-body <?= e($panelBodyClass) ?> font-sans antialiased page-transition-wrapper" data-panel-theme="<?= e($panelTheme) ?>">
     <nav class="nta-panel-topbar fixed top-0 w-full z-40 <?= e($panelShellClass) ?>" id="panelNav">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 min-w-0">
-                <div class="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
-                    <span class="material-symbols-outlined text-primary text-3xl"><?= e($panelHeaderIcon) ?></span>
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-card">
+                    <span class="material-symbols-outlined text-white text-[26px]"><?= e($panelHeaderIcon) ?></span>
                 </div>
                 <div class="min-w-0">
                     <p class="font-bold text-lg truncate"><?= e($panelTitle) ?></p>

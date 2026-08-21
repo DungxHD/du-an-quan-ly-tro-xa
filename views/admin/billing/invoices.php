@@ -127,7 +127,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="space-y-6">
 
         <section class="2xl:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
                     <div>
                         <h3 class="font-bold text-lg">Trạng thái tạo hóa đơn theo phòng</h3>
@@ -251,7 +251,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100">
                     <h3 class="font-bold text-lg">Danh sách hóa đơn đã tạo</h3>
                     <p class="text-sm text-gray-500 mt-1">Admin có thể lọc theo tháng, trạng thái, khu hoặc tầng. Hóa đơn đã trả sẽ hiện rõ người trả và thời điểm chốt.</p>

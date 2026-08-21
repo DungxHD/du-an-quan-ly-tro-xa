@@ -106,7 +106,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </div>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <form method="GET" action="<?= BASE_URL ?>" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input type="hidden" name="page" value="admin-stats">
 
@@ -171,7 +171,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </div>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="font-bold text-lg">Thống kê theo khu</h3>
             <p class="text-sm text-gray-500 mt-1">
@@ -220,7 +220,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <?php endif; ?>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
             <div>
                 <h3 class="font-bold text-lg">Biểu đồ phân bổ phòng theo khu</h3>
@@ -232,7 +232,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="font-bold text-lg">Doanh thu theo tháng năm <?= (int)($selectedYear ?? date('Y')) ?></h3>
             <p class="text-sm text-gray-500 mt-1">Chỉ cộng các hóa đơn trong `payments` có trạng thái `paid`.</p>
@@ -267,7 +267,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <div class="mb-4">
             <h3 class="font-bold text-lg">Biểu đồ doanh thu theo tháng</h3>
             <p class="text-sm text-gray-500 mt-1">Đường doanh thu giúp nhìn nhanh các tháng cao điểm và tháng trống dữ liệu.</p>

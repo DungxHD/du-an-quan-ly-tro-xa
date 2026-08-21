@@ -9,7 +9,7 @@ $panelWelcome = 'Xin chào, ' . ($_SESSION['full_name'] ?? 'Cư dân');
 require BASE_PATH . 'views/layouts/panel_header.php';
 ?>
 <div class="max-w-2xl mx-auto space-y-6">
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
         <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
             <span class="material-symbols-outlined text-amber-600 text-3xl">warning</span>
         </div>

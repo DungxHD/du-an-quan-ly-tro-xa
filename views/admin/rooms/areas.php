@@ -149,7 +149,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 </button>
             <?php endif; ?>
 
-            <div id="area-form-card" class="<?= $editArea ? '' : 'hidden' ?> bg-white p-6 rounded-2xl shadow-sm border border-gray-100 xl:sticky xl:top-20 space-y-5">
+            <div id="area-form-card" class="<?= $editArea ? '' : 'hidden' ?> bg-white p-6 rounded-3xl shadow-sm border border-gray-100 xl:sticky xl:top-20 space-y-5">
                 <form method="POST" action="<?= BASE_URL ?>?page=admin-save-area" id="area-main-form" data-validate enctype="multipart/form-data" class="space-y-4">
                     <?= csrf_field() ?>
                     <?php if ($editArea): ?>
@@ -232,7 +232,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 $areaIdNow = (int)($area['id'] ?? 0);
                 $isExpanded = $expandedAreaId > 0 ? $areaIdNow === $expandedAreaId : false;
                 ?>
-                <details class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" <?= $isExpanded ? 'open' : '' ?>>
+                <details class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden" <?= $isExpanded ? 'open' : '' ?>>
                     <summary class="list-none cursor-pointer px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div class="flex items-start gap-4">
                             <div class="w-20 h-20 rounded-2xl overflow-hidden bg-gray-100 shrink-0">

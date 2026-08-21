@@ -35,13 +35,13 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 </div>
 <?php if (!empty($serviceMessage)): ?><div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-2xl flex items-center gap-2"><span class="material-symbols-outlined">check_circle</span><?= e($serviceMessage) ?></div><?php endif; ?>
 <?php if (!empty($serviceError)): ?><div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center gap-2"><span class="material-symbols-outlined">error</span><?= e($serviceError) ?></div><?php endif; ?>
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-4">
 <div class="relative">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
 <input type="text" id="service-search-input" placeholder="Tìm kiếm dịch vụ theo tên..." class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
 </div>
 </div>
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
 <div class="px-6 py-4 border-b border-gray-100"><h3 class="font-bold text-lg">Danh sách dịch vụ</h3></div>
 <?php if (empty($services)): ?>
 <div class="px-6 py-10 text-center text-gray-500">Chưa có dịch vụ nào.</div>

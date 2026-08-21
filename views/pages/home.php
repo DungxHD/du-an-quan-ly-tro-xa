@@ -61,12 +61,14 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
             <div class="home-hero-image-wrap">
                 <div class="hero-bg absolute inset-0 bg-cover bg-center" data-cms="hero_image" style="background-image: url('<?= e($heroImage) ?>');"></div>
                 <div class="home-hero-image-overlay absolute inset-0"></div>
-                <div class="home-hero-image-caption absolute left-5 right-5 bottom-5 flex items-end justify-between gap-4 text-white">
+                <div class="home-hero-image-caption absolute left-5 right-5 bottom-5 flex items-end justify-between gap-4 text-white bg-black/40 backdrop-blur-md p-5 rounded-3xl border border-white/20 shadow-card">
                     <div>
                         <p class="text-xs uppercase tracking-[.18em] text-white/70">NhaTroA / living, clearly</p>
                         <p class="mt-2 text-lg font-bold">Một nơi ở được mô tả đủ rõ trước khi bạn đến xem.</p>
                     </div>
-                    <span class="material-symbols-outlined text-3xl">north_east</span>
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-xl">north_east</span>
+                    </div>
                 </div>
             </div>
 
@@ -141,7 +143,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
             </div>
             <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-3 gap-6 stagger-children">
                 <?php foreach ($marketingHighlights as $item): ?>
-                    <div class="bg-surface border border-gray-100 rounded-2xl p-7 card-hover">
+                    <div class="bg-surface border border-gray-100 rounded-2xl shadow-sm p-7 card-hover">
                         <div class="w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center mb-5">
                             <span class="material-symbols-outlined text-2xl text-primary"><?= e($item['icon'] ?? 'verified') ?></span>
                         </div>
@@ -169,7 +171,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php else: ?>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
                 <?php foreach ($amenities as $item): ?>
-                    <div class="relative group bg-white p-6 rounded-2xl border border-gray-100 text-center card-hover hover:border-primary/30 transition" data-amenity-id="<?= (int)($item['id'] ?? 0) ?>">
+                    <div class="relative group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-center card-hover hover:border-primary/30 transition" data-amenity-id="<?= (int)($item['id'] ?? 0) ?>">
                         <?php if (!empty($GLOBALS['cmsPreviewAdmin'])): ?>
                             <button type="button"
                                 class="cms-amenity-remove absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center text-lg font-bold shadow hover:bg-red-600 transition"
@@ -220,7 +222,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 stagger-children">
                 <?php foreach ($featured as $room): ?>
-                    <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-surface rounded-2xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
+                    <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-surface rounded-3xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
                         <div class="relative aspect-video overflow-hidden">
                             <img src="<?= e($room['thumbnail'] ?? '') ?>" alt="<?= e($room['name'] ?? '') ?>" class="w-full h-full object-cover hover:scale-110 transition-transform duration-500">
                             <span class="absolute top-4 right-4 px-3 py-1 bg-green-500 text-white text-xs rounded-full font-semibold shadow-lg">
@@ -281,7 +283,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children">
             <?php foreach ($livingSteps as $step): ?>
-                <div class="rounded-2xl bg-white border border-gray-100 p-8 card-hover">
+                <div class="rounded-3xl bg-white border border-gray-100 shadow-sm p-8 card-hover">
                     <div class="flex items-center gap-4 mb-5">
                         <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
                             <span class="text-lg font-extrabold text-primary"><?= e($step['step'] ?? '') ?></span>
@@ -310,7 +312,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 stagger-children">
                 <?php foreach ($areaShowcase as $area): ?>
-                    <a href="<?= e($area['rooms_url'] ?? $roomsPageUrl) ?>" class="group bg-surface rounded-2xl overflow-hidden border border-gray-100 shadow-sm card-hover block">
+                    <a href="<?= e($area['rooms_url'] ?? $roomsPageUrl) ?>" class="group bg-surface rounded-3xl overflow-hidden border border-gray-100 shadow-sm card-hover block">
                         <div class="relative h-60 overflow-hidden">
                             <img src="<?= e($area['image'] ?? '') ?>" alt="<?= e($area['name'] ?? '') ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent"></div>

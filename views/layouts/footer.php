@@ -1,6 +1,6 @@
 </main>
 
-<footer class="nta-public-footer bg-gray-900 text-gray-300 mt-20">
+<footer class="nta-public-footer bg-[#0b1110] text-gray-300 mt-20 border-t border-gray-800">
     <?php
     $layout = $layout ?? [];
     $siteName = $layout['siteName'] ?? 'NhaTroA';
@@ -14,7 +14,7 @@
     $contactEmail = $layout['contact']['email'] ?? fallbackText('');
     ?>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children reveal-slide-up">
             <div>
                 <h3 class="text-white text-xl font-bold mb-4" data-cms="site_name"><?= e($siteName) ?></h3>
                 <p class="text-sm" data-cms="site_description"><?= e($metaDescription) ?></p>

@@ -8,10 +8,13 @@
 class CommentModel {
 
     /**
-     * Lấy cấu hình đánh giá và ép kiểu ngay tại model để controller/view không tự xử lý lẻ tẻ.
+     * Lấy cấu hình đánh giá từ bảng settings.
      */
     public static function getModerationSettings() {
-        return CommentModerationModel::getSettings();
+        return [
+            'min_days_to_review' => (int)SettingModel::get('min_days_to_review', 15),
+            'comment_edit_hours' => (int)SettingModel::get('comment_edit_hours', 24),
+        ];
     }
 
     /**
