@@ -1,6 +1,9 @@
 <?php
-// [DEV-QWEN-A][REFACTOR][NHOM-6] AdminController gọn: chỉ khai báo traits. Mọi method nằm trong controllers/AdminTraits/.
-// Model load qua autoloader của index.php như trước; RoomPriceChangeModel được dùng ở savePriceChange.
+/**
+ * AdminController - Controller chính cho panel admin
+ * Chỉ khai báo trait, mọi method nằm trong controllers/AdminTraits/
+ * Model load qua autoloader index.php
+ */
 require_once BASE_PATH . 'models/room/RoomPriceChangeModel.php';
 require_once BASE_PATH . 'controllers/AdminTraits/AdminHelperTrait.php';
 require_once BASE_PATH . 'controllers/AdminTraits/AdminSystemTrait.php';
@@ -12,77 +15,90 @@ require_once BASE_PATH . 'controllers/AdminTraits/AdminModerationTrait.php';
 
 class AdminController
 {
-
     /**
-     * Upload ảnh theo slot: home | area_new | area_{id}.
-     * File được đặt vào thư mục con tương ứng trong .uploads và đổi tên theo ngữ cảnh.
+     * Upload ảnh theo slot: home | area_new | area_{id} | room_new | room_{id}
+     * Trả về JSON: {ok: true, url} hoặc {ok: false, message}
      */
-    public function uploadImage()
+    public function uploadImage(): void
     {
         header('Content-Type: application/json; charset=utf-8');
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            echo json_encode(['ok' => false, 'message' => 'Phương thức không hợp lệ.']);
-            exit;
+            $this->jsonError(405, 'Phương thức không hợp lệ.');
         }
         verify_csrf();
 
         $file = $_FILES['image'] ?? null;
         if (empty($file) || (int)($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'message' => 'Chưa chọn được tệp ảnh hợp lệ.']);
-            exit;
+            $this->jsonError(400, 'Chưa chọn được tệp ảnh hợp lệ.');
         }
         if ((int)($file['size'] ?? 0) > 5 * 1024 * 1024) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'message' => 'Ảnh vượt quá 5MB.']);
-            exit;
+            $this->jsonError(400, 'Ảnh vượt quá 5MB.');
         }
 
-        $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
-        $mime = $finfo ? (string)finfo_file($finfo, $file['tmp_name']) : (string)($file['type'] ?? '');
-        if ($finfo) {
-            finfo_close($finfo);
-        }
+        $mime = $this->getMimeType($file['tmp_name']);
         $allowedMimes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
         if (!isset($allowedMimes[$mime])) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'message' => 'Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF.']);
-            exit;
+            $this->jsonError(400, 'Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF.');
         }
 
         $slot = trim((string)($_POST['slot'] ?? 'home'));
-        $subFolder = 'image_page_home';
-        $filePrefix = 'home-hero';
-        if ($slot === 'area_new') {
-            $subFolder = 'image_khu_new';
-            $filePrefix = 'khu-new';
-        } elseif (preg_match('/^area_(\d+)$/', $slot, $slotMatch)) {
-            $subFolder = 'image_khu_' . (int)$slotMatch[1];
-            $filePrefix = 'khu-' . (int)$slotMatch[1];
-        } elseif ($slot === 'room_new') {
-            $subFolder = 'image_phong_new';
-            $filePrefix = 'phong-new';
-        } elseif (preg_match('/^room_(\d+)$/', $slot, $slotMatch)) {
-            $subFolder = 'image_phong_' . (int)$slotMatch[1];
-            $filePrefix = 'phong-' . (int)$slotMatch[1];
-        }
+        [$subFolder, $filePrefix] = $this->resolveSlot($slot);
 
         $uploadDir = BASE_PATH . '.uploads' . DIRECTORY_SEPARATOR . $subFolder;
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0775, true);
-        }
+        if (!is_dir($uploadDir)) @mkdir($uploadDir, 0775, true);
+
         $fileName = $filePrefix . '-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.' . $allowedMimes[$mime];
         $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+
         if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-            http_response_code(500);
-            echo json_encode(['ok' => false, 'message' => 'Không lưu được tệp ảnh. Kiểm tra thư mục .uploads.']);
-            exit;
+            $this->jsonError(500, 'Không lưu được tệp ảnh. Kiểm tra thư mục .uploads.');
         }
 
         echo json_encode(['ok' => true, 'url' => BASE_URL . '.uploads/' . $subFolder . '/' . $fileName]);
         exit;
     }
+
+    // ==========================================
+    // PRIVATE HELPERS
+    // ==========================================
+
+    private function jsonError(int $code, string $message): void
+    {
+        http_response_code($code);
+        echo json_encode(['ok' => false, 'message' => $message]);
+        exit;
+    }
+
+    private function getMimeType(string $tmpPath): string
+    {
+        $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
+        $mime = $finfo ? (string)finfo_file($finfo, $tmpPath) : (string)($_FILES['image']['type'] ?? '');
+        if ($finfo) finfo_close($finfo);
+        return $mime;
+    }
+
+    private function resolveSlot(string $slot): array
+    {
+        $map = [
+            'home'         => ['image_page_home', 'home-hero'],
+            'area_new'     => ['image_khu_new', 'khu-new'],
+            'room_new'     => ['image_phong_new', 'phong-new'],
+        ];
+
+        if (preg_match('/^area_(\d+)$/', $slot, $m)) {
+            return ['image_khu_' . (int)$m[1], 'khu-' . (int)$m[1]];
+        }
+        if (preg_match('/^room_(\d+)$/', $slot, $m)) {
+            return ['image_phong_' . (int)$m[1], 'phong-' . (int)$m[1]];
+        }
+
+        return $map[$slot] ?? $map['home'];
+    }
+
+    // ==========================================
+    // TRAITS
+    // ==========================================
 
     use AdminHelperTrait,
         AdminSystemTrait,

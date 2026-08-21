@@ -1,376 +1,70 @@
 <?php
+/**
+ * AuthController - Xử lý xác thực: đăng nhập, đăng ký, đăng xuất, đổi mật khẩu, quên mật khẩu (OTP email)
+ */
 class AuthController extends BaseController
 {
-    /**
-     * Tính điểm đến sau đăng nhập dựa trên vai trò và trạng thái gán phòng hiện tại.
-     */
-    private function resolveAuthenticatedRedirect($user)
-    {
-        if ((int)($user['role'] ?? 0) === 1) {
-            return 'admin';
-        }
-
-        return !empty($user['room_id']) ? 'tenant' : 'rooms';
-    }
+    // ==========================================
+    // PUBLIC ACTIONS
+    // ==========================================
 
     /**
-     * Kiểm tra rate limit đăng nhập dựa trên identifier đã chuẩn hóa.
-     * Gi��i hạn 5 lần thử sai trong 5 phút.
+     * Trang đăng nhập / đổi mật khẩu / quên mật khẩu (multi-step trên cùng 1 trang)
+     * GET: hiển thị form | POST: xử lý action (login, change_password, forgot_password)
      */
-    private function checkLoginRateLimit($identifier)
+    public function login(): void
     {
-        $key = 'login_attempts_' . md5($identifier . ($_SERVER['REMOTE_ADDR'] ?? ''));
-        $attempts = $_SESSION[$key] ?? ['count' => 0, 'first_attempt' => time()];
-
-        if (time() - $attempts['first_attempt'] > 300) {
-            $attempts = ['count' => 0, 'first_attempt' => time()];
-        }
-
-        $_SESSION[$key] = $attempts;
-
-        return $attempts['count'] < 5;
-    }
-
-    /**
-     * Ghi nhận lần đăng nhập thất bại.
-     */
-    private function recordFailedLogin($identifier)
-    {
-        $key = 'login_attempts_' . md5($identifier . ($_SERVER['REMOTE_ADDR'] ?? ''));
-        $attempts = $_SESSION[$key] ?? ['count' => 0, 'first_attempt' => time()];
-
-        if (time() - $attempts['first_attempt'] > 300) {
-            $attempts = ['count' => 0, 'first_attempt' => time()];
-        }
-
-        $attempts['count']++;
-        $_SESSION[$key] = $attempts;
-    }
-
-    /**
-     * Reset rate limit sau khi đăng nhập thành công.
-     */
-    private function resetLoginRateLimit($identifier)
-    {
-        $key = 'login_attempts_' . md5($identifier . ($_SERVER['REMOTE_ADDR'] ?? ''));
-        unset($_SESSION[$key]);
-    }
-
-    /**
-     * Đăng nhập:
-     * - Hỗ trợ đăng nhập bằng email hoặc số điện thoại (identifier).
-     * - Không tiết lộ tài khoản có tồn tại hay không.
-     * - Chỉ tạo session khi xác thực mật khẩu thành công.
-     * - Điều hướng đúng dashboard theo role và room_id.
-     */
-    public function login()
-    {
+        // Đã đăng nhập -> redirect đúng dashboard
         if (isset($_SESSION['user_id'])) {
-            redirectTo((int)($_SESSION['role'] ?? 0) === 1 ? 'admin' : (!empty($_SESSION['room_id']) ? 'tenant' : 'rooms'));
+            $this->redirectAuthenticated();
         }
 
         $errors = [];
-        $old = ['identifier' => ''];
+        $old    = ['identifier' => '', 'cp_step' => 1, 'fp_step' => 1];
         $success = pullFlash('auth_success');
-        $action = $_GET['auth_action'] ?? ($_POST['auth_action'] ?? '');
+        $action = $_GET['auth_action'] ?? ($_POST['auth_action'] ?? 'login');
         $cp_step = (int)($_GET['cp_step'] ?? $_POST['cp_step'] ?? 1);
         $fp_step = (int)($_GET['fp_step'] ?? $_POST['fp_step'] ?? 1);
 
-        // Lấy flash messages từ resendOtp
-        $otpError = pullFlash('otp_error');
-        $otpSuccess = pullFlash('otp_success');
-        if ($otpError) {
+        // Flash từ resendOtp
+        if ($otpError = pullFlash('otp_error')) {
             $errors['otp_info'] = $otpError;
         }
-        if ($otpSuccess) {
+        if ($otpSuccess = pullFlash('otp_success')) {
             $old['otp_resent'] = true;
         }
 
-        // Xử lý POST cho login/change-password/forgot-password
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             verify_csrf();
-
             $identifier = trim($_POST['identifier'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $action = $_POST['auth_action'] ?? 'login';
+            $password   = $_POST['password'] ?? '';
+            $action     = $_POST['auth_action'] ?? 'login';
             $old['identifier'] = $identifier;
 
-            if ($action === 'login') {
-                $this->handleLogin($identifier, $password, $errors, $old);
-            } elseif ($action === 'change_password') {
-                if ($cp_step === 1) {
-                    $this->handleChangePasswordStep1($identifier, $errors, $old);
-                } else {
-                    $this->handleChangePasswordStep2($identifier, $password, $_POST['new_password'] ?? '', $_POST['confirm_password'] ?? '', $errors, $old);
-                }
-            } elseif ($action === 'forgot_password') {
-                if ($fp_step === 1) {
-                    $this->handleForgotPasswordStep1($identifier, $errors, $old);
-                } else {
-                    $this->handleForgotPasswordStep2($identifier, trim($_POST['otp'] ?? ''), $errors, $old);
-                }
-            }
+            match ($action) {
+                'login'           => $this->handleLogin($identifier, $password, $errors, $old),
+                'change_password' => $cp_step === 1
+                    ? $this->handleChangePasswordStep1($identifier, $errors, $old)
+                    : $this->handleChangePasswordStep2($identifier, $password, $_POST['new_password'] ?? '', $_POST['confirm_password'] ?? '', $errors, $old),
+                'forgot_password' => $fp_step === 1
+                    ? $this->handleForgotPasswordStep1($identifier, $errors, $old)
+                    : $this->handleForgotPasswordStep2($identifier, trim($_POST['otp'] ?? ''), $errors, $old),
+                default => null,
+            };
         }
 
-        // Chỉ set mặc định nếu handler chưa set (handler sẽ set cp_step/fp_step khi cần chuyển bước)
-        if (!isset($old['cp_step'])) $old['cp_step'] = $cp_step;
-        if (!isset($old['fp_step'])) $old['fp_step'] = $fp_step;
+        // Giữ step nếu handler chưa set
+        $old['cp_step'] = $old['cp_step'] ?? $cp_step;
+        $old['fp_step'] = $old['fp_step'] ?? $fp_step;
 
         $pageTitle = 'Đăng nhập - ' . RoomModel::getSetting('site_name', 'NhaTroA');
         $this->renderPublic('views/pages/login.php', compact('errors', 'old', 'success', 'action'), 'login', $pageTitle);
     }
 
     /**
-     * Xử lý đăng nhập.
+     * Xác thực OTP (trang riêng verify_otp.php)
      */
-    private function handleLogin($identifier, $password, &$errors, &$old)
-    {
-        if ($identifier === '') {
-            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
-        }
-
-        if ($password === '') {
-            $errors['password'] = 'Vui lòng nhập mật khẩu.';
-        }
-
-        if (empty($errors)) {
-            $normalizedIdentifier = $this->normalizeIdentifierForRateLimit($identifier);
-
-            if (!$this->checkLoginRateLimit($normalizedIdentifier)) {
-                $errors['general'] = 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 5 phút.';
-            } else {
-                $user = $this->findUserByIdentifier($identifier);
-
-                if (!$user || !password_verify($password, $user['password'])) {
-                    $this->recordFailedLogin($normalizedIdentifier);
-                    $errors['general'] = 'Số điện thoại/email hoặc mật khẩu không đúng.';
-                } else {
-                    $this->resetLoginRateLimit($normalizedIdentifier);
-
-                    session_regenerate_id(true);
-                    $_SESSION['user_id'] = (int)$user['id'];
-                    $_SESSION['full_name'] = $user['full_name'];
-                    $_SESSION['email'] = $user['email'];
-                    $_SESSION['role'] = (int)$user['role'];
-                    $_SESSION['room_id'] = $user['room_id'] ?? null;
-                    redirectTo($this->resolveAuthenticatedRedirect($user));
-                }
-            }
-        }
-    }
-
-    /**
-     * Xử lý đổi mật khẩu - Bước 1: Validate identifier.
-     */
-    private function handleChangePasswordStep1($identifier, &$errors, &$old)
-    {
-        if ($identifier === '') {
-            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
-            return;
-        }
-
-        $normalizedIdentifier = $this->normalizeIdentifierForRateLimit($identifier);
-        $user = $this->findUserByIdentifier($identifier);
-
-        if (!$user) {
-            $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
-            $old['show_register_link'] = true;
-            $old['identifier'] = $identifier;
-            return;
-        }
-
-        // Identifier hợp lệ, chuyển sang bước 2
-        $old['cp_step'] = 2;
-        $old['identifier'] = $identifier;
-    }
-
-    /**
-     * Xử lý đổi mật khẩu - Bước 2: Validate mật khẩu cũ/mới.
-     */
-    private function handleChangePasswordStep2($identifier, $oldPassword, $newPassword, $confirmPassword, &$errors, &$old)
-    {
-        if ($identifier === '') {
-            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
-            $old['cp_step'] = 1;
-            return;
-        }
-
-        $user = $this->findUserByIdentifier($identifier);
-
-        if (!$user) {
-            $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
-            $old['show_register_link'] = true;
-            $old['identifier'] = $identifier;
-            $old['cp_step'] = 1;
-            return;
-        }
-
-        if ($oldPassword === '') {
-            $errors['old_password'] = 'Vui lòng nhập mật khẩu cũ.';
-        } elseif (!password_verify($oldPassword, $user['password'])) {
-            $errors['old_password'] = 'Mật khẩu cũ không đúng.';
-        }
-
-        $newPasswordError = UserModel::validatePassword($newPassword, 'mật khẩu mới');
-        if ($newPasswordError !== '') {
-            $errors['new_password'] = $newPasswordError;
-        }
-
-        if ($confirmPassword === '') {
-            $errors['confirm_password'] = 'Vui lòng xác nhận mật khẩu mới.';
-        } elseif ($newPassword !== $confirmPassword) {
-            $errors['confirm_password'] = 'Xác nhận mật khẩu chưa khớp.';
-        }
-
-        if (empty($errors)) {
-            UserModel::update((int)$user['id'], ['password' => $newPassword]);
-            setFlash('auth_success', 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
-            redirectTo('login');
-        }
-
-        // Gi�� lại step 2 để hiển thị form mật khẩu
-        $old['cp_step'] = 2;
-        $old['identifier'] = $identifier;
-    }
-
-    /**
-     * Xử lý quên mật khẩu - Bước 1: Validate identifier, gửi OTP.
-     * Chỉ gửi OTP qua email. Nếu nhập phone -> tìm user bằng phone -> check email.
-     */
-    private function handleForgotPasswordStep1($identifier, &$errors, &$old)
-    {
-        if ($identifier === '') {
-            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
-            return;
-        }
-
-        $isEmail = str_contains($identifier, '@');
-        $user = null;
-
-        if ($isEmail) {
-            // Tìm bằng email
-            $user = UserModel::findByEmail(mb_strtolower(trim($identifier)));
-        } else {
-            // Tìm bằng phone (chuẩn hóa trước)
-            $normalizedPhone = UserModel::normalizePhone($identifier);
-            if (!$normalizedPhone) {
-                $errors['identifier'] = 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, khoảng trắng, +84 ở đầu.';
-                return;
-            }
-            $user = UserModel::findByPhone($normalizedPhone);
-        }
-
-        if (!$user) {
-            $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
-            $old['show_register_link'] = true;
-            $old['identifier'] = $identifier;
-            return;
-        }
-
-        // Lưu user_id vào session để bước tiếp theo dùng
-        $_SESSION['reset_user_id'] = (int)$user['id'];
-        $_SESSION['reset_identifier'] = $identifier;
-
-        // Nếu không có email -> hiển thị liên hệ admin
-        if (empty($user['email'])) {
-            $errors['no_email'] = true;
-            $old['contact_phone'] = RoomModel::getSetting('contact_phone', '');
-            $old['fp_step'] = 2;
-            $old['identifier'] = $identifier;
-            return;
-        }
-
-        // Có email -> gửi OTP
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-        $rateLimit = PasswordResetModel::checkSendRateLimit((int)$user['id'], $ip);
-
-        if (!$rateLimit['allowed']) {
-            if ($rateLimit['reason'] === 'resend_wait') {
-                $errors['otp_resend_wait'] = $rateLimit['wait_seconds'];
-            } elseif ($rateLimit['reason'] === 'max_daily') {
-                $errors['otp_max_daily'] = true;
-            }
-            $old['fp_step'] = 2;
-            $old['identifier'] = $identifier;
-            return;
-        }
-
-        $otp = PasswordResetModel::createOtp((int)$user['id'], $ip);
-        PasswordResetModel::recordSendAttempt((int)$user['id'], $ip);
-
-        // Gửi email OTP
-        $sent = Mailer::sendOtpEmail($user['email'], $otp, $user['full_name']);
-
-        if (!$sent) {
-            $errors['otp_send_failed'] = true;
-            $old['contact_phone'] = RoomModel::getSetting('contact_phone', '');
-            $old['fp_step'] = 2;
-            $old['identifier'] = $identifier;
-            return;
-        }
-
-        // Gửi thành công -> chuyển sang bước 2 (nhập OTP), lưu email để hiển thị
-        $old['fp_step'] = 2;
-        $old['identifier'] = $identifier;
-        $old['otp_sent_email'] = $this->maskEmail($user['email']);
-        $errors['otp_sent'] = true;
-    }
-
-    /**
-     * Mask email để hiển thị an toàn: a***@domain.com
-     */
-    private function maskEmail($email)
-    {
-        if (!$email || !str_contains($email, '@')) return $email;
-        [$local, $domain] = explode('@', $email, 2);
-        if (strlen($local) <= 2) {
-            $maskedLocal = str_repeat('*', strlen($local));
-        } else {
-            $maskedLocal = $local[0] . str_repeat('*', strlen($local) - 2) . $local[strlen($local) - 1];
-        }
-        return $maskedLocal . '@' . $domain;
-    }
-
-    /**
-     * Xử lý quên mật khẩu - Bước 2: Xác thực OTP (inline trên cùng trang).
-     */
-    private function handleForgotPasswordStep2($identifier, $otpInput, &$errors, &$old)
-    {
-        if (!isset($_SESSION['reset_user_id'])) {
-            redirectTo('login');
-        }
-
-        if ($otpInput === '') {
-            $errors['otp'] = 'Vui lòng nhập mã OTP.';
-        } elseif (!preg_match('/^\d{4}$/', $otpInput)) {
-            $errors['otp'] = 'Mã OTP phải là 4 chữ số.';
-        }
-
-        if (empty($errors)) {
-            $result = PasswordResetModel::verifyOtp($_SESSION['reset_user_id'], $otpInput);
-
-            if ($result === true) {
-                $_SESSION['otp_verified'] = true;
-                // Chuyển sang trang reset-password
-                redirectTo('reset-password');
-            } elseif ($result === 'expired') {
-                $errors['otp'] = 'Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.';
-            } elseif ($result === 'invalid') {
-                $errors['otp'] = 'Mã OTP không đúng.';
-            } elseif ($result === 'max_attempts') {
-                $errors['otp'] = 'Mã OTP không còn hợp lệ. Vui lòng gửi lại mã mới.';
-            }
-        }
-
-        // Gi�� lại step 2 để hiển thị form OTP
-        $old['fp_step'] = 2;
-        $old['identifier'] = $identifier;
-    }
-
-    /**
-     * Xử lý xác thực OTP.
-     */
-    public function verifyOtp()
+    public function verifyOtp(): void
     {
         if (!isset($_SESSION['reset_user_id'])) {
             redirectTo('login');
@@ -381,7 +75,6 @@ class AuthController extends BaseController
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             verify_csrf();
-
             $otpInput = trim($_POST['otp'] ?? '');
 
             if ($otpInput === '') {
@@ -392,17 +85,7 @@ class AuthController extends BaseController
 
             if (empty($errors)) {
                 $result = PasswordResetModel::verifyOtp($_SESSION['reset_user_id'], $otpInput);
-
-                if ($result === true) {
-                    $_SESSION['otp_verified'] = true;
-                    $errors['otp_verified'] = true;
-                } elseif ($result === 'expired') {
-                    $errors['otp'] = 'Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.';
-                } elseif ($result === 'invalid') {
-                    $errors['otp'] = 'Mã OTP không đúng.';
-                } elseif ($result === 'max_attempts') {
-                    $errors['otp'] = 'Mã OTP không còn hợp lệ. Vui lòng gửi lại mã mới.';
-                }
+                $this->processOtpResult($result, $errors);
             }
         }
 
@@ -411,11 +94,11 @@ class AuthController extends BaseController
     }
 
     /**
-     * Xử lý đặt lại mật khẩu sau khi OTP đúng.
+     * Đặt lại mật khẩu sau khi OTP đúng
      */
-    public function resetPassword()
+    public function resetPassword(): void
     {
-        if (!isset($_SESSION['reset_user_id']) || !isset($_SESSION['otp_verified'])) {
+        if (!isset($_SESSION['reset_user_id'], $_SESSION['otp_verified'])) {
             redirectTo('login');
         }
 
@@ -424,20 +107,10 @@ class AuthController extends BaseController
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             verify_csrf();
-
-            $newPassword = $_POST['new_password'] ?? '';
+            $newPassword     = $_POST['new_password'] ?? '';
             $confirmPassword = $_POST['confirm_password'] ?? '';
 
-            $newPasswordError = UserModel::validatePassword($newPassword, 'mật khẩu mới');
-            if ($newPasswordError !== '') {
-                $errors['new_password'] = $newPasswordError;
-            }
-
-            if ($confirmPassword === '') {
-                $errors['confirm_password'] = 'Vui lòng xác nhận mật khẩu mới.';
-            } elseif ($newPassword !== $confirmPassword) {
-                $errors['confirm_password'] = 'Xác nhận mật khẩu chưa khớp.';
-            }
+            $errors = $this->validateNewPassword($newPassword, $confirmPassword);
 
             if (empty($errors)) {
                 PasswordResetModel::updatePassword($_SESSION['reset_user_id'], $newPassword);
@@ -452,9 +125,9 @@ class AuthController extends BaseController
     }
 
     /**
-     * Gửi lại OTP - redirect về form quên mật khẩu step 2.
+     * Gửi lại OTP (AJAX/form POST -> redirect về login step 2)
      */
-    public function resendOtp()
+    public function resendOtp(): void
     {
         if (!isset($_SESSION['reset_user_id'])) {
             redirectTo('login');
@@ -462,29 +135,21 @@ class AuthController extends BaseController
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             verify_csrf();
-
             $userId = $_SESSION['reset_user_id'];
-            $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+            $ip     = $_SERVER['REMOTE_ADDR'] ?? '';
 
             $rateLimit = PasswordResetModel::checkSendRateLimit($userId, $ip);
-
             if (!$rateLimit['allowed']) {
-                if ($rateLimit['reason'] === 'resend_wait') {
-                    setFlash('otp_error', 'Vui lòng chờ ' . $rateLimit['wait_seconds'] . ' giây để gửi lại mã OTP.');
-                } elseif ($rateLimit['reason'] === 'max_daily') {
-                    setFlash('otp_error', 'Bạn đã gửi OTP tối đa 5 lần trong 24 giờ. Vui lòng thử lại sau hoặc liên hệ chủ trọ.');
-                }
+                $this->setResendError($rateLimit);
                 redirectTo('login', ['auth_action' => 'forgot_password', 'fp_step' => 2]);
             }
 
             $otp = PasswordResetModel::createOtp($userId, $ip);
             PasswordResetModel::recordSendAttempt($userId, $ip);
 
-            // Lấy email user
             $user = UserModel::getById($userId);
             if ($user && !empty($user['email'])) {
-                $sent = Mailer::sendOtpEmail($user['email'], $otp, $user['full_name']);
-                if (!$sent) {
+                if (!Mailer::sendOtpEmail($user['email'], $otp, $user['full_name'])) {
                     setFlash('otp_error', 'Gửi OTP thất bại. Vui lòng liên hệ chủ trọ.');
                     redirectTo('login', ['auth_action' => 'forgot_password', 'fp_step' => 2]);
                 }
@@ -498,31 +163,25 @@ class AuthController extends BaseController
     }
 
     /**
-     * Đăng ký tài khoản tenant mới.
+     * Đăng ký tài khoản tenant mới
      */
-    public function register()
+    public function register(): void
     {
         if (isset($_SESSION['user_id'])) {
-            redirectTo((int)($_SESSION['role'] ?? 0) === 1 ? 'admin' : (!empty($_SESSION['room_id']) ? 'tenant' : 'rooms'));
+            $this->redirectAuthenticated();
         }
 
         $errors = [];
-        $old = [
-            'full_name' => '',
-            'email' => '',
-            'phone' => '',
-        ];
+        $old = ['full_name' => '', 'email' => '', 'phone' => ''];
 
-        // Prefill từ identifier nếu có (từ luồng change password/forgot password)
+        // Prefill từ identifier (luồng đổi mật khẩu/quên mật khẩu)
         if (isset($_GET['prefill_identifier'])) {
             $identifier = $_GET['prefill_identifier'];
             if (str_contains($identifier, '@')) {
                 $old['email'] = $identifier;
             } else {
                 $normalized = UserModel::normalizePhone($identifier);
-                if ($normalized) {
-                    $old['phone'] = $normalized;
-                }
+                if ($normalized) $old['phone'] = $normalized;
             }
         }
 
@@ -530,86 +189,31 @@ class AuthController extends BaseController
             verify_csrf();
 
             $fullName = trim($_POST['full_name'] ?? '');
-            $email = trim($_POST['email'] ?? '');
-            $phone = trim($_POST['phone'] ?? '');
+            $email    = trim($_POST['email'] ?? '');
+            $phone    = trim($_POST['phone'] ?? '');
             $password = $_POST['password'] ?? '';
-            $confirmPassword = $_POST['confirm_password'] ?? '';
+            $confirm  = $_POST['confirm_password'] ?? '';
 
-            $old = [
-                'full_name' => $fullName,
-                'email' => $email,
-                'phone' => $phone,
-            ];
+            $old = compact('fullName', 'email', 'phone');
 
-            // Validate họ tên - bắt buộc, max 100 ký tự, không chỉ khoảng trắng, chỉ cho phép chữ/số/khoảng trắng/'-'/'.'
-            $fullNameError = UserModel::validateFullName($fullName);
-            if ($fullNameError !== '') {
-                $errors['full_name'] = $fullNameError;
-            }
-
-            // Validate email - không bắt buộc, nhưng nếu nhập thì phải đúng format strict
-            if ($email !== '') {
-                if (!UserModel::validateEmailStrict($email)) {
-                    $errors['email'] = 'Email không đúng định dạng.';
-                } elseif (UserModel::emailExists($email)) {
-                    $errors['email'] = 'Email đã được sử dụng.';
-                }
-            }
-
-            // Validate phone - bắt buộc
-            if ($phone === '') {
-                $errors['phone'] = 'Vui lòng nhập số điện thoại.';
-            } else {
-                $normalizedPhone = UserModel::normalizePhone($phone);
-                if (!$normalizedPhone) {
-                    $errors['phone'] = 'Số điện thoại không hợp lệ. Chỉ chấp nhận: 0xxxxxxxxx (10 số), +84xxxxxxxxx (9 số sau +84, số đầu không phải 0), 84xxxxxxxxx (9 số sau 84, số đầu không phải 0).';
-                } elseif (UserModel::phoneExists($normalizedPhone)) {
-                    $errors['phone'] = 'Số điện thoại đã được sử dụng.';
-                } else {
-                    $old['phone'] = $normalizedPhone;
-                }
-            }
-
-            // Validate password - bắt buộc, min 6 ký tự, có ít nhất 1 chữ và 1 số
-            $passwordError = UserModel::validatePassword($password);
-            if ($passwordError !== '') {
-                $errors['password'] = $passwordError;
-            }
-
-            if ($confirmPassword === '') {
-                $errors['confirm_password'] = 'Vui lòng xác nhận mật khẩu.';
-            } elseif ($password !== $confirmPassword) {
-                $errors['confirm_password'] = 'Xác nhận mật khẩu chưa khớp.';
-            }
+            $errors = $this->validateRegister($fullName, $email, $phone, $password, $confirm);
 
             if (empty($errors)) {
                 try {
                     $normalizedPhone = UserModel::normalizePhone($phone);
                     UserModel::create([
                         'full_name' => $fullName,
-                        'email' => $email !== '' ? mb_strtolower($email) : null,
-                        'phone' => $normalizedPhone,
-                        'password' => $password,
-                        'role' => 0,
-                        'room_id' => null,
+                        'email'     => $email !== '' ? mb_strtolower($email) : null,
+                        'phone'     => $normalizedPhone,
+                        'password'  => $password,
+                        'role'      => 0,
+                        'room_id'   => null,
                     ]);
+                    setFlash('auth_success', 'Tạo tài khoản thành công. Vui lòng đăng nhập.');
+                    redirectTo('login');
                 } catch (Throwable $e) {
-                    // Xử lý l��i duplicate key từ database
-                    if (str_contains($e->getMessage(), 'Duplicate entry') || str_contains($e->getMessage(), 'duplicate key')) {
-                        if (str_contains($e->getMessage(), 'phone')) {
-                            $errors['phone'] = 'Số điện thoại đã được sử dụng.';
-                        } else {
-                            $errors['email'] = 'Email đã được sử dụng.';
-                        }
-                    } else {
-                        $errors['general'] = 'Đã có l��i xảy ra. Vui lòng thử lại.';
-                    }
+                    $this->handleRegisterDbError($e, $errors);
                 }
-            }
-
-            if (empty($errors)) {
-                setFlash('auth_success', 'Tạo tài khoản thành công. Vui lòng đăng nhập.');
-                redirectTo('login');
             }
         }
 
@@ -618,46 +222,320 @@ class AuthController extends BaseController
     }
 
     /**
-     * Đăng xuất.
+     * Đăng xuất
      */
-    public function logout()
+    public function logout(): void
     {
         $_SESSION = [];
         session_destroy();
         redirectTo('home');
     }
 
-    /**
-     * Chuẩn hóa identifier cho rate limit.
-     * Nếu có @ -> lowercase email.
-     * Nếu không -> normalize phone.
-     */
-    private function normalizeIdentifierForRateLimit($identifier)
+    // ==========================================
+    // LOGIN HANDLERS
+    // ==========================================
+
+    private function handleLogin(string $identifier, string $password, array &$errors, array &$old): void
     {
-        $identifier = trim((string)$identifier);
-        if (str_contains($identifier, '@')) {
-            return mb_strtolower($identifier);
+        if ($identifier === '') $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
+        if ($password === '')   $errors['password']   = 'Vui lòng nhập mật khẩu.';
+
+        if (!empty($errors)) return;
+
+        $normalized = $this->normalizeIdentifierForRateLimit($identifier);
+
+        if (!$this->checkLoginRateLimit($normalized)) {
+            $errors['general'] = 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 5 phút.';
+            return;
         }
-        $phone = UserModel::normalizePhone($identifier);
-        return $phone ?? $identifier;
+
+        $user = $this->findUserByIdentifier($identifier);
+        if (!$user || !password_verify($password, $user['password'])) {
+            $this->recordFailedLogin($normalized);
+            $errors['general'] = 'Số điện thoại/email hoặc mật khẩu không đúng.';
+            return;
+        }
+
+        // Thành công
+        $this->resetLoginRateLimit($normalized);
+        $this->createUserSession($user);
+        $this->redirectAuthenticated($user);
     }
 
-    /**
-     * Tìm user theo identifier (email hoặc phone).
-     */
-    private function findUserByIdentifier($identifier)
+    // ==========================================
+    // CHANGE PASSWORD HANDLERS (2 steps)
+    // ==========================================
+
+    private function handleChangePasswordStep1(string $identifier, array &$errors, array &$old): void
     {
-        $identifier = trim((string)$identifier);
-        if (str_contains($identifier, '@')) {
-            $email = mb_strtolower($identifier);
-            return UserModel::findByEmail($email);
+        if ($identifier === '') {
+            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
+            return;
         }
 
-        $phone = UserModel::normalizePhone($identifier);
-        if (!$phone) {
-            return null;
+        $user = $this->findUserByIdentifier($identifier);
+        if (!$user) {
+            $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
+            $old['show_register_link'] = true;
+            return;
         }
 
-        return UserModel::findByPhone($phone);
+        $old['cp_step'] = 2;
     }
-}
+
+    private function handleChangePasswordStep2(string $identifier, string $oldPass, string $newPass, string $confirmPass, array &$errors, array &$old): void
+    {
+        if ($identifier === '') {
+            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
+            $old['cp_step'] = 1;
+            return;
+        }
+
+        $user = $this->findUserByIdentifier($identifier);
+        if (!$user) {
+            $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
+            $old['show_register_link'] = true;
+            $old['cp_step'] = 1;
+            return;
+        }
+
+        if ($oldPass === '')           $errors['old_password']     = 'Vui lòng nhập mật khẩu cũ.';
+        elseif (!password_verify($oldPass, $user['password'])) $errors['old_password'] = 'Mật khẩu cũ không đúng.';
+
+        $newPassError = UserModel::validatePassword($newPass, 'mật khẩu mới');
+        if ($newPassError) $errors['new_password'] = $newPassError;
+
+        if ($confirmPass === '')       $errors['confirm_password'] = 'Vui lòng xác nhận mật khẩu mới.';
+        elseif ($newPass !== $confirmPass) $errors['confirm_password'] = 'Xác nhận mật khẩu chưa khớp.';
+
+        if (!empty($errors)) {
+            $old['cp_step'] = 2;
+            return;
+        }
+
+        UserModel::update((int)$user['id'], ['password' => $newPass]);
+        setFlash('auth_success', 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
+        redirectTo('login');
+    }
+
+    // ==========================================
+    // FORGOT PASSWORD HANDLERS (2 steps)
+    // ==========================================
+
+    private function handleForgotPasswordStep1(string $identifier, array &$errors, array &$old): void
+    {
+        if ($identifier === '') {
+            $errors['identifier'] = 'Vui lòng nhập số điện thoại hoặc email.';
+            return;
+        }
+
+        $isEmail = str_contains($identifier, '@');
+        if ($isEmail) {
+            $user = UserModel::findByEmail(mb_strtolower(trim($identifier)));
+        } else {
+            $normalized = UserModel::normalizePhone($identifier);
+            $user = $normalized ? UserModel::findByPhone($normalized) : null;
+            if (!$user) {
+                $errors['identifier'] = 'Số điện thoại không hợp lệ. Chỉ chấp nhận số, khoảng trắng, +84 ở đầu.';
+                return;
+            }
+        }
+
+        if (!$user) {
+            $errors['identifier'] = 'Tài khoản này chưa tồn tại.';
+            $old['show_register_link'] = true;
+            return;
+        }
+
+        $_SESSION['reset_user_id']      = (int)$user['id'];
+        $_SESSION['reset_identifier']   = $identifier;
+
+        if (empty($user['email'])) {
+            $errors['no_email'] = true;
+            $old['contact_phone'] = RoomModel::getSetting('contact_phone', '');
+            $old['fp_step'] = 2;
+            return;
+        }
+
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $rateLimit = PasswordResetModel::checkSendRateLimit((int)$user['id'], $ip);
+        if (!$rateLimit['allowed']) {
+            $this->setRateLimitError($rateLimit, $errors);
+            $old['fp_step'] = 2;
+            return;
+        }
+
+        $otp = PasswordResetModel::createOtp((int)$user['id'], $ip);
+        PasswordResetModel::recordSendAttempt((int)$user['id'], $ip);
+
+        if (!Mailer::sendOtpEmail($user['email'], $otp, $user['full_name'])) {
+            $errors['otp_send_failed'] = true;
+            $old['contact_phone'] = RoomModel::getSetting('contact_phone', '');
+            $old['fp_step'] = 2;
+            return;
+        }
+
+        $old['fp_step'] = 2;
+        $old['otp_sent_email'] = $this->maskEmail($user['email']);
+        $errors['otp_sent'] = true;
+    }
+
+    private function handleForgotPasswordStep2(string $identifier, string $otpInput, array &$errors, array &$old): void
+    {
+        if (!isset($_SESSION['reset_user_id'])) {
+            redirectTo('login');
+        }
+
+        if ($otpInput === '')        $errors['otp'] = 'Vui lòng nhập mã OTP.';
+        elseif (!preg_match('/^\d{4}$/', $otpInput)) $errors['otp'] = 'Mã OTP phải là 4 chữ số.';
+
+        if (empty($errors)) {
+            $result = PasswordResetModel::verifyOtp($_SESSION['reset_user_id'], $otpInput);
+            $this->processOtpResult($result, $errors);
+        }
+
+        $old['fp_step'] = 2;
+    }
+
+    // ==========================================
+    // PRIVATE HELPERS - RATE LIMIT & SESSION
+    // ==========================================
+
+    private function checkLoginRateLimit(string $key): bool
+    {
+        $attempts = $_SESSION[$key] ?? ['count' => 0, 'first' => time()];
+        if (time() - $attempts['first'] > 300) $attempts = ['count' => 0, 'first' => time()];
+        $_SESSION[$key] = $attempts;
+        return $attempts['count'] < 5;
+    }
+
+    private function recordFailedLogin(string $key): void
+    {
+        $attempts = $_SESSION[$key] ?? ['count' => 0, 'first' => time()];
+        if (time() - $attempts['first'] > 300) $attempts = ['count' => 0, 'first' => time()];
+        $_SESSION[$key] = ['count' => $attempts['count'] + 1, 'first' => $attempts['first']];
+    }
+
+    private function resetLoginRateLimit(string $key): void
+    {
+        unset($_SESSION[$key]);
+    }
+
+    private function normalizeIdentifierForRateLimit(string $identifier): string
+    {
+        $identifier = trim($identifier);
+        return str_contains($identifier, '@') ? mb_strtolower($identifier) : (UserModel::normalizePhone($identifier) ?? $identifier);
+    }
+
+    private function findUserByIdentifier(string $identifier): ?array
+    {
+        $identifier = trim($identifier);
+        return str_contains($identifier, '@')
+            ? UserModel::findByEmail(mb_strtolower($identifier))
+            : (UserModel::normalizePhone($identifier) ? UserModel::findByPhone(UserModel::normalizePhone($identifier)) : null);
+    }
+
+    // ==========================================
+    // PRIVATE HELPERS - PASSWORD RESET FLOW
+    // ==========================================
+
+    private function processOtpResult($result, array &$errors): void
+    {
+        match ($result) {
+            true          => $_SESSION['otp_verified'] = true,
+            'expired'     => $errors['otp'] = 'Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.',
+            'invalid'     => $errors['otp'] = 'Mã OTP không đúng.',
+            'max_attempts'=> $errors['otp'] = 'Mã OTP không còn hợp lệ. Vui lòng gửi lại mã mới.',
+            default       => $errors['otp'] = 'Mã OTP không hợp lệ.',
+        };
+    }
+
+    private function validateNewPassword(string $newPass, string $confirmPass): array
+    {
+        $errors = [];
+        $newPassError = UserModel::validatePassword($newPass, 'mật khẩu mới');
+        if ($newPassError) $errors['new_password'] = $newPassError;
+        if ($confirmPass === '') $errors['confirm_password'] = 'Vui lòng xác nhận mật khẩu mới.';
+        elseif ($newPass !== $confirmPass) $errors['confirm_password'] = 'Xác nhận mật khẩu chưa khớp.';
+        return $errors;
+    }
+
+    private function setRateLimitError(array $rateLimit, array &$errors): void
+    {
+        if ($rateLimit['reason'] === 'resend_wait') {
+            $errors['otp_resend_wait'] = $rateLimit['wait_seconds'];
+        } elseif ($rateLimit['reason'] === 'max_daily') {
+            $errors['otp_max_daily'] = true;
+        }
+    }
+
+    private function setResendError(array $rateLimit): void
+    {
+        if ($rateLimit['reason'] === 'resend_wait') {
+            setFlash('otp_error', 'Vui lòng chờ ' . $rateLimit['wait_seconds'] . ' giây để gửi lại mã OTP.');
+        } elseif ($rateLimit['reason'] === 'max_daily') {
+            setFlash('otp_error', 'Bạn đã gửi OTP tối đa 5 lần trong 24 giờ. Vui lòng thử lại sau hoặc liên hệ chủ trọ.');
+        }
+    }
+
+    private function maskEmail(string $email): string
+    {
+        if (!$email || !str_contains($email, '@')) return $email;
+        [$local, $domain] = explode('@', $email, 2);
+        return strlen($local) <= 2
+            ? str_repeat('*', strlen($local)) . '@' . $domain
+            : $local[0] . str_repeat('*', strlen($local) - 2) . $local[-1] . '@' . $domain;
+    }
+
+    // ==========================================
+    // REGISTER HELPERS
+    // ==========================================
+
+    private function validateRegister(string $fullName, string $email, string $phone, string $password, string $confirm): array
+    {
+        $errors = [];
+
+        if ($fnErr = UserModel::validateFullName($fullName))          $errors['full_name'] = $fnErr;
+        if ($email !== '' && !UserModel::validateEmailStrict($email)) $errors['email'] = 'Email không đúng định dạng.';
+        if ($email !== '' && UserModel::emailExists($email))          $errors['email'] = 'Email đã được sử dụng.';
+
+        if ($phone === '') $errors['phone'] = 'Vui lòng nhập số điện thoại.';
+        else {
+            $normalized = UserModel::normalizePhone($phone);
+            if (!$normalized) $errors['phone'] = 'Số điện thoại không hợp lệ. Chỉ chấp nhận: 0xxxxxxxxx (10 số), +84xxxxxxxxx (9 số sau +84, số đầu không phải 0), 84xxxxxxxxx (9 số sau 84, số đầu không phải 0).';
+            elseif (UserModel::phoneExists($normalized)) $errors['phone'] = 'Số điện thoại đã được sử dụng.';
+        }
+
+        if ($passErr = UserModel::validatePassword($password)) $errors['password'] = $passErr;
+        if ($confirm === '')       $errors['confirm_password'] = 'Vui lòng xác nhận mật khẩu.';
+        elseif ($password !== $confirm) $errors['confirm_password'] = 'Xác nhận mật khẩu chưa khớp.';
+
+        return $errors;
+    }
+
+    private function handleRegisterDbError(Throwable $e, array &$errors): void
+    {
+        $msg = $e->getMessage();
+        if (str_contains($msg, 'Duplicate entry') || str_contains($msg, 'duplicate key')) {
+            $errors[str_contains($msg, 'phone') ? 'phone' : 'email'] = str_contains($msg, 'phone')
+                ? 'Số điện thoại đã được sử dụng.'
+                : 'Email đã được sử dụng.';
+        } else {
+            $errors['general'] = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+        }
+    }
+
+    // ==========================================
+    // SESSION & REDIRECT HELPERS
+    // ==========================================
+
+    private function createUserSession(array $user): void
+    {
+        session_regenerate_id(true);
+        $_SESSION['user_id']   = (int)$user['id'];
+        $_SESSION['full_name'] = $user['full_name'];
+        $_SESSION['email']     = $user['email'];
+        $_SESSION['role']      = (int)$user['role'];
+        $_SESSION['room_id']   = $user['room_id'] ?? null;
+    }
+    }

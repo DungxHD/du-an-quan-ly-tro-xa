@@ -1,72 +1,90 @@
 <?php
+/**
+ * BaseController - Lớp cơ sở cho các controller công khai (public pages)
+ * Chịu trách nhiệm: xây dựng dữ liệu layout chung, render view công khai
+ */
 class BaseController
 {
-    protected function buildPublicLayoutData($activePage = '', $pageTitle = '')
+    /**
+     * Xây dựng dữ liệu layout chung cho tất cả trang công khai
+     * Bao gồm: thông tin site, navigation URLs, meta, brand, contact, fallback mode
+     * Hỗ trợ chế độ preview cho admin (ghi đè qua query string)
+     */
+    protected function buildPublicLayoutData(string $activePage = '', string $pageTitle = ''): array
     {
-        $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
+        // Lấy setting từ DB (có fallback mặc định)
+        $siteName        = RoomModel::getSetting('site_name', 'NhaTroA');
         $siteDescription = fallbackText(RoomModel::getSetting('site_description', ''), 'Website chính thức của khu trọ, giúp khách xem phòng trống và liên hệ nhanh với chủ trọ.');
-        $siteSlogan = fallbackText(RoomModel::getSetting('site_slogan', ''), 'Xem phòng rõ ràng, liên hệ dễ dàng');
-        $contactAddress = fallbackText(RoomModel::getSetting('contact_address', ''));
-        $contactPhone = fallbackText(RoomModel::getSetting('contact_phone', ''));
-        $contactEmail = fallbackText(RoomModel::getSetting('contact_email', ''));
+        $siteSlogan      = fallbackText(RoomModel::getSetting('site_slogan', ''), 'Xem phòng rõ ràng, liên hệ dễ dàng');
+        $contactAddress  = fallbackText(RoomModel::getSetting('contact_address', ''));
+        $contactPhone    = fallbackText(RoomModel::getSetting('contact_phone', ''));
+        $contactEmail    = fallbackText(RoomModel::getSetting('contact_email', ''));
 
-        // Chế độ xem trước cho trang Cấu hình: chỉ admin mới được ghi đè qua query.
+        // Chế độ preview cho admin: cho phép ghi đè setting qua query string (?ov[site_name]=...)
         if (!empty($GLOBALS['cmsPreviewAdmin'])) {
             $ov = is_array($_GET['ov'] ?? null) ? $_GET['ov'] : [];
-            if (trim((string)($ov['site_name'] ?? '')) !== '') {
-                $siteName = trim((string)$ov['site_name']);
-            }
-            if (array_key_exists('site_description', $ov) && trim((string)$ov['site_description']) !== '') {
-                $siteDescription = trim((string)$ov['site_description']);
-            }
-            if (array_key_exists('site_slogan', $ov) && trim((string)$ov['site_slogan']) !== '') {
-                $siteSlogan = trim((string)$ov['site_slogan']);
-            }
-            if (array_key_exists('contact_address', $ov)) {
-                $contactAddress = trim((string)$ov['contact_address']);
-            }
-            if (array_key_exists('contact_phone', $ov)) {
-                $contactPhone = trim((string)$ov['contact_phone']);
-            }
-            if (array_key_exists('contact_email', $ov)) {
-                $contactEmail = trim((string)$ov['contact_email']);
-            }
+            $siteName        = $this->getOverride($ov, 'site_name', $siteName);
+            $siteDescription = $this->getOverride($ov, 'site_description', $siteDescription);
+            $siteSlogan      = $this->getOverride($ov, 'site_slogan', $siteSlogan);
+            $contactAddress  = $this->getOverride($ov, 'contact_address', $contactAddress);
+            $contactPhone    = $this->getOverride($ov, 'contact_phone', $contactPhone);
+            $contactEmail    = $this->getOverride($ov, 'contact_email', $contactEmail);
         }
 
         $defaultTitle = $siteName . ' - Website chính thức của khu trọ';
-        $finalTitle = trim((string)$pageTitle) !== '' ? $pageTitle : $defaultTitle;
+        $finalTitle   = $pageTitle !== '' ? $pageTitle : $defaultTitle;
 
         return [
-            'siteName' => $siteName,
-            'pageTitle' => $finalTitle,
-            'activePage' => $activePage,
-            'urls' => [
-                'home' => BASE_URL . '?page=home',
-                'rooms' => BASE_URL . '?page=rooms',
-                'intro' => BASE_URL . '?page=intro',
-                'register' => BASE_URL . '?page=register',
-                'login' => BASE_URL . '?page=login',
-                'admin' => BASE_URL . '?page=admin',
-                'tenant' => BASE_URL . '?page=tenant',
-                'logout' => BASE_URL . '?page=logout',
-            ],
+            'siteName'       => $siteName,
+            'pageTitle'      => $finalTitle,
+            'activePage'     => $activePage,
+            'urls'           => $this->getPublicUrls($siteName),
             'isFallbackMode' => !Database::hasConnection(),
-            'meta' => [
-                'description' => $siteDescription,
-            ],
-            'brand' => [
-                'tagline' => $siteSlogan,
-            ],
-            'contact' => [
+            'meta'           => ['description' => $siteDescription],
+            'brand'          => ['tagline' => $siteSlogan],
+            'contact'        => [
                 'address' => $contactAddress,
-                'phone' => $contactPhone,
-                'email' => $contactEmail,
-                'phoneTel' => preg_replace('/\s+/', '', (string)$contactPhone),
+                'phone'   => $contactPhone,
+                'email'   => $contactEmail,
+                'phoneTel'=> preg_replace('/\s+/', '', (string)$contactPhone),
             ],
         ];
     }
 
-    protected function renderPublic($viewFile, array $data = [], $activePage = '', $pageTitle = '')
+    /**
+     * Helper lấy giá trị override từ mảng preview, fallback về giá trị mặc định
+     */
+    private function getOverride(array $ov, string $key, string $default): string
+    {
+        if (array_key_exists($key, $ov)) {
+            $val = trim((string)$ov[$key]);
+            return $val !== '' ? $val : $default;
+        }
+        return $default;
+    }
+
+    /**
+     * Danh sách URL công khai dùng cho navigation
+     */
+    private function getPublicUrls(string $siteName): array
+    {
+        return [
+            'home'     => BASE_URL . '?page=home',
+            'rooms'    => BASE_URL . '?page=rooms',
+            'intro'    => BASE_URL . '?page=intro',
+            'register' => BASE_URL . '?page=register',
+            'login'    => BASE_URL . '?page=login',
+            'admin'    => BASE_URL . '?page=admin',
+            'tenant'   => BASE_URL . '?page=tenant',
+            'logout'   => BASE_URL . '?page=logout',
+        ];
+    }
+
+    /**
+     * Render trang công khai: header -> view content -> footer
+     * Sử dụng extract() để biến trong $data thành biến cục bộ cho view
+     */
+    protected function renderPublic(string $viewFile, array $data = [], string $activePage = '', string $pageTitle = ''): void
     {
         $layout = $this->buildPublicLayoutData($activePage, $pageTitle);
         extract($data);
@@ -76,4 +94,3 @@ class BaseController
         require_once BASE_PATH . 'views/layouts/footer.php';
     }
 }
-

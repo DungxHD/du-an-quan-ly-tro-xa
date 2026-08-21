@@ -1,113 +1,72 @@
 <?php
-// [DEV-QWEN-A][REFACTOR][NHOM-6] Tach tu AdminController.php. KHONG require model - autoloader index.php lo.
-
+/**
+ * AdminTenantTrait - Quản lý người thuê: list, gán phòng, yêu cầu thuê, ở ghép, tài khoản
+ */
 trait AdminTenantTrait
 {
-/**
-     * Danh sách tenant và form gán phòng.
-     */
-    public function tenants()
-    {
-        $tenants = array_values(array_filter(
-            UserModel::getAll(),
-            static fn($user) => (int)($user['role'] ?? 0) === 0
-        ));
+    // ==========================================
+    // TENANTS LIST & ASSIGN
+    // ==========================================
 
-        $rooms = array_values(array_filter(array_map(static function ($room) {
-            $room['occupant_count'] = RoomModel::countOccupants((int)($room['id'] ?? 0));
-            $room['available_slots'] = max(0, (int)($room['max_occupancy'] ?? 0) - (int)($room['occupant_count'] ?? 0));
-            return $room;
-        }, RoomModel::getAll(['status' => 'available'])), static function ($room) {
-            return (int)($room['available_slots'] ?? 0) > 0;
-        }));
+    public function tenants(): void
+    {
+        $tenants = array_values(array_filter(UserModel::getAll(), fn($u) => ($u['role'] ?? 0) === 0));
+
+        $rooms = array_values(array_filter(array_map(fn($r) => [
+            'occupant_count' => RoomModel::countOccupants($r['id'] ?? 0),
+            'available_slots' => max(0, (int)($r['max_occupancy'] ?? 0) - RoomModel::countOccupants($r['id'] ?? 0)),
+        ] + $r, RoomModel::getAll(['status' => 'available'])), fn($r) => ($r['available_slots'] ?? 0) > 0));
 
         $tenantMessage = pullFlash('admin_tenant_message');
         $tenantError = pullFlash('admin_tenant_error');
-        $oldTenantAssignment = pullFlash('admin_tenant_old', []);
-        $assignmentForm = array_merge([
-            'user_id' => 0,
-            'room_id' => 0,
-        ], is_array($oldTenantAssignment) ? $oldTenantAssignment : []);
-
+        $oldInput = pullFlash('admin_tenant_old', []);
+        $assignmentForm = array_merge(['user_id' => 0, 'room_id' => 0], is_array($oldInput) ? $oldInput : []);
         $pageTitle = 'Quản lý Người thuê - NhaTroA';
         require_once BASE_PATH . 'views/admin/tenants/tenants.php';
     }
 
-    /**
-     * Gán tenant vào phòng.
-     */
-    public function addTenant()
+    public function addTenant(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-tenants');
-        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-tenants');
         verify_csrf();
 
         $userId = (int)($_POST['user_id'] ?? 0);
         $roomId = (int)($_POST['room_id'] ?? 0);
+        $oldInput = ['user_id' => $userId, 'room_id' => $roomId];
 
-        $oldInput = [
-            'user_id' => $userId,
-            'room_id' => $roomId,
-        ];
-
-        if ($userId <= 0) {
-            setFlash('admin_tenant_error', 'Vui lòng chọn tenant cần gán phòng.');
-            setFlash('admin_tenant_old', $oldInput);
-            redirectTo('admin-tenants');
-        }
-        if ($roomId <= 0) {
-            setFlash('admin_tenant_error', 'Vui lòng chọn phòng trống hợp lệ.');
-            setFlash('admin_tenant_old', $oldInput);
-            redirectTo('admin-tenants');
-        }
+        if ($userId <= 0) { setFlash('admin_tenant_error', 'Chọn tenant.'); setFlash('admin_tenant_old', $oldInput); redirectTo('admin-tenants'); }
+        if ($roomId <= 0) { setFlash('admin_tenant_error', 'Chọn phòng trống.'); setFlash('admin_tenant_old', $oldInput); redirectTo('admin-tenants'); }
 
         try {
             UserModel::assignToRoom($userId, $roomId);
-            setFlash('admin_tenant_message', 'Đã gán tenant vào phòng thành công.');
+            setFlash('admin_tenant_message', 'Đã gán tenant vào phòng.');
             redirectTo('admin-tenants');
-        } catch (Throwable $exception) {
-            setFlash('admin_tenant_error', $exception->getMessage());
-            setFlash('admin_tenant_old', ['user_id' => $userId, 'room_id' => $roomId]);
+        } catch (Throwable $e) {
+            setFlash('admin_tenant_error', $e->getMessage());
+            setFlash('admin_tenant_old', $oldInput);
             redirectTo('admin-tenants');
         }
     }
 
-public function rentRequests()
+    // ==========================================
+    // RENT & ROOMMATE REQUESTS
+    // ==========================================
+
+    public function rentRequests(): void
     {
         [$rentFilter, $rentKeyword, $roommateFilter, $roommateKeyword] = $this->resolveRentRequestFilters();
 
-        // ===== CỘT 1: YÊU CẦU THUÊ PHÒNG =====
-        $rentStatus = $rentFilter === 'all' ? '' : $rentFilter;
-        $rentParams = [];
-        if ($rentStatus !== '') {
-            $rentParams['status'] = $rentStatus;
-        }
-        if ($rentKeyword !== '') {
-            $rentParams['keyword'] = $rentKeyword;
-        }
+        $rentParams = ['status' => $rentFilter === 'all' ? '' : $rentFilter];
+        if ($rentKeyword) $rentParams['keyword'] = $rentKeyword;
         $requests = RentalRequestModel::getAllWithDetails($rentParams);
 
-        // Đếm số yêu cầu đang chờ xử lý (pending) cho badge "Cần xử lý"
-        $pendingRentParams = ['status' => 'pending'];
-        $pendingRentAll = RentalRequestModel::getAllWithDetails($pendingRentParams);
-        $pendingRentCount = count($pendingRentAll);
+        $pendingRentCount = count(RentalRequestModel::getAllWithDetails(['status' => 'pending']));
 
-        // ===== CỘT 2: YÊU CẦU Ở GHÉP =====
-        $roommateStatus = $roommateFilter === 'all' ? '' : $roommateFilter;
-        $roommateParams = [];
-        if ($roommateStatus !== '') {
-            $roommateParams['status'] = $roommateStatus;
-        }
-        if ($roommateKeyword !== '') {
-            $roommateParams['keyword'] = $roommateKeyword;
-        }
+        $roommateParams = ['status' => $roommateFilter === 'all' ? '' : $roommateFilter];
+        if ($roommateKeyword) $roommateParams['keyword'] = $roommateKeyword;
         $roommateRequests = RoommateRequestModel::getAll($roommateParams);
-
-        // Đếm số yêu cầu ở ghép đang chờ admin duyệt (pending_admin + pending) cho badge "Cần xử lý"
         $pendingRoommateCount = RoommateRequestModel::countPendingAdmin();
 
-        // Flash messages
         $message = pullFlash('rent_request_message', '');
         $error = pullFlash('rent_request_error', '');
         $roommateMessage = pullFlash('roommate_admin_message', '');
@@ -116,859 +75,354 @@ public function rentRequests()
         require_once BASE_PATH . 'views/admin/tenants/rent_requests.php';
     }
 
-    /**
-     * API AJAX cho trang admin-rent-requests: trả về HTML 2 cột theo filter hiện tại.
-     * Dùng để tìm kiếm theo thời gian thực mà không cần tải lại trang.
-     */
-    public function rentRequestsFilterApi()
+    public function rentRequestsFilterApi(): void
     {
         header('Content-Type: application/json; charset=utf-8');
-
         [$rentFilter, $rentKeyword, $roommateFilter, $roommateKeyword] = $this->resolveRentRequestFilters();
 
-        // ===== CỘT 1: YÊU CẦU THUÊ PHÒNG =====
-        $rentStatus = $rentFilter === 'all' ? '' : $rentFilter;
-        $rentParams = [];
-        if ($rentStatus !== '') {
-            $rentParams['status'] = $rentStatus;
-        }
-        if ($rentKeyword !== '') {
-            $rentParams['keyword'] = $rentKeyword;
-        }
+        $rentParams = ['status' => $rentFilter === 'all' ? '' : $rentFilter];
+        if ($rentKeyword) $rentParams['keyword'] = $rentKeyword;
         $requests = RentalRequestModel::getAllWithDetails($rentParams);
 
-        // ===== CỘT 2: YÊU CẦU Ở GHÉP =====
-        $roommateStatus = $roommateFilter === 'all' ? '' : $roommateFilter;
-        $roommateParams = [];
-        if ($roommateStatus !== '') {
-            $roommateParams['status'] = $roommateStatus;
-        }
-        if ($roommateKeyword !== '') {
-            $roommateParams['keyword'] = $roommateKeyword;
-        }
+        $roommateParams = ['status' => $roommateFilter === 'all' ? '' : $roommateFilter];
+        if ($roommateKeyword) $roommateParams['keyword'] = $roommateKeyword;
         $roommateRequests = RoommateRequestModel::getAll($roommateParams);
 
         echo json_encode([
             'success' => true,
-            'rent' => [
-                'html' => $this->renderRentRequestItems($requests),
-                'total' => count($requests),
-            ],
-            'roommate' => [
-                'html' => $this->renderRoommateRequestItems($roommateRequests),
-                'total' => count($roommateRequests),
-            ],
+            'rent' => ['html' => $this->renderRentRequestItems(RentalRequestModel::getAllWithDetails(['status' => $rentFilter === 'all' ? '' : $rentFilter, 'keyword' => $rentKeyword])), 'total' => count($requests)],
+            'roommate' => ['html' => $this->renderRoommateRequestItems(RoommateRequestModel::getAll(['status' => $roommateFilter === 'all' ? '' : $roommateFilter, 'keyword' => $roommateKeyword])), 'total' => count($roommateRequests)],
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    /**
-     * Chuẩn hóa các bộ lọc của trang yêu cầu thuê & ở ghép (dùng chung cho trang + API).
-     */
-    private function resolveRentRequestFilters()
+    private function resolveRentRequestFilters(): array
     {
-        $rentFilter = trim((string)($_GET['rent_filter'] ?? 'all'));
-        $rentAllowed = ['all', 'pending', 'approved', 'rejected'];
-        if (!in_array($rentFilter, $rentAllowed, true)) {
-            $rentFilter = 'all';
-        }
+        $rentFilter = trim($_GET['rent_filter'] ?? 'all');
+        if (!in_array($rentFilter, ['all','pending','approved','rejected'], true)) $rentFilter = 'all';
 
-        $roommateFilter = trim((string)($_GET['roommate_filter'] ?? 'all'));
-        $roommateAllowed = ['all', 'pending_admin', 'approved', 'rejected'];
-        if (!in_array($roommateFilter, $roommateAllowed, true)) {
-            $roommateFilter = 'all';
-        }
+        $roommateFilter = trim($_GET['roommate_filter'] ?? 'all');
+        if (!in_array($roommateFilter, ['all','pending_admin','approved','rejected'], true)) $roommateFilter = 'all';
 
-        return [
-            $rentFilter,
-            trim((string)($_GET['rent_keyword'] ?? '')),
-            $roommateFilter,
-            trim((string)($_GET['roommate_keyword'] ?? '')),
-        ];
+        return [$rentFilter, trim($_GET['rent_keyword'] ?? ''), $roommateFilter, trim($_GET['roommate_keyword'] ?? '')];
     }
 
-    /**
-     * Render danh sách item yêu cầu thuê phòng thành HTML (dùng cho API AJAX).
-     */
-    private function renderRentRequestItems(array $requests)
+    private function renderRentRequestItems(array $requests): string
     {
         $html = '';
-        foreach ($requests as $req) {
-            ob_start();
-            require BASE_PATH . 'views/admin/tenants/partials/rent_request_item.php';
-            $html .= ob_get_clean();
-        }
+        foreach ($requests as $req) { ob_start(); require BASE_PATH . 'views/admin/tenants/partials/rent_request_item.php'; $html .= ob_get_clean(); }
         return $html;
     }
 
-    /**
-     * Render danh sách item yêu cầu ở ghép thành HTML (dùng cho API AJAX).
-     */
-    private function renderRoommateRequestItems(array $requests)
+    private function renderRoommateRequestItems(array $requests): string
     {
         $html = '';
-        foreach ($requests as $rr) {
-            ob_start();
-            require BASE_PATH . 'views/admin/tenants/partials/roommate_request_item.php';
-            $html .= ob_get_clean();
-        }
+        foreach ($requests as $rr) { ob_start(); require BASE_PATH . 'views/admin/tenants/partials/roommate_request_item.php'; $html .= ob_get_clean(); }
         return $html;
     }
-/**
-     * Duyệt yêu cầu thuê: kiểm tra phòng trùng + sức chứa, gán phòng, đồng bộ trạng thái, báo cho user.
-     */
-    public function approveRentRequest()
+
+    // ==========================================
+    // RENTAL REQUEST ACTIONS
+    // ==========================================
+
+    public function approveRentRequest(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
         verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RentalRequestModel::getById($requestId);
+        $req = RentalRequestModel::getById((int)($_POST['request_id'] ?? 0));
+        if (!$req || ($req['status']??'') !== 'pending') { setFlash('rent_request_error', $req ? 'Đã xử lý.' : 'Không tồn tại.'); redirectTo('admin-rent-requests'); }
 
-        if (!$request) {
-            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($request['status'] ?? '') !== 'pending') {
-            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $userId = (int)($request['user_id'] ?? 0);
-        $roomId = (int)($request['room_id'] ?? 0);
+        $userId = (int)$req['user_id']; $roomId = (int)$req['room_id'];
         $room = RoomModel::getById($roomId);
-        if (!$room) {
-            setFlash('rent_request_error', 'Phòng trong yêu cầu không còn tồn tại.');
+        if (!$room || !empty(UserModel::getById($userId)['room_id']) || RoomModel::countOccupants($roomId) + 1 > max(1, (int)($room['max_occupancy']??1))) {
+            setFlash('rent_request_error', 'Phòng hết chỗ hoặc user đã có phòng.');
             redirectTo('admin-rent-requests');
-        }
-        $existingUser = UserModel::getById($userId);
-        if (!empty($existingUser['room_id'])) {
-            setFlash('rent_request_error', 'Người này đã có phòng đang thuê, không thể duyệt thêm.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $currentOccupants = RoomModel::countOccupants($roomId);
-        $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
-        if ($currentOccupants + 1 > $maxOcc) {
-            setFlash('rent_request_error', 'Phòng đã đủ sức chứa (' . $currentOccupants . '/' . $maxOcc . '), không thể duyệt thêm người.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
-        try {
-            UserModel::assignToRoom($userId, $roomId);
-            RentalRequestModel::setStatus($requestId, 'approved', 'Yêu cầu đã được duyệt.');
-            NotificationModel::create([
-                'user_id' => $userId,
-                'type' => 'general',
-                'title' => 'Yêu cầu thuê phòng đã được duyệt',
-                'content' => 'Chúc mừng! Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" của bạn đã được admin duyệt. Ngày vào ở: ' . date('d/m/Y', strtotime($moveInDate)) . '.',
-            ]);
-            setFlash('rent_request_message', 'Đã duyệt yêu cầu và gán phòng "' . ($room['name'] ?? '') . '" cho người thuê.');
-        } catch (Throwable $exception) {
-            setFlash('rent_request_error', 'Không duyệt được yêu cầu: ' . $exception->getMessage());
-        }
-        redirectTo('admin-rent-requests');
-    }
-/**
-     * Từ chối yêu cầu thuê: không cần lý do (yêu cầu thuê phòng), báo cho user (user được gửi yêu cầu phòng khác).
-     */
-    public function rejectRentRequest()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RentalRequestModel::getById($requestId);
-
-        if (!$request) {
-            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($request['status'] ?? '') !== 'pending') {
-            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
-            redirectTo('admin-rent-requests');
-        }
-
-        RentalRequestModel::setStatus($requestId, 'rejected');
-        $room = RoomModel::getById((int)($request['room_id'] ?? 0));
-        NotificationModel::create([
-            'user_id' => (int)($request['user_id'] ?? 0),
-            'type' => 'general',
-            'title' => 'Yêu cầu thuê phòng bị từ chối',
-            'content' => 'Yêu cầu thuê phòng "' . ($room['name'] ?? '') . '" của bạn đã bị từ chối. Bạn có thể gửi yêu cầu cho phòng khác.',
-        ]);
-        setFlash('rent_request_message', 'Đã từ chối yêu cầu thuê.');
-        redirectTo('admin-rent-requests');
-    }
-/**
-     * Bước 1: Admin xác nhận yêu cầu thuê → hiện mã QR chuyển tiền chờ người thuê thanh toán.
-     */
-    public function confirmRentRequest()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RentalRequestModel::getById($requestId);
-
-        if (!$request) {
-            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($request['status'] ?? '') !== 'pending') {
-            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $room = RoomModel::getById((int)($request['room_id'] ?? 0));
-        if (!$room) {
-            setFlash('rent_request_error', 'Phòng trong yêu cầu không còn tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($room['status'] ?? '') !== 'available') {
-            setFlash('rent_request_error', 'Phòng "' . ($room['name'] ?? '') . '" không còn trống, không thể xác nhận yêu cầu.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $deposit = trim((string)($_POST['deposit'] ?? ''));
-        if ($deposit === '' || !is_numeric($deposit) || (float)$deposit <= 0) {
-            setFlash('rent_request_error', 'Vui lòng nhập số tiền cọc hợp lệ (lớn hơn 0) để giữ phòng cho người thuê.');
-            redirectTo('admin-rent-requests');
-        }
-        $deposit = (float)$deposit;
-
-        RentalRequestModel::confirmByAdmin($requestId, $deposit);
-        $tenant = UserModel::getById((int)($request['user_id'] ?? 0));
-        $roomName = (string)($room['name'] ?? '');
-        $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
-        NotificationModel::create([
-            'user_id' => (int)($request['user_id'] ?? 0),
-            'type' => 'rental_request',
-            'title' => 'Yêu cầu thuê đã được chấp nhận',
-            'content' => 'Yêu cầu thuê phòng "' . $roomName . '" của bạn đã được admin chấp nhận. Vui lòng thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ để giữ phòng này cho đến hết ngày dự kiến vào ở (' . date('d/m/Y', strtotime($moveInDate)) . '). Mã QR thanh toán đã sẵn sàng.',
-            'link' => '?page=request-rent&id=' . (int)($request['room_id'] ?? 0),
-        ]);
-        setFlash('rent_request_message', 'Đã xác nhận yêu cầu thuê của "' . ($tenant['full_name'] ?? '') . '" với tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ. Mã QR chuyển tiền đã sẵn sàng cho người thuê.');
-        redirectTo('admin-rent-requests');
-    }
-/**
-     * Bước 2a: Admin hủy yêu cầu đã xác nhận → người thuê không vào phòng, phòng vẫn trống.
-     */
-    public function cancelRentRequestAdmin()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RentalRequestModel::getById($requestId);
-
-        if (!$request) {
-            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($request['status'] ?? '') !== 'pending') {
-            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
-            redirectTo('admin-rent-requests');
-        }
-
-        RentalRequestModel::cancelByAdmin($requestId);
-        $room = RoomModel::getById((int)($request['room_id'] ?? 0));
-        $tenant = UserModel::getById((int)($request['user_id'] ?? 0));
-        $tenantName = (string)($tenant['full_name'] ?? 'Tài khoản');
-        $roomName = (string)($room['name'] ?? '');
-        NotificationModel::create([
-            'user_id' => (int)($request['user_id'] ?? 0),
-            'type' => 'general',
-            'title' => 'Tài khoản đã hủy đăng ký thuê',
-            'content' => 'Tài khoản ' . $tenantName . ' đã hủy đăng ký thuê phòng "' . $roomName . '". Phòng vẫn ở trạng thái trống.',
-        ]);
-        setFlash('rent_request_message', 'Đã hủy yêu cầu thuê của "' . $tenantName . '". Người này không được thêm vào phòng, phòng "' . $roomName . '" vẫn còn trống.');
-        redirectTo('admin-rent-requests');
-    }
-/**
-     * Bước 2b: Admin xác nhận người thuê đã thanh toán → xếp phòng, phòng thành "đang thuê".
-     */
-    public function paidRentRequest()
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
-        verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RentalRequestModel::getById($requestId);
-
-        if (!$request) {
-            setFlash('rent_request_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        if ((string)($request['status'] ?? '') !== 'pending') {
-            setFlash('rent_request_error', 'Yêu cầu này đã được xử lý trước đó.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $userId = (int)($request['user_id'] ?? 0);
-        $roomId = (int)($request['room_id'] ?? 0);
-        $room = RoomModel::getById($roomId);
-        if (!$room) {
-            setFlash('rent_request_error', 'Phòng trong yêu cầu không còn tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-
-        // Kiểm tra user đã có phòng chưa
-        $existingUser = UserModel::getById($userId);
-        if (!empty($existingUser['room_id'])) {
-            setFlash('rent_request_error', 'Người này đã có phòng, không thể xếp thêm phòng.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $currentOccupants = RoomModel::countOccupants($roomId);
-        $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
-
-        $moveInDate = trim((string)($request['move_in_date'] ?? '')) ?: date('Y-m-d');
-        $deposit = (float)($request['deposit'] ?? 0);
-        if ($deposit <= 0) {
-            $deposit = (float)($room['price'] ?? 0);
         }
 
         try {
-            Database::update('users', ['room_id' => $roomId], 'id = :id', ['id' => $userId]);
+            UserModel::assignToRoom($userId, $roomId);
+            RentalRequestModel::setStatus((int)$req['id'], 'approved', 'Đã duyệt.');
+            NotificationModel::create(['user_id'=>$userId,'type'=>'general','title'=>'Yêu cầu thuê được duyệt','content'=>'Chúc mừng! Yêu cầu thuê phòng "'.($room['name']??'').'" đã được duyệt. Ngày vào ở: '.date('d/m/Y',strtotime($req['move_in_date']??date('Y-m-d'))).'.']);
+            setFlash('rent_request_message', 'Đã duyệt và gán phòng "'.($room['name']??'').'".');
+        } catch (Throwable $e) { setFlash('rent_request_error', 'Lỗi: '.$e->getMessage()); }
+        redirectTo('admin-rent-requests');
+    }
+
+    public function rejectRentRequest(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
+        verify_csrf();
+        $req = RentalRequestModel::getById((int)($_POST['request_id']??0));
+        if (!$req || ($req['status']??'') !== 'pending') { setFlash('rent_request_error', $req?'Đã xử lý.':'Không tồn tại.'); redirectTo('admin-rent-requests'); }
+        RentalRequestModel::setStatus((int)$req['id'], 'rejected');
+        $room = RoomModel::getById((int)($req['room_id']??0));
+        NotificationModel::create(['user_id'=>(int)$req['user_id'],'type'=>'general','title'=>'Yêu cầu thuê bị từ chối','content'=>'Yêu cầu thuê phòng "'.($room['name']??'').'" bị từ chối. Bạn có thể gửi yêu cầu phòng khác.']);
+        setFlash('rent_request_message', 'Đã từ chối.');
+        redirectTo('admin-rent-requests');
+    }
+
+    public function confirmRentRequest(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
+        verify_csrf();
+        $req = RentalRequestModel::getById((int)($_POST['request_id']??0));
+        if (!$req || ($req['status']??'') !== 'pending') { setFlash('rent_request_error', $req?'Đã xử lý.':'Không tồn tại.'); redirectTo('admin-rent-requests'); }
+        $room = RoomModel::getById((int)($req['room_id']??0));
+        if (!$room || ($room['status']??'') !== 'available') { setFlash('rent_request_error', 'Phòng không còn trống.'); redirectTo('admin-rent-requests'); }
+
+        $deposit = (float)($_POST['deposit']??0);
+        if ($deposit <= 0) { setFlash('rent_request_error', 'Nhập tiền cọc > 0.'); redirectTo('admin-rent-requests'); }
+
+        RentalRequestModel::confirmByAdmin((int)$req['id'], $deposit);
+        $tenant = UserModel::getById((int)$req['user_id']);
+        $roomName = $room['name']??'';
+        $moveIn = trim($req['move_in_date']??'') ?: date('Y-m-d');
+        NotificationModel::create(['user_id'=>(int)$req['user_id'],'type'=>'rental_request','title'=>'Yêu cầu thuê được chấp nhận','content'=>'Yêu cầu thuê phòng "'.$roomName.'" đã được chấp nhận. Thanh toán tiền cọc '.number_format($deposit,0,',','.').'đ để giữ phòng đến '.date('d/m/Y',strtotime($moveIn)).'.','link'=>'?page=request-rent&id='.(int)$req['room_id']]);
+        setFlash('rent_request_message', 'Đã xác nhận yêu cầu thuê "'.($tenant['full_name']??'').'" cọc '.number_format($deposit,0,',','.').'đ.');
+        redirectTo('admin-rent-requests');
+    }
+
+    public function cancelRentRequestAdmin(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
+        verify_csrf();
+        $req = RentalRequestModel::getById((int)($_POST['request_id']??0));
+        if (!$req || ($req['status']??'') !== 'pending') { setFlash('rent_request_error', $req?'Đã xử lý.':'Không tồn tại.'); redirectTo('admin-rent-requests'); }
+        RentalRequestModel::cancelByAdmin((int)$req['id']);
+        $room = RoomModel::getById((int)($req['room_id']??0));
+        $tenant = UserModel::getById((int)$req['user_id']);
+        NotificationModel::create(['user_id'=>(int)$req['user_id'],'type'=>'general','title'=>'Tài khoản hủy đăng ký thuê','content'=>'Tài khoản '.($tenant['full_name']??'').' đã hủy đăng ký thuê phòng "'.($room['name']??'').'". Phòng vẫn trống.']);
+        setFlash('rent_request_message', 'Đã hủy yêu cầu của "'.($tenant['full_name']??'').'".');
+        redirectTo('admin-rent-requests');
+    }
+
+    public function paidRentRequest(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
+        verify_csrf();
+        $req = RentalRequestModel::getById((int)($_POST['request_id']??0));
+        if (!$req || ($req['status']??'') !== 'pending') { setFlash('rent_request_error', $req?'Đã xử lý.':'Không tồn tại.'); redirectTo('admin-rent-requests'); }
+
+        $userId = (int)$req['user_id']; $roomId = (int)$req['room_id'];
+        $room = RoomModel::getById($roomId);
+        if (!$room || !empty(UserModel::getById($userId)['room_id']) || RoomModel::countOccupants($roomId)+1 > max(1,(int)($room['max_occupancy']??1))) {
+            setFlash('rent_request_error', 'Phòng hết chỗ hoặc user đã có phòng.'); redirectTo('admin-rent-requests');
+        }
+
+        $moveIn = trim($req['move_in_date']??'') ?: date('Y-m-d');
+        $deposit = (float)($req['deposit']??0) ?: (float)($room['price']??0);
+        try {
+            Database::update('users',['room_id'=>$roomId],'id=:id',['id'=>$userId]);
             RoomModel::syncRoomStatus($roomId);
-            RentalRequestModel::markPaid($requestId);
+            RentalRequestModel::markPaid((int)$req['id']);
             $tenant = UserModel::getById($userId);
-            $tenantName = (string)($tenant['full_name'] ?? 'Người thuê');
-            $roomName = (string)($room['name'] ?? '');
-            foreach (UserModel::getAll() as $admin) {
-                if ((int)($admin['role'] ?? 1) === 1) {
-                    NotificationModel::create([
-                        'user_id' => (int)$admin['id'],
-                        'type' => 'rental_request',
-                        'title' => 'Tiền cọc đã được thanh toán',
-                        'content' => 'Người thuê ' . $tenantName . ' đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công cho phòng "' . $roomName . '".',
-                        'link' => '?page=admin-rent-requests&rent_filter=approved',
-                    ]);
-                }
-            }
-            NotificationModel::create([
-                'user_id' => $userId,
-                'type' => 'general',
-                'title' => 'Chào mừng đến với phòng ' . $roomName,
-                'content' => 'Bạn đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công và chính thức là người thuê phòng "' . $roomName . '". Ngày vào ở: ' . date('d/m/Y', strtotime($moveInDate)) . '.',
-            ]);
-            setFlash('rent_request_message', 'Người thuê "' . $tenantName . '" đã thanh toán tiền cọc ' . number_format($deposit, 0, ',', '.') . 'đ thành công và được thêm vào phòng "' . $roomName . '". Phòng và người thuê chuyển sang trạng thái đang thuê.');
-            redirectTo('admin-rent-requests');
-        } catch (Throwable $exception) {
-            setFlash('rent_request_error', 'Không xác nhận thanh toán được: ' . $exception->getMessage());
-            redirectTo('admin-rent-requests');
-        }
-    }
-
-
-public function roommateRequests()
-    {
+            foreach (UserModel::getAll() as $admin) if (($admin['role']??1)===1) NotificationModel::create(['user_id'=>(int)$admin['id'],'type'=>'rental_request','title'=>'Tiền cọc đã thanh toán','content'=>($tenant['full_name']??'Người thuê').' đã thanh toán '.number_format($deposit,0,',','.').'đ cho phòng "'.($room['name']??'').'".','link'=>'?page=admin-rent-requests&rent_filter=approved']);
+            NotificationModel::create(['user_id'=>$userId,'type'=>'general','title'=>'Chào mừng đến phòng '.($room['name']??''),'content'=>'Bạn đã thanh toán '.number_format($deposit,0,',','.').'đ và là người thuê phòng "'.($room['name']??'').'" từ '.date('d/m/Y',strtotime($moveIn)).'.']);
+            setFlash('rent_request_message', 'Người thuê "'.($tenant['full_name']??'').'" đã thanh toán '.number_format($deposit,0,',','.').'đ và được thêm vào phòng.'.($room['name']??''));
+        } catch (Throwable $e) { setFlash('rent_request_error', 'Lỗi: '.$e->getMessage()); }
         redirectTo('admin-rent-requests');
     }
-/**
-     * Admin duyệt yêu cầu ở ghép: gán phòng cho người B, đồng bộ phòng.
-     */
-    public function approveRoommate()
+
+    public function roommateRequests(): void { redirectTo('admin-rent-requests'); }
+
+    public function approveRoommate(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
         verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RoommateRequestModel::getById($requestId);
-        if (!$request) {
-            setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        $status = (string)$request['status'];
-        if ($status !== 'pending_admin') {
-            setFlash('roommate_admin_error', 'Yêu cầu này không ở trạng thái chờ duyệt.');
-            redirectTo('admin-rent-requests');
-        }
+        $req = RoommateRequestModel::getById((int)($_POST['request_id']??0));
+        if (!$req || ($req['status']??'') !== 'pending_admin') { setFlash('roommate_admin_error', $req?'Không ở trạng thái chờ.':'Không tồn tại.'); redirectTo('admin-rent-requests'); }
 
-        $requesterId = (int)$request['requester_id']; // người B
-        $hostUserId = (int)$request['host_user_id'];  // người A
-        $roomId = (int)$request['room_id'];
+        $requesterId = (int)$req['requester_id']; $hostUserId = (int)$req['host_user_id']; $roomId = (int)$req['room_id'];
         $room = RoomModel::getById($roomId);
-        if (!$room) {
-            setFlash('roommate_admin_error', 'Phòng không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-
-        // Kiểm tra người B đã có phòng chưa
-        if (!empty(UserModel::getById($requesterId)['room_id'])) {
-            setFlash('roommate_admin_error', 'Người được mời đã có phòng.');
-            redirectTo('admin-rent-requests');
-        }
-
-        // Kiểm tra phòng còn chỗ
-        $currentOcc = RoomModel::countOccupants($roomId);
-        $maxOcc = max(1, (int)($room['max_occupancy'] ?? 1));
-        if ($currentOcc >= $maxOcc) {
-            setFlash('roommate_admin_error', 'Phòng đã đủ người, không thể duyệt.');
-            redirectTo('admin-rent-requests');
-        }
+        if (!$room || !empty(UserModel::getById($requesterId)['room_id']) || RoomModel::countOccupants($roomId) >= max(1,(int)($room['max_occupancy']??1))) { setFlash('roommate_admin_error', 'Phòng hết chỗ hoặc người B đã có phòng.'); redirectTo('admin-rent-requests'); }
 
         try {
             UserModel::assignToRoom($requesterId, $roomId, true);
-            RoommateRequestModel::setStatus($requestId, 'approved');
-            
-            // Thông báo cho người B
-            NotificationModel::create([
-                'user_id' => $requesterId,
-                'type' => 'general',
-                'title' => 'Yêu cầu ở ghép đã được duyệt',
-                'content' => 'Admin đã duyệt yêu cầu ở ghép của bạn tại phòng ' . ($room['name'] ?? '') . '.',
-            ]);
-            // Thông báo cho người A
-            NotificationModel::create([
-                'user_id' => $hostUserId,
-                'type' => 'general',
-                'title' => 'Yêu cầu mời ở ghép được duyệt',
-                'content' => 'Admin đã duyệt yêu cầu mời ' . (UserModel::getById($requesterId)['full_name'] ?? '') . ' ở ghép tại phòng ' . ($room['name'] ?? '') . '.',
-            ]);
-            setFlash('roommate_admin_message', 'Đã duyệt ở ghép thành công.');
-        } catch (Throwable $exception) {
-            setFlash('roommate_admin_error', 'Không duyệt được: ' . $exception->getMessage());
-        }
+            RoommateRequestModel::setStatus((int)$req['id'], 'approved');
+            NotificationModel::create(['user_id'=>$requesterId,'type'=>'general','title'=>'Yêu cầu ở ghép được duyệt','content'=>'Admin đã duyệt ở ghép tại phòng '.($room['name']??'').'.']);
+            NotificationModel::create(['user_id'=>$hostUserId,'type'=>'general','title'=>'Yêu cầu mời được duyệt','content'=>'Admin đã duyệt mời '.(UserModel::getById($requesterId)['full_name']??'').' ở ghép tại '.($room['name']??'').'.']);
+            setFlash('roommate_admin_message', 'Đã duyệt ở ghép.');
+        } catch (Throwable $e) { setFlash('roommate_admin_error', 'Lỗi: '.$e->getMessage()); }
         redirectTo('admin-rent-requests');
     }
 
-    /**
-     * Admin từ chối yêu cầu ở ghép: ghi lý do từ chối, gửi về người đang thuê trong phòng (người A) và người được mời (người B).
-     */
-    public function rejectRoommate()
+    public function rejectRoommate(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
         verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $adminNote = trim((string)($_POST['admin_note'] ?? ''));
-        $request = RoommateRequestModel::getById($requestId);
-        if (!$request) {
-            setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        $status = (string)$request['status'];
-        if ($status !== 'pending_admin') {
-            setFlash('roommate_admin_error', 'Yêu cầu này không ở trạng thái chờ duyệt.');
-            redirectTo('admin-rent-requests');
-        }
-
-        $note = $adminNote !== '' ? $adminNote : 'Admin chưa phản hồi lý do cụ thể.';
-        $requesterId = (int)$request['requester_id'];
-        $hostUserId = (int)$request['host_user_id'];
-        $roomId = (int)$request['room_id'];
-
-        RoommateRequestModel::setStatus($requestId, 'rejected', $note);
-        // Thông báo cho người A (người đang thuê trong phòng — người gửi lời mời): kèm lý do
-        NotificationModel::create([
-            'user_id' => $hostUserId,
-            'type' => 'general',
-            'title' => 'Yêu cầu mời ở ghép bị từ chối',
-            'content' => 'Admin đã từ chối yêu cầu mời ở ghép tại phòng ' . (RoomModel::getById($roomId)['name'] ?? '') . '. Lý do: ' . $note,
-        ]);
-        // Thông báo cho người B (người được mời)
-        NotificationModel::create([
-            'user_id' => $requesterId,
-            'type' => 'general',
-            'title' => 'Yêu cầu ở ghép bị từ chối',
-            'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn tại phòng ' . (RoomModel::getById($roomId)['name'] ?? '') . '. Lý do: ' . $note,
-        ]);
-        setFlash('roommate_admin_message', 'Đã từ chối yêu cầu ở ghép.');
+        $req = RoommateRequestModel::getById((int)($_POST['request_id']??0));
+        if (!$req || ($req['status']??'') !== 'pending_admin') { setFlash('roommate_admin_error', $req?'Không ở trạng thái chờ.':'Không tồn tại.'); redirectTo('admin-rent-requests'); }
+        $note = trim($_POST['admin_note']??'') ?: 'Admin chưa phản hồi lý do.';
+        $requesterId = (int)$req['requester_id']; $hostUserId = (int)$req['host_user_id']; $roomId = (int)$req['room_id'];
+        RoommateRequestModel::setStatus((int)$req['id'], 'rejected', $note);
+        NotificationModel::create(['user_id'=>$hostUserId,'type'=>'general','title'=>'Mời ở ghép bị từ chối','content'=>'Admin từ chối mời ở ghép tại '.(RoomModel::getById($roomId)['name']??'').'. Lý do: '.$note]);
+        NotificationModel::create(['user_id'=>$requesterId,'type'=>'general','title'=>'Yêu cầu ở ghép bị từ chối','content'=>'Admin từ chối ở ghép tại '.(RoomModel::getById($roomId)['name']??'').'. Lý do: '.$note]);
+        setFlash('roommate_admin_message', 'Đã từ chối.');
         redirectTo('admin-rent-requests');
     }
 
-    /**
-     * Admin veto yêu cầu ở ghép đã duyệt: gỡ người B khỏi phòng.
-     * KHÔNG cho phép gỡ người đã được duyệt qua yêu cầu ở ghép (theo yêu cầu người dùng).
-     */
-    public function vetoRoommate()
+    public function vetoRoommate(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-rent-requests');
-        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirectTo('admin-rent-requests');
         verify_csrf();
-        $requestId = (int)($_POST['request_id'] ?? 0);
-        $request = RoommateRequestModel::getById($requestId);
-        if (!$request) {
-            setFlash('roommate_admin_error', 'Yêu cầu không tồn tại.');
-            redirectTo('admin-rent-requests');
-        }
-        $status = (string)$request['status'];
-        $requesterId = (int)$request['requester_id'];
-        $roomId = (int)$request['room_id'];
+        $req = RoommateRequestModel::getById((int)($_POST['request_id']??0));
+        if (!$req) { setFlash('roommate_admin_error', 'Không tồn tại.'); redirectTo('admin-rent-requests'); }
+        $status = (string)$req['status'];
+        $requesterId = (int)$req['requester_id']; $roomId = (int)$req['room_id'];
 
-        if ($status === 'approved') {
-            // KHÔNG cho phép admin gỡ người đã được duyệt qua yêu cầu ở ghép
-            setFlash('roommate_admin_error', 'Không thể gỡ người ở ghép đã được duyệt.');
-            redirectTo('admin-rent-requests');
-        } elseif ($status === 'pending_admin') {
-            RoommateRequestModel::setStatus($requestId, 'admin_rejected');
-            $requesterId = (int)$request['requester_id'];
-            NotificationModel::create([
-                'user_id' => $requesterId,
-                'type' => 'general',
-                'title' => 'Yêu cầu ở ghép bị admin từ chối',
-                'content' => 'Admin đã từ chối yêu cầu ở ghép của bạn.',
-            ]);
-            setFlash('roommate_admin_message', 'Đã từ chối yêu cầu ở ghép.');
-        } else {
-            setFlash('roommate_admin_error', 'Yêu cầu đã được xử lý trước đó.');
-        }
+        if ($status === 'approved') { setFlash('roommate_admin_error', 'Không thể gỡ người đã duyệt.'); redirectTo('admin-rent-requests'); }
+        elseif ($status === 'pending_admin') { RoommateRequestModel::setStatus((int)$req['id'], 'admin_rejected'); NotificationModel::create(['user_id'=>$requesterId,'type'=>'general','title'=>'Yêu cầu ở ghép bị admin từ chối','content'=>'Admin đã từ chối yêu cầu ở ghép của bạn.']); setFlash('roommate_admin_message', 'Đã từ chối.'); }
+        else { setFlash('roommate_admin_error', 'Đã xử lý.'); }
         redirectTo('admin-rent-requests');
     }
 
-    /**
-     * Quản lý tài khoản: admin (không thêm/xóa) + người dùng (tenant/khách vãng lai).
-     * Bộ lọc theo trạng thái thuê phòng, tìm kiếm theo tên, phân trang 10/trang.
-     */
-    public function accounts()
+    // ==========================================
+    // ACCOUNTS MANAGEMENT
+    // ==========================================
+
+    public function accounts(): void
     {
         [$admins, $users, $allUsersStatus, $pagedUsers, $totalUsers, $totalPages, $page, $keyword, $statusFilter, $perPage] = $this->resolveAccountQuery();
 
+        $buildUrl = fn($pageNumber, $statusOverride = null) => BASE_URL . '?' . http_build_query(array_filter([
+            'page' => 'admin-accounts', 'search' => $keyword, 'status' => $statusOverride ?? $statusFilter,
+            'p' => $pageNumber > 1 ? $pageNumber : null,
+        ], fn($v) => $v!=='' && $v!==null));
+
         $accountMessage = pullFlash('admin_account_message');
         $accountError = pullFlash('admin_account_error');
-        $oldAccountInput = pullFlash('admin_account_old', []);
-        $accountForm = array_merge([
-            'full_name' => '',
-            'phone' => '',
-            'email' => '',
-        ], is_array($oldAccountInput) ? $oldAccountInput : []);
-
-        $buildAccountPageUrl = static function ($pageNumber, $statusOverride = null) use ($keyword, $statusFilter) {
-            $params = [
-                'page' => 'admin-accounts',
-                'search' => $keyword,
-                'status' => $statusOverride !== null ? $statusOverride : $statusFilter,
-            ];
-            if ($pageNumber > 1) {
-                $params['p'] = $pageNumber;
-            }
-            return BASE_URL . '?' . http_build_query(array_filter($params, static fn($value) => $value !== '' && $value !== null));
-        };
-
+        $oldInput = pullFlash('admin_account_old', []);
+        $accountForm = array_merge(['full_name'=>'','phone'=>'','email'=>''], is_array($oldInput)?$oldInput:[]);
         $pageTitle = 'Quản lý tài khoản - NhaTroA';
         require_once BASE_PATH . 'views/admin/system/accounts.php';
     }
 
-    /**
-     * [DEV-QWEN-A][FIX][2026-08-20] API tìm kiếm tức thì (instant search) cho admin-accounts:
-     * trả về HTML của bảng kết quả + phân trang để JS cập nhật ngay sau mỗi ký tự gõ.
-     */
-    public function accountsFilterApi()
+    public function accountsFilterApi(): void
     {
         header('Content-Type: application/json; charset=utf-8');
         [$admins, $users, $allUsersStatus, $pagedUsers, $totalUsers, $totalPages, $page, $keyword, $statusFilter, $perPage] = $this->resolveAccountQuery();
-
-        echo json_encode([
-            'success' => true,
-            'rowsHtml' => $this->renderAccountRowsHtml($pagedUsers),
-            'paginationHtml' => $this->renderAccountPaginationHtml($totalPages, $page, $keyword, $statusFilter),
-            'total' => $totalUsers,
-            'totalPages' => $totalPages,
-            'page' => $page,
-        ], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success'=>true,'rowsHtml'=>$this->renderAccountRowsHtml($pagedUsers),'paginationHtml'=>$this->renderAccountPaginationHtml($totalPages,$page,$keyword,$statusFilter),'total'=>$totalUsers,'totalPages'=>$totalPages,'page'=>$page], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    /**
-     * Chuẩn hóa + lọc + phân trang danh sách tài khoản người dùng.
-     * Dùng chung cho trang admin-accounts và API tìm kiếm tức thì để tránh lệch logic.
-     */
-    private function resolveAccountQuery()
+    private function resolveAccountQuery(): array
     {
-        $keyword = trim((string)($_GET['search'] ?? ''));
-        $statusFilter = trim((string)($_GET['status'] ?? 'all'));
-        if (!in_array($statusFilter, ['all', 'renting', 'not_renting'], true)) {
-            $statusFilter = 'all';
-        }
-        $page = max(1, (int)($_GET['p'] ?? 1));
-        $perPage = 10;
+        $keyword = trim($_GET['search']??'');
+        $statusFilter = trim($_GET['status']??'all'); if (!in_array($statusFilter,['all','renting','not_renting'],true)) $statusFilter='all';
+        $page = max(1,(int)($_GET['p']??1)); $perPage = 10;
 
-        $admins = [];
-        $users = [];
-        foreach (UserModel::getAll() as $userRow) {
-            $isAdmin = (int)($userRow['role'] ?? 0) === 1;
-            $userRow['account_status'] = $isAdmin
-                ? 'admin'
-                : (!empty($userRow['room_id']) ? 'renting' : 'not_renting');
-            if ($isAdmin) {
-                $admins[] = $userRow;
-            } else {
-                $users[] = $userRow;
-            }
+        $admins = []; $users = [];
+        foreach (UserModel::getAll() as $u) {
+            $isAdmin = ($u['role']??0)===1;
+            $u['account_status'] = $isAdmin ? 'admin' : (!empty($u['room_id'])?'renting':'not_renting');
+            if ($isAdmin) $admins[]=$u; else $users[]=$u;
         }
-        $allUsersStatus = array_map(
-            static fn($userRow) => ['account_status' => (string)($userRow['account_status'] ?? 'not_renting')],
-            $users
-        );
+        $allUsersStatus = array_map(fn($u)=>['account_status'=>(string)($u['account_status']??'not_renting')], $users);
 
         $filtered = $users;
-        if ($keyword !== '') {
-            $normalizedKeyword = mb_strtolower($keyword);
-            $filtered = array_values(array_filter(
-                $filtered,
-                static fn($userRow) => mb_strpos(mb_strtolower((string)($userRow['full_name'] ?? '')), $normalizedKeyword) !== false
-            ));
-        }
-        if ($statusFilter === 'renting') {
-            $filtered = array_values(array_filter($filtered, static fn($userRow) => ($userRow['account_status'] ?? '') === 'renting'));
-        } elseif ($statusFilter === 'not_renting') {
-            $filtered = array_values(array_filter($filtered, static fn($userRow) => ($userRow['account_status'] ?? '') === 'not_renting'));
-        }
+        if ($keyword!=='') { $nk=mb_strtolower($keyword); $filtered=array_values(array_filter($filtered,fn($u)=>mb_strpos(mb_strtolower($u['full_name']??''),$nk)!==false)); }
+        if ($statusFilter==='renting') $filtered=array_values(array_filter($filtered,fn($u)=>($u['account_status']??'')==='renting'));
+        elseif ($statusFilter==='not_renting') $filtered=array_values(array_filter($filtered,fn($u)=>($u['account_status']??'')==='not_renting'));
 
         $totalUsers = count($filtered);
-        $totalPages = max(1, (int)ceil($totalUsers / $perPage));
-        $page = min($page, $totalPages);
-        $offset = ($page - 1) * $perPage;
-        $pagedUsers = array_slice($filtered, $offset, $perPage);
+        $totalPages = max(1,(int)ceil($totalUsers/10));
+        $page = min($page,$totalPages);
+        $pagedUsers = array_slice($filtered,($page-1)*10,10);
 
-        return [$admins, $users, $allUsersStatus, $pagedUsers, $totalUsers, $totalPages, $page, $keyword, $statusFilter, $perPage];
+        return [$admins,$users,$allUsersStatus,$pagedUsers,$totalUsers,$totalPages,$page,$keyword,$statusFilter,10];
     }
 
-    /**
-     * Render các dòng <tr> của bảng tài khoản người dùng (dùng cho API AJAX).
-     */
-    private function renderAccountRowsHtml(array $users)
+    private function renderAccountRowsHtml(array $users): string
     {
-        $html = '';
-        foreach ($users as $userRow) {
-            ob_start();
-            require BASE_PATH . 'views/admin/system/partials/account_row.php';
-            $html .= ob_get_clean();
-        }
+        $html=''; foreach($users as $u){ ob_start(); require BASE_PATH.'views/admin/system/partials/account_row.php'; $html.=ob_get_clean(); }
         return $html;
     }
 
-    /**
-     * Render khối phân trang của bảng tài khoản người dùng (dùng cho API AJAX).
-     */
-    private function renderAccountPaginationHtml($totalPages, $page, $keyword, $statusFilter)
+    private function renderAccountPaginationHtml(int $totalPages, int $page, string $keyword, string $statusFilter): string
     {
-        if ((int)$totalPages <= 1) {
-            return '';
-        }
-        $buildUrl = static function ($pageNumber) use ($keyword, $statusFilter) {
-            $params = [
-                'page' => 'admin-accounts',
-                'search' => $keyword,
-                'status' => $statusFilter,
-            ];
-            if ($pageNumber > 1) {
-                $params['p'] = $pageNumber;
-            }
-            return BASE_URL . '?' . http_build_query(array_filter($params, static fn($value) => $value !== '' && $value !== null));
-        };
-        ob_start();
-        require BASE_PATH . 'views/admin/system/partials/account_pagination.php';
-        return ob_get_clean();
+        if ($totalPages <= 1) return '';
+        $buildUrl = fn($p)=>BASE_URL.'?'.http_build_query(array_filter(['page'=>'admin-accounts','search'=>$keyword,'status'=>$statusFilter,'p'=>$p>1?$p:null],fn($v)=>$v!==''&&$v!==null));
+        ob_start(); require BASE_PATH.'views/admin/system/partials/account_pagination.php'; return ob_get_clean();
     }
 
-    /**
-     * Thêm tài khoản người dùng mới (luôn là tenant/khách vãng lai, không tạo admin).
-     */
-    public function saveAccount()
+    public function saveAccount(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-accounts');
-        }
+        if ($_SERVER['REQUEST_METHOD']!=='POST') redirectTo('admin-accounts');
         verify_csrf();
+        $p = ['full_name'=>trim($_POST['full_name']??''), 'phone'=>trim($_POST['phone']??''), 'email'=>mb_strtolower(trim($_POST['email']??'')), 'password'=>(string)($_POST['password']??'')];
+        setFlash('admin_account_old',$p);
 
-        $payload = [
-            'full_name' => trim((string)($_POST['full_name'] ?? '')),
-            'phone' => trim((string)($_POST['phone'] ?? '')),
-            'email' => mb_strtolower(trim((string)($_POST['email'] ?? ''))),
-            'password' => (string)($_POST['password'] ?? ''),
-        ];
-        setFlash('admin_account_old', $payload);
-
-        $fullNameError = UserModel::validateFullName($payload['full_name']);
-        if ($fullNameError !== '') {
-            setFlash('admin_account_error', $fullNameError);
-            redirectTo('admin-accounts');
-        }
-        $normalizedPhone = UserModel::normalizePhone($payload['phone']);
-        if (!$normalizedPhone) {
-            setFlash('admin_account_error', 'Số điện thoại không hợp lệ. Vui lòng nhập số 10 chữ số dạng 0xxxxxxxxx.');
-            redirectTo('admin-accounts');
-        }
-        if (UserModel::phoneExists($normalizedPhone)) {
-            setFlash('admin_account_error', 'Số điện thoại này đã được đăng ký.');
-            redirectTo('admin-accounts');
-        }
-        if ($payload['email'] !== '' && !UserModel::validateEmailStrict($payload['email'])) {
-            setFlash('admin_account_error', 'Email không đúng định dạng.');
-            redirectTo('admin-accounts');
-        }
-        if ($payload['email'] !== '' && UserModel::emailExists($payload['email'])) {
-            setFlash('admin_account_error', 'Email này đã được đăng ký.');
-            redirectTo('admin-accounts');
-        }
-        $passwordError = UserModel::validatePassword($payload['password']);
-        if ($passwordError !== '') {
-            setFlash('admin_account_error', $passwordError);
-            redirectTo('admin-accounts');
-        }
+        if ($err=UserModel::validateFullName($p['full_name'])) { setFlash('admin_account_error',$err); redirectTo('admin-accounts'); }
+        $np = UserModel::normalizePhone($p['phone']); if (!$np) { setFlash('admin_account_error','Số điện thoại không hợp lệ (0xxxxxxxxx).'); redirectTo('admin-accounts'); }
+        if (UserModel::phoneExists($np)) { setFlash('admin_account_error','SĐT đã đăng ký.'); redirectTo('admin-accounts'); }
+        if ($p['email']!=='' && !UserModel::validateEmailStrict($p['email'])) { setFlash('admin_account_error','Email sai định dạng.'); redirectTo('admin-accounts'); }
+        if ($p['email']!=='' && UserModel::emailExists($p['email'])) { setFlash('admin_account_error','Email đã đăng ký.'); redirectTo('admin-accounts'); }
+        if ($err=UserModel::validatePassword($p['password'])) { setFlash('admin_account_error',$err); redirectTo('admin-accounts'); }
 
         try {
-            UserModel::create([
-                'full_name' => $payload['full_name'],
-                'phone' => $normalizedPhone,
-                'email' => $payload['email'],
-                'password' => $payload['password'],
-                'role' => 0,
-            ]);
-            setFlash('admin_account_message', 'Đã thêm tài khoản "' . e($payload['full_name']) . '" thành công.');
-        } catch (Throwable $exception) {
-            setFlash('admin_account_error', 'Không tạo được tài khoản: ' . $exception->getMessage());
-        }
+            UserModel::create(['full_name'=>$p['full_name'],'phone'=>$np,'email'=>$p['email'],'password'=>$p['password'],'role'=>0]);
+            setFlash('admin_account_message','Đã thêm tài khoản "'.$p['full_name'].'"');
+        } catch (Throwable $e) { setFlash('admin_account_error','Lỗi: '.$e->getMessage()); }
         redirectTo('admin-accounts');
     }
 
-    /**
-     * Xóa tài khoản người dùng. Chặn cứng: admin không xóa được, người đang thuê phòng không xóa được.
-     */
-    public function deleteAccount($id)
+    public function deleteAccount(int $id): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-accounts');
-        }
+        if ($_SERVER['REQUEST_METHOD']!=='POST') redirectTo('admin-accounts');
         verify_csrf();
+        $user = UserModel::getById($id);
+        if (!$user) { setFlash('admin_account_error','Không tồn tại.'); redirectTo('admin-accounts'); }
+        if (($user['role']??0)===1) { setFlash('admin_account_error','Không xóa được admin.'); redirectTo('admin-accounts'); }
+        if (!empty($user['room_id'])) { setFlash('admin_account_error','Không xóa được tài khoản đang thuê "'.e($user['room_name']??'').'".'); redirectTo('admin-accounts'); }
 
-        $userId = (int)$id;
-        $user = $userId > 0 ? UserModel::getById($userId) : null;
-        if (!$user) {
-            setFlash('admin_account_error', 'Tài khoản không tồn tại hoặc đã bị xóa.');
-            redirectTo('admin-accounts');
-        }
-        if ((int)($user['role'] ?? 0) === 1) {
-            setFlash('admin_account_error', 'Không thể xóa tài khoản quản trị viên.');
-            redirectTo('admin-accounts');
-        }
-        if (!empty($user['room_id'])) {
-            setFlash('admin_account_error', 'Không thể xóa tài khoản đang thuê phòng "' . e($user['room_name'] ?? '') . '". Hãy chuyển người này ra khỏi phòng trước khi xóa.');
-            redirectTo('admin-accounts');
-        }
-
-        $connection = Database::hasConnection() ? Database::getInstance() : null;
-        $useTransaction = $connection instanceof PDO;
-
-        if ($useTransaction) {
-            $connection->beginTransaction();
-        }
+        $conn = Database::hasConnection() ? Database::getInstance() : null;
+        $tx = $conn instanceof PDO;
+        if ($tx) $conn->beginTransaction();
 
         try {
-            Database::query('DELETE FROM payment_items WHERE payment_id IN (SELECT id FROM payments WHERE user_id = ?)', [$userId]);
-            Database::query('DELETE FROM payments WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM notifications WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM notification_reads WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM comments WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM comment_reports WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM feedbacks WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM rental_requests WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM roommate_requests WHERE host_user_id = ?', [$userId]);
-            Database::query('DELETE FROM user_services WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM password_reset_otps WHERE user_id = ?', [$userId]);
-            Database::query('DELETE FROM password_reset_send_attempts WHERE user_id = ?', [$userId]);
-            Database::update('maintenance_requests', ['rejected_by_user_id' => null], 'rejected_by_user_id = :rejected_by_user_id', ['rejected_by_user_id' => $userId]);
-            Database::delete('users', 'id = :id', ['id' => $userId]);
+            Database::query('DELETE FROM payment_items WHERE payment_id IN (SELECT id FROM payments WHERE user_id=?)',[$id]);
+            Database::query('DELETE FROM payments WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM notifications WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM notification_reads WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM comments WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM comment_reports WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM feedbacks WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM rental_requests WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM roommate_requests WHERE host_user_id=?',[$id]);
+            Database::query('DELETE FROM user_services WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM password_resets WHERE user_id=?',[$id]);
+            Database::query('DELETE FROM users WHERE id=:id',['id'=>$id]);
 
-            if ($useTransaction && $connection->inTransaction()) {
-                $connection->commit();
-            }
-            setFlash('admin_account_message', 'Đã xóa tài khoản "' . e($user['full_name'] ?? '') . '" thành công.');
-        } catch (Throwable $exception) {
-            if ($useTransaction && $connection->inTransaction()) {
-                $connection->rollBack();
-            }
-            setFlash('admin_account_error', 'Không xóa được tài khoản: ' . $exception->getMessage());
-        }
+            if ($tx && $conn->inTransaction()) $conn->commit();
+            setFlash('admin_account_message','Đã xóa tài khoản "'.e($user['full_name']??'').'"');
+        } catch (Throwable $e) { if($tx&&$conn->inTransaction()) $conn->rollBack(); setFlash('admin_account_error','Lỗi: '.$e->getMessage()); }
         redirectTo('admin-accounts');
     }
 
-    /**
-     * Cập nhật tài khoản người dùng (admin có thể đổi mật khẩu không cần mật khẩu cũ/OTP).
-     */
-    public function updateAccount()
+    public function updateAccount(): void
     {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirectTo('admin-accounts');
-        }
+        if ($_SERVER['REQUEST_METHOD']!=='POST') redirectTo('admin-accounts');
         verify_csrf();
+        $id = (int)($_POST['id']??0);
+        $user = $id>0?UserModel::getById($id):null;
+        if (!$user || ($user['role']??0)===1) { setFlash('admin_account_error',$user?'Không sửa được admin.':'Không tồn tại.'); redirectTo('admin-accounts'); }
 
-        $userId = (int)($_POST['id'] ?? 0);
-        $user = $userId > 0 ? UserModel::getById($userId) : null;
-        if (!$user) {
-            setFlash('admin_account_error', 'Tài khoản không tồn tại hoặc đã bị xóa.');
-            redirectTo('admin-accounts');
-        }
-        if ((int)($user['role'] ?? 0) === 1) {
-            setFlash('admin_account_error', 'Không thể sửa tài khoản quản trị viên.');
-            redirectTo('admin-accounts');
-        }
+        $p = ['full_name'=>trim($_POST['full_name']??''),'phone'=>trim($_POST['phone']??''),'email'=>mb_strtolower(trim($_POST['email']??'')),'password'=>(string)($_POST['password']??'')];
+        setFlash('admin_account_old',array_merge($p,['id'=>$id]));
 
-        $payload = [
-            'full_name' => trim((string)($_POST['full_name'] ?? '')),
-            'phone' => trim((string)($_POST['phone'] ?? '')),
-            'email' => mb_strtolower(trim((string)($_POST['email'] ?? ''))),
-            'password' => (string)($_POST['password'] ?? ''),
-        ];
-        setFlash('admin_account_old', array_merge($payload, ['id' => $userId]));
-
-        $fullNameError = UserModel::validateFullName($payload['full_name']);
-        if ($fullNameError !== '') {
-            setFlash('admin_account_error', $fullNameError);
-            redirectTo('admin-accounts');
-        }
-        $normalizedPhone = UserModel::normalizePhone($payload['phone']);
-        if (!$normalizedPhone) {
-            setFlash('admin_account_error', 'Số điện thoại không hợp lệ. Vui lòng nhập số 10 chữ số dạng 0xxxxxxxxx.');
-            redirectTo('admin-accounts');
-        }
-        if (UserModel::phoneExists($normalizedPhone) && $normalizedPhone !== ($user['phone'] ?? '')) {
-            setFlash('admin_account_error', 'Số điện thoại này đã được đăng ký.');
-            redirectTo('admin-accounts');
-        }
-        if ($payload['email'] !== '' && !UserModel::validateEmailStrict($payload['email'])) {
-            setFlash('admin_account_error', 'Email không đúng định dạng.');
-            redirectTo('admin-accounts');
-        }
-        if ($payload['email'] !== '' && UserModel::emailExists($payload['email']) && $payload['email'] !== ($user['email'] ?? '')) {
-            setFlash('admin_account_error', 'Email này đã được đăng ký.');
-            redirectTo('admin-accounts');
-        }
-        if ($payload['password'] !== '') {
-            $passwordError = UserModel::validatePassword($payload['password']);
-            if ($passwordError !== '') {
-                setFlash('admin_account_error', $passwordError);
-                redirectTo('admin-accounts');
-            }
-        }
+        if ($err=UserModel::validateFullName($p['full_name'])) { setFlash('admin_account_error',$err); redirectTo('admin-accounts'); }
+        $np=UserModel::normalizePhone($p['phone']); if(!$np) { setFlash('admin_account_error','SĐT không hợp lệ.'); redirectTo('admin-accounts'); }
+        if (UserModel::phoneExists($np) && $np!==($user['phone']??'')) { setFlash('admin_account_error','SĐT đã đăng ký.'); redirectTo('admin-accounts'); }
+        if ($p['email']!=='' && !UserModel::validateEmailStrict($p['email'])) { setFlash('admin_account_error','Email sai.'); redirectTo('admin-accounts'); }
+        if ($p['email']!=='' && UserModel::emailExists($p['email']) && $p['email']!==($user['email']??'')) { setFlash('admin_account_error','Email đã đăng ký.'); redirectTo('admin-accounts'); }
+        if ($p['password']!=='' && ($err=UserModel::validatePassword($p['password']))) { setFlash('admin_account_error',$err); redirectTo('admin-accounts'); }
 
         try {
-            $updateData = [
-                'full_name' => $payload['full_name'],
-                'phone' => $normalizedPhone,
-                'email' => $payload['email'],
-            ];
-            if ($payload['password'] !== '') {
-                $updateData['password'] = $payload['password'];
-            }
-            UserModel::update($userId, $updateData);
-            setFlash('admin_account_message', 'Đã cập nhật tài khoản "' . e($payload['full_name']) . '" thành công.');
-        } catch (Throwable $exception) {
-            setFlash('admin_account_error', 'Không cập nhật được tài khoản: ' . $exception->getMessage());
-        }
+            $ud = ['full_name'=>$p['full_name'],'phone'=>$np,'email'=>$p['email']];
+            if ($p['password']!=='') $ud['password']=$p['password'];
+            UserModel::update($id,$ud);
+            setFlash('admin_account_message','Đã cập nhật tài khoản "'.$p['full_name'].'"');
+        } catch (Throwable $e) { setFlash('admin_account_error','Lỗi: '.$e->getMessage()); }
         redirectTo('admin-accounts');
     }
-
 }
