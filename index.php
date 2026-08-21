@@ -1,8 +1,41 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Ho_Chi_Minh');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
+
+// [DEV-QWEN-A][FIX][2026-08-20] Chống trang trắng: exception/fatal luôn được ghi log
+// và hiển thị trang lỗi tối giản thay vì body rỗng (display_errors=0).
+$GLOBALS['__error_handled'] = false;
+set_exception_handler(static function (Throwable $e) {
+    $GLOBALS['__error_handled'] = true;
+    error_log('[FATAL] ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
+    http_response_code(500);
+    echo '<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Đã xảy ra lỗi</title></head>'
+        . '<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#334155;font-family:system-ui,sans-serif">'
+        . '<div style="text-align:center;padding:2rem;max-width:560px">'
+        . '<h1 style="margin:0 0 .5rem;font-size:1.25rem">Đã xảy ra lỗi hệ thống</h1>'
+        . '<p style="margin:0 0 1rem;color:#64748b">Chi tiết lỗi đã được ghi vào nhật ký. Vui lòng thử lại sau.</p>'
+        . '<p style="font-size:.8rem;color:#94a3b8;word-break:break-word">' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>'
+        . '</div></body></html>';
+    exit;
+});
+register_shutdown_function(static function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true) && !$GLOBALS['__error_handled']) {
+        error_log('[FATAL] ' . $error['message'] . ' | ' . $error['file'] . ':' . $error['line']);
+        if (!headers_sent()) {
+            http_response_code(500);
+            echo '<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Đã xảy ra lỗi</title></head>'
+                . '<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#334155;font-family:system-ui,sans-serif">'
+                . '<div style="text-align:center;padding:2rem;max-width:560px">'
+                . '<h1 style="margin:0 0 .5rem;font-size:1.25rem">Đã xảy ra lỗi hệ thống</h1>'
+                . '<p style="margin:0;color:#64748b">Chi tiết lỗi đã được ghi vào nhật ký. Vui lòng thử lại sau.</p>'
+                . '</div></body></html>';
+        }
+    }
+});
 define('BASE_PATH', __DIR__ . '/');
 $baseUrl = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
 define('BASE_URL', $baseUrl !== '' ? '/' . $baseUrl . '/' : '/');
@@ -147,29 +180,18 @@ function getPanelNavigation($role, $active = '')
             ['id' => 'settings', 'label' => 'Cấu hình hệ thống', 'icon' => 'tune', 'url' => BASE_URL . '?page=admin-settings'],
             ['id' => 'areas', 'label' => 'Quản lý khu', 'icon' => 'apartment', 'url' => BASE_URL . '?page=admin-areas'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=admin-services'],
-            ['id' => 'meter-readings', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-meter-readings'],
-
-            [
-                'id' => 'group-community', 'label' => 'Cộng đồng & Kiểm duyệt', 'icon' => 'star',
-                'children' => [
-                    ['id' => 'comments', 'label' => 'Đánh giá', 'icon' => 'star', 'url' => BASE_URL . '?page=admin-comments'],
-                    ['id' => 'comment-reports', 'label' => 'Báo cáo đánh giá', 'icon' => 'report', 'url' => BASE_URL . '?page=admin-comment-reports'],
-                    ['id' => 'banned-words', 'label' => 'Bộ từ cấm', 'icon' => 'block', 'url' => BASE_URL . '?page=admin-banned-words'],
-                    ['id' => 'feedbacks', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-feedbacks'],
-                ],
-            ],
-
+            ['id' => 'invoices', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=admin-invoices'],
+            ['id' => 'comments', 'label' => 'Đánh giá', 'icon' => 'star', 'url' => BASE_URL . '?page=admin-comments'],
+            ['id' => 'feedbacks', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=admin-feedbacks'],
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=admin-notifications'],
             ['id' => 'accounts', 'label' => 'Quản lý tài khoản', 'icon' => 'manage_accounts', 'url' => BASE_URL . '?page=admin-accounts'],
         ],
         'tenant' => [
             ['id' => 'dashboard', 'label' => 'Thông tin phòng', 'icon' => 'dashboard', 'url' => BASE_URL . '?page=tenant'],
             ['id' => 'services', 'label' => 'Dịch vụ', 'icon' => 'room_service', 'url' => BASE_URL . '?page=tenant-services'],
-            ['id' => 'meter', 'label' => 'Điện nước', 'icon' => 'speed', 'url' => BASE_URL . '?page=tenant-meter'],
             ['id' => 'invoice', 'label' => 'Hóa đơn', 'icon' => 'receipt_long', 'url' => BASE_URL . '?page=tenant-invoice'],
             ['id' => 'notifications', 'label' => 'Thông báo', 'icon' => 'notifications', 'url' => BASE_URL . '?page=tenant-notifications'],
             ['id' => 'profile', 'label' => 'Hồ sơ', 'icon' => 'person', 'url' => BASE_URL . '?page=tenant-profile'],
-            ['id' => 'contract', 'label' => 'Hợp đồng', 'icon' => 'description', 'url' => BASE_URL . '?page=tenant-contract'],
             ['id' => 'roommate', 'label' => 'Ở ghép', 'icon' => 'group_add', 'url' => BASE_URL . '?page=tenant-roommate'],
             ['id' => 'feedback', 'label' => 'Phản ánh', 'icon' => 'flag', 'url' => BASE_URL . '?page=tenant-feedback'],
 
@@ -228,6 +250,9 @@ switch ($page) {
         break;
     case 'cancel-rent-request':
         (new RoomController())->cancelRentRequest();
+        break;
+    case 'tenant-paid-rent-request':
+        (new RoomController())->paidRentRequest();
         break;
     case 'login':
         (new AuthController())->login();
@@ -295,10 +320,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->priceChanges();
         break;
-    case 'admin-meter-readings':
-        requireAdmin();
-        (new AdminController())->meterReadings();
-        break;
     case 'admin-save-amenity':
         requireAdmin();
         (new AdminController())->saveAmenity();
@@ -310,10 +331,6 @@ switch ($page) {
     case 'admin-save-price-change':
         requireAdmin();
         (new AdminController())->savePriceChange();
-        break;
-    case 'admin-save-meter-readings':
-        requireAdmin();
-        (new AdminController())->saveMeterReadings();
         break;
     case 'admin-delete-amenity':
         requireAdmin();
@@ -362,6 +379,10 @@ switch ($page) {
     case 'admin-rent-requests':
         requireAdmin();
         (new AdminController())->rentRequests();
+        break;
+    case 'api-admin-rent-requests':
+        requireAdmin();
+        (new AdminController())->rentRequestsFilterApi();
         break;
     case 'admin-approve-rent-request':
         requireAdmin();
@@ -432,10 +453,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->addTenant();
         break;
-    case 'admin-contracts':
-        requireAdmin();
-        (new AdminController())->contracts();
-        break;
     case 'admin-notifications':
         requireAdmin();
         (new AdminController())->notifications();
@@ -458,11 +475,7 @@ switch ($page) {
         break;
     case 'admin-invoices':
         requireAdmin();
-        redirectTo('admin-meter-readings');
-        break;
-    case 'admin-view-contract':
-        requireAdmin();
-        (new AdminController())->viewContract($id);
+        (new AdminController())->invoices();
         break;
     case 'admin-generate-invoice':
         requireAdmin();
@@ -476,9 +489,17 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->sendNotification();
         break;
+    case 'admin-mark-notification-read':
+        requireAdmin();
+        (new AdminController())->markNotificationRead();
+        break;
     case 'admin-accounts':
         requireAdmin();
         (new AdminController())->accounts();
+        break;
+    case 'api-admin-accounts-filter':
+        requireAdmin();
+        (new AdminController())->accountsFilterApi();
         break;
     case 'admin-save-account':
         requireAdmin();
@@ -496,26 +517,6 @@ switch ($page) {
         requireAdmin();
         (new AdminController())->toggleComment();
         break;
-    case 'admin-comment-reports':
-        requireAdmin();
-        (new AdminController())->commentReports();
-        break;
-    case 'admin-resolve-report':
-        requireAdmin();
-        (new AdminController())->resolveCommentReport();
-        break;
-    case 'admin-banned-words':
-        requireAdmin();
-        (new AdminController())->bannedWords();
-        break;
-    case 'admin-save-banned-word':
-        requireAdmin();
-        (new AdminController())->saveBannedWord();
-        break;
-    case 'admin-terminate-contract':
-        requireAdmin();
-        (new AdminController())->terminateContract($id);
-        break;
     case 'admin-stats':
         requireAdmin();
         (new AdminController())->stats();
@@ -528,10 +529,6 @@ switch ($page) {
         requireTenant();
         (new TenantController())->services();
         break;
-    case 'tenant-meter':
-        requireTenant();
-        (new TenantController())->viewMeterReadings();
-        break;
     case 'tenant-invoice':
         requireTenant();
         (new TenantController())->viewInvoice();
@@ -543,10 +540,6 @@ switch ($page) {
     case 'tenant-profile':
         requireTenant();
         (new TenantController())->profile();
-        break;
-    case 'tenant-contract':
-        requireTenant();
-        (new TenantController())->contract();
         break;
     case 'tenant-register-service':
         requireTenant();
@@ -575,6 +568,18 @@ switch ($page) {
     case 'tenant-report-comment':
         requireTenant();
         (new TenantController())->reportComment();
+        break;
+    case 'tenant-comment-moderation':
+        requireTenant();
+        (new TenantController())->commentModeration();
+        break;
+    case 'tenant-comment-rewrite':
+        requireTenant();
+        (new TenantController())->commentRewrite();
+        break;
+    case 'tenant-comment-cancel':
+        requireTenant();
+        (new TenantController())->commentCancel();
         break;
     default:
         (new HomeController())->index();

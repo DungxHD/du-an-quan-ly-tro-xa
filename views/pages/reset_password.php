@@ -9,10 +9,10 @@ $success = $success ?? '';
     </div>
 
     <div class="relative z-10 w-full max-w-md px-4">
-        <div class="auth-card bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+        <div class="auth-card bg-white rounded-3xl shadow-card p-8 border border-gray-100">
             <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4 auth-pop">
-                    <span class="material-symbols-outlined text-primary text-3xl">lock_reset</span>
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary to-secondary shadow-card rounded-2xl mb-4 auth-pop">
+                    <span class="material-symbols-outlined text-white text-3xl">lock_reset</span>
                 </div>
                 <h1 class="text-3xl font-bold gradient-text mb-2">Đặt lại mật khẩu</h1>
                 <p class="text-gray-500">Nhập mật khẩu mới cho tài khoản của bạn.</p>
@@ -158,6 +158,7 @@ $success = $success ?? '';
   }
 </style>
 
+<script src="<?= BASE_URL ?>assets/js/account-validators.js"></script>
 <script>
 (function () {
   document.querySelectorAll('.toggle-password').forEach(function (btn) {
@@ -170,7 +171,7 @@ $success = $success ?? '';
       btn.querySelector('.icon-eye').classList.toggle('hidden', wasHidden);
       btn.querySelector('.icon-eye-off').classList.toggle('hidden', !wasHidden);
       btn.setAttribute('aria-pressed', String(wasHidden));
-      btn.setAttribute('aria-label', wasHidden ? '��n mật khẩu' : 'Hiện mật khẩu');
+      btn.setAttribute('aria-label', wasHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
     });
   });
 
@@ -262,11 +263,9 @@ $success = $success ?? '';
       });
 
       if (passwordInput) {
-        if (!passwordInput.value) {
-          setFieldError(passwordInput, 'Vui lòng nhập mật khẩu mới.');
-          hasError = true;
-        } else if (passwordInput.value.length < 6) {
-          setFieldError(passwordInput, 'Mật khẩu mới phải có ít nhất 6 ký tự.');
+        var passwordError = passwordInput.value ? validatePassword(passwordInput.value) : 'Vui lòng nhập mật khẩu mới.';
+        if (passwordError) {
+          setFieldError(passwordInput, passwordError);
           hasError = true;
         }
       }

@@ -58,10 +58,6 @@ class MeterReadingModel {
                 continue;
             }
 
-            $contract = self::getApplicableContractForRoom($roomId, $period['month'], $period['year']);
-            if (!$contract) {
-                continue;
-            }
             $services = self::getMeterServicesForRoom($roomId, $period['month'], $period['year']);
             if (empty($services)) {
                 continue;
@@ -123,8 +119,6 @@ class MeterReadingModel {
                 'area_id' => (int)($room['area_id'] ?? 0),
                 'floor_id' => (int)($room['floor_id'] ?? 0),
                 'occupant_count' => RoomModel::countOccupants($roomId),
-                'contract_id' => (int)($contract['id'] ?? 0),
-                'contract_move_in_date' => $contract['move_in_date'] ?? null,
                 'cells' => $cells,
                 // Invoice preview data
                 'invoice_preview' => $invoicePreview,
@@ -371,7 +365,7 @@ class MeterReadingModel {
                 'consumption' => $consumption,
                 'amount' => $amount,
                 'formula' => self::buildFormulaText($consumption, $effectivePrice, $amount, $service['unit'] ?? 'đơn vị'),
-                'baseline_note' => $baseline['source'] === 'contract_initial' ? $baseline['note'] : null,
+                'baseline_note' => $baseline['note'] ?? null,
             ];
         }
 
@@ -549,7 +543,7 @@ class MeterReadingModel {
 
     /**
      * [TEAM-FIX][NHOM3] Tính chỉ số cũ cho một phòng/dịch vụ/kỳ.
-     * Thêm nhánh manual_fallback: có hợp đồng nhưng thiếu mốc -> cho nhập tay old_index thay vì khóa ô.
+     * Thêm nhánh manual_fallback: thiếu mốc -> cho nhập tay old_index thay vì khóa ô.
      */
     public static function resolvePeriodBaseline($roomId, array $service, $month, $year) {
         $resolvedRoomId = (int)$roomId;
@@ -574,88 +568,13 @@ class MeterReadingModel {
                 'error' => null,
             ];
         }
-        $contract = self::getApplicableContractForRoom($resolvedRoomId, $resolvedMonth, $resolvedYear);
-        if (!$contract) {
-            return [
-                'old_index' => null,
-                'source' => 'missing_contract',
-                'note' => null,
-                'error' => 'Không tìm thấy hợp đồng phù hợp với kỳ này để xác định mốc ban đầu.',
-            ];
-        }
-        $contractStartMonth = (int)date('n', strtotime((string)($contract['move_in_date'] ?? $contract['contract_date'] ?? 'now')));
-        $contractStartYear = (int)date('Y', strtotime((string)($contract['move_in_date'] ?? $contract['contract_date'] ?? 'now')));
-        $initialIndex = self::resolveContractInitialIndex($contract, $service);
-        if ($contractStartMonth === $resolvedMonth && $contractStartYear === $resolvedYear) {
-            if ($initialIndex !== null) {
-                return [
-                    'old_index' => (float)$initialIndex,
-                    'source' => 'contract_initial',
-                    'note' => 'Mốc ban đầu: ' . self::formatNumber($initialIndex) . ' (từ hợp đồng).',
-                    'error' => null,
-                ];
-            }
-            return [
-                'old_index' => 0.0,
-                'source' => 'missing_initial',
-                'note' => 'Chưa có chỉ số đầu kỳ, mặc định bắt đầu từ 0.',
-                'error' => null,
-                'allow_manual_old_index' => true,
-            ];
-        }
         return [
             'old_index' => 0.0,
-            'source' => 'manual_fallback',
-            'note' => 'Không có mốc tự động (tháng trước thiếu chỉ số), mặc định bắt đầu từ 0.',
+            'source' => 'missing_initial',
+            'note' => 'Chưa có chỉ số đầu kỳ, mặc định bắt đầu từ 0.',
             'error' => null,
             'allow_manual_old_index' => true,
         ];
-    }
-    /**
-     * Tìm hợp đồng áp dụng cho phòng trong đúng kỳ đang thao tác.
-     * Nếu trùng nhiều hợp đồng, ưu tiên hợp đồng có ngày vào ở gần kỳ nhất.
-     */
-    public static function getApplicableContractForRoom($roomId, $month, $year) {
-        $resolvedRoomId = (int)$roomId;
-        $period = self::normalizePeriod($month, $year);
-
-        if (Database::hasConnection()) {
-            $row = Database::fetchOne(
-                "
-                SELECT *
-                FROM contracts
-                WHERE room_id = ?
-                  AND move_in_date <= ?
-                  AND (move_out_date IS NULL OR move_out_date >= ?)
-                ORDER BY move_in_date DESC, id DESC
-                LIMIT 1
-                ",
-                [$resolvedRoomId, $period['end_date'], $period['start_date']]
-            );
-
-            return $row ? $row : null;
-        }
-
-        $contracts = array_filter(Database::getTable('contracts'), static function ($contract) use ($resolvedRoomId, $period) {
-            $moveInDate = (string)($contract['move_in_date'] ?? '');
-            $moveOutDate = $contract['move_out_date'] ?? null;
-
-            return (int)($contract['room_id'] ?? 0) === $resolvedRoomId
-                && $moveInDate !== ''
-                && $moveInDate <= $period['end_date']
-                && ($moveOutDate === null || $moveOutDate === '' || $moveOutDate >= $period['start_date']);
-        });
-
-        usort($contracts, static function ($left, $right) {
-            $moveInCompare = strcmp((string)($right['move_in_date'] ?? ''), (string)($left['move_in_date'] ?? ''));
-            if ($moveInCompare !== 0) {
-                return $moveInCompare;
-            }
-
-            return (int)($right['id'] ?? 0) <=> (int)($left['id'] ?? 0);
-        });
-
-        return $contracts[0] ?? null;
     }
 
     /**
@@ -736,42 +655,6 @@ class MeterReadingModel {
         });
 
         return array_map([self::class, 'normalizeReadingRow'], array_values($rows));
-    }
-
-    /**
-     * Suy ra field chỉ số đầu kỳ trong hợp đồng dựa trên bản chất dịch vụ.
-     * Đây là cách vá an toàn khi schema hiện tại chưa map service -> contract field một cách tường minh.
-     */
-    private static function resolveContractInitialIndex(array $contract, array $service) {
-        $field = self::resolveInitialIndexField($service);
-        if ($field === null) {
-            return null;
-        }
-
-        return isset($contract[$field]) && $contract[$field] !== null
-            ? (float)$contract[$field]
-            : null;
-    }
-
-    /**
-     * Suy đoán dịch vụ đang dùng mốc điện hay nước.
-     */
-/**
- * Suy đoán dịch vụ đang dùng mốc điện hay nước.
- * 
- * LƯU Ý: Đây là giải pháp tạm thời. Giải pháp đúng là thêm cột
- * `meter_type ENUM('electricity','water','other')` vào bảng `services`.
- * Khi đó, hàm này chỉ cần đọc trực tiếp cột đó.
- */
-private static function resolveInitialIndexField(array $service) {
-        switch ((string)($service['kind'] ?? 'other')) {
-            case 'electricity':
-                return 'initial_electricity_index';
-            case 'water':
-                return 'initial_water_index';
-            default:
-                return null;
-        }
     }
 
     private static function getPreviousPeriod($month, $year) {

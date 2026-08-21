@@ -180,6 +180,18 @@ class RoomModel
         $normalized['min_price'] = self::parseHumanPrice($normalized['min_price_input']);
         $normalized['max_price'] = self::parseHumanPrice($normalized['max_price_input']);
 
+        // Ràng buộc: giá tối thiểu phải nhỏ hơn giá tối đa.
+        // Nếu vi phạm, không áp dụng bộ lọc khoảng giá mà giữ nguyên giá trị đã nhập
+        // để người dùng thấy và tự điều chỉnh lại.
+        if ($normalized['min_price'] !== null && $normalized['max_price'] !== null && $normalized['min_price'] >= $normalized['max_price']) {
+            $normalized['messages'][] = 'Giá tối thiểu phải nhỏ hơn giá tối đa. Bộ lọc khoảng giá sẽ không được áp dụng.';
+            $normalized['min_price'] = null;
+            $normalized['max_price'] = null;
+            $normalized['min_price_display'] = $normalized['min_price_input'];
+            $normalized['max_price_display'] = $normalized['max_price_input'];
+            return $normalized;
+        }
+
         // Ràng buộc giá tối thiểu 500.000đ
         if ($normalized['min_price'] !== null && $normalized['min_price'] < 500000) {
             $normalized['min_price'] = 500000;
@@ -458,7 +470,7 @@ class RoomModel
 
         if (Database::hasConnection()) {
             $row = Database::fetchOne(
-                "SELECT COUNT(*) AS total FROM contracts WHERE room_id = ? AND status = 'active'",
+                "SELECT COUNT(*) AS total FROM users WHERE room_id = ?",
                 [$roomId]
             );
 
@@ -480,30 +492,54 @@ class RoomModel
     }
 
     /**
-     * Tổng số người đang ở (hợp đồng active) trong các phòng đang thuê (status=rented).
+     * Tổng số người đang ở trong các phòng đang thuê (status=rented).
      * Dùng cho dashboard stats "Người thuê" - tính theo số người thực tế chứ không phải distinct user.
      */
     public static function countTotalOccupantsInRentedRooms()
     {
         if (Database::hasConnection()) {
             $row = Database::fetchOne(
-                "SELECT COUNT(*) AS total FROM contracts c
-                JOIN rooms r ON c.room_id = r.id
-                WHERE c.status = 'active' AND r.status = 'rented'"
+                "SELECT COUNT(*) AS total FROM users u
+                JOIN rooms r ON u.room_id = r.id
+                WHERE r.status = 'rented'"
             );
             return (int)($row['total'] ?? 0);
         }
 
         // Fallback
         $total = 0;
-        foreach (Database::getTable('contracts') as $contract) {
-            if (($contract['status'] ?? '') !== 'active') continue;
-            $room = Database::find('rooms', (int)($contract['room_id'] ?? 0));
+        foreach (Database::getTable('users') as $user) {
+            if (empty($user['room_id'])) continue;
+            $room = Database::find('rooms', (int)($user['room_id'] ?? 0));
             if ($room && ($room['status'] ?? '') === 'rented') {
                 $total++;
             }
         }
         return $total;
+    }
+
+    /**
+     * Đồng bộ trạng thái phòng theo số người đang ở: có người → rented, hết người → available.
+     */
+    public static function syncRoomStatus($roomId)
+    {
+        $roomId = (int)$roomId;
+        if ($roomId <= 0) {
+            return;
+        }
+
+        $room = self::getById($roomId);
+        if (!$room) {
+            return;
+        }
+
+        $occupants = self::countOccupants($roomId);
+        $targetStatus = $occupants > 0 ? 'rented' : 'available';
+        $currentStatus = (string)($room['status'] ?? '');
+
+        if ($currentStatus !== $targetStatus && in_array($currentStatus, ['available', 'rented'], true)) {
+            self::updateStatus($roomId, $targetStatus);
+        }
     }
 
     /**
@@ -948,8 +984,8 @@ class RoomModel
                 SELECT c.*, u.full_name, u.avatar
                 FROM comments c
                 LEFT JOIN users u ON c.user_id = u.id
-                WHERE c.room_id = ? AND c.status = 1 AND c.is_spam = 0
-                ORDER BY c.rating DESC, c.is_spam ASC, c.toxicity_score ASC, c.created_at DESC
+                WHERE c.room_id = ? AND c.status = 1
+                ORDER BY c.rating DESC, c.created_at DESC
                 ",
                 [$roomId]
             );
@@ -964,8 +1000,7 @@ class RoomModel
 
         $comments = array_filter(Database::getTable('comments'), static function ($comment) use ($roomId) {
             return (int)($comment['room_id'] ?? 0) === (int)$roomId
-                && (int)($comment['status'] ?? 0) === 1
-                && (int)($comment['is_spam'] ?? 0) === 0;
+                && (int)($comment['status'] ?? 0) === 1;
         });
 
         $comments = array_map(static function ($comment) use ($users) {
@@ -979,16 +1014,6 @@ class RoomModel
             $ratingCompare = (int)($right['rating'] ?? 0) <=> (int)($left['rating'] ?? 0);
             if ($ratingCompare !== 0) {
                 return $ratingCompare;
-            }
-
-            $spamCompare = (int)($left['is_spam'] ?? 0) <=> (int)($right['is_spam'] ?? 0);
-            if ($spamCompare !== 0) {
-                return $spamCompare;
-            }
-
-            $toxicityCompare = (float)($left['toxicity_score'] ?? 0) <=> (float)($right['toxicity_score'] ?? 0);
-            if ($toxicityCompare !== 0) {
-                return $toxicityCompare;
             }
 
             return strcmp((string)($right['created_at'] ?? ''), (string)($left['created_at'] ?? ''));
@@ -1153,8 +1178,6 @@ class RoomModel
         $comment['avatar'] = trim((string)($comment['avatar'] ?? ''));
         $comment['content'] = trim((string)($comment['content'] ?? ''));
         $comment['rating'] = max(1, min(5, (int)($comment['rating'] ?? 5)));
-        $comment['is_spam'] = (int)($comment['is_spam'] ?? 0);
-        $comment['toxicity_score'] = (float)($comment['toxicity_score'] ?? 0);
         return $comment;
     }
 

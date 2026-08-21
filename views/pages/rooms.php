@@ -26,9 +26,9 @@ $filterMessages = $filters['messages'] ?? [];
 $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 ?>
 
-<section class="py-12 bg-surface min-h-screen">
+<section class="rooms-page py-12 bg-surface min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="mb-8 reveal">
+        <div class="rooms-page-header mb-8 reveal">
             <h1 class="text-4xl font-bold mb-2">
                 <?= $selectedArea ? 'Phòng trống tại <span class="gradient-text">' . e($selectedArea['name'] ?? '') . '</span>' : 'Danh sách <span class="gradient-text">phòng đang còn trống</span>' ?>
             </h1>
@@ -53,7 +53,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Sidebar bộ lọc -->
             <aside class="lg:col-span-1">
-                <form method="GET" id="room-filter-form" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20" data-price-min-gap="500000">
+                <form method="GET" id="room-filter-form" class="rooms-filter-panel bg-white p-6 rounded-3xl shadow-card border border-gray-100 sticky top-20" data-price-min-gap="500000">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-lg flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">filter_list</span>
@@ -92,7 +92,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
                                 placeholder="VD: 3 triệu, 3500k, 5000000" data-price-input="end" autocomplete="off" data-auto-fetch="debounce">
                         </div>
                         <p class="mt-2 text-xs text-gray-500" data-price-helper>
-                            Hỗ trợ: "2 triệu", "2.5tr", "2500000", "500k". Khoảng cách tối thiểu 500.000đ.
+                            Hỗ trợ: "2 triệu", "2.5tr", "2500000", "500k". Giá tối thiểu phải nhỏ hơn giá tối đa và cách nhau tối thiểu 500.000đ.
                         </p>
                         <datalist id="price-suggestion-start">
                             <option value="500 nghìn"></option>
@@ -140,8 +140,8 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
             </aside>
 
             <!-- Danh sách phòng -->
-            <div class="lg:col-span-3">
-                <div id="rooms-results" class="mb-5 flex flex-wrap items-center gap-3">
+            <div class="rooms-results-column lg:col-span-3">
+                <div id="rooms-results" class="rooms-context-bar mb-5 flex flex-wrap items-center gap-3">
                     <span class="px-4 py-2 rounded-full bg-white border border-gray-200 text-sm font-semibold text-gray-700" id="rooms-count">
                         <?= count($rooms) ?> phòng phù hợp
                     </span>
@@ -191,7 +191,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 </section>
 
 <?php if ($totalPages > 1): ?>
-<nav class="mt-10 mb-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phan trang phong tro">
+<nav class="mt-10 mb-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang phòng trọ">
     <?php if ($currentPage > 1): ?>
     <a href="<?= e($buildPageUrl(1)) ?>" class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition" title="Trang đầu">&laquo;</a>
     <a href="<?= e($buildPageUrl($currentPage - 1)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition">&lsaquo; Trước</a>
@@ -291,6 +291,27 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
         }
     }
 
+    // Giá tối thiểu phải nhỏ hơn giá tối đa. Trả về true nếu khoảng giá không hợp lệ.
+    function isPriceRangeInvalid() {
+        const startInput = filterForm.querySelector('[data-price-input="start"]');
+        const endInput = filterForm.querySelector('[data-price-input="end"]');
+        const start = typeof parseHumanPriceClient === 'function' && startInput
+            ? parseHumanPriceClient(startInput.value) : null;
+        const end = typeof parseHumanPriceClient === 'function' && endInput
+            ? parseHumanPriceClient(endInput.value) : null;
+        return start !== null && end !== null && start >= end;
+    }
+
+    function showPriceRangeError() {
+        if (filterMessages) {
+            filterMessages.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
+            div.textContent = 'Giá tối thiểu phải nhỏ hơn giá tối đa. Vui lòng điều chỉnh lại khoảng giá.';
+            filterMessages.appendChild(div);
+        }
+    }
+
     function buildFetchUrl() {
         const formData = new FormData(filterForm);
         const params = new URLSearchParams();
@@ -305,6 +326,12 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
     }
 
     function fetchFilteredRooms() {
+        // Chặn khoảng giá không hợp lệ (min >= max) trước khi gọi API
+        if (isPriceRangeInvalid()) {
+            showPriceRangeError();
+            return;
+        }
+
         const seq = ++requestSeq;
         const url = buildFetchUrl();
         showLoading();

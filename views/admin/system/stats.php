@@ -14,6 +14,10 @@ $panelPageScripts = '
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+    const themeStyles = getComputedStyle(document.documentElement);
+    const chartBrand = themeStyles.getPropertyValue("--nta-brand").trim() || "#00685f";
+    const chartAccent = themeStyles.getPropertyValue("--nta-secondary").trim() || "#4b41e1";
+    const chartInk = themeStyles.getPropertyValue("--nta-ink").trim() || "#17211f";
     const areaCtx = document.getElementById("areaOccupancyChart");
     if (areaCtx) {
         new Chart(areaCtx, {
@@ -23,12 +27,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 datasets: [{
                     label: "Tổng phòng",
                     data: ' . json_encode($areaChartTotalRooms) . ',
-                    backgroundColor: "#00685f",
+backgroundColor: chartBrand,
                     borderRadius: 10
                 }, {
                     label: "Phòng trống",
                     data: ' . json_encode($areaChartAvailableRooms) . ',
-                    backgroundColor: "#4b41e1",
+backgroundColor: chartAccent,
                     borderRadius: 10
                 }]
             },
@@ -36,12 +40,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: "bottom" }
+legend: { position: "bottom", labels: { color: chartInk } }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { precision: 0 }
+                        ticks: { precision: 0, color: chartInk },
+                        grid: { color: chartInk + "1A" }
                     }
                 }
             }
@@ -57,8 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 datasets: [{
                     label: "Doanh thu đã thu",
                     data: ' . json_encode($revenueChartTotals) . ',
-                    borderColor: "#00685f",
-                    backgroundColor: "rgba(0, 104, 95, 0.12)",
+borderColor: chartBrand,
+                    backgroundColor: chartBrand + "1F",
                     fill: true,
                     tension: 0.3,
                     pointRadius: 4,
@@ -101,7 +106,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </div>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <form method="GET" action="<?= BASE_URL ?>" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input type="hidden" name="page" value="admin-stats">
 
@@ -166,7 +171,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </div>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="font-bold text-lg">Thống kê theo khu</h3>
             <p class="text-sm text-gray-500 mt-1">
@@ -215,7 +220,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <?php endif; ?>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
             <div>
                 <h3 class="font-bold text-lg">Biểu đồ phân bổ phòng theo khu</h3>
@@ -227,7 +232,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="font-bold text-lg">Doanh thu theo tháng năm <?= (int)($selectedYear ?? date('Y')) ?></h3>
             <p class="text-sm text-gray-500 mt-1">Chỉ cộng các hóa đơn trong `payments` có trạng thái `paid`.</p>
@@ -262,7 +267,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </div>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <div class="mb-4">
             <h3 class="font-bold text-lg">Biểu đồ doanh thu theo tháng</h3>
             <p class="text-sm text-gray-500 mt-1">Đường doanh thu giúp nhìn nhanh các tháng cao điểm và tháng trống dữ liệu.</p>

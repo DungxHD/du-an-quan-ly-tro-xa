@@ -26,6 +26,29 @@ class PriceChangeModel {
     }
 
     /**
+     * Chuẩn hóa tháng/năm để mọi nơi dùng chung một format an toàn.
+     */
+    public static function normalizePeriod($month = null, $year = null) {
+        $resolvedMonth = (int)($month ?: date('n'));
+        $resolvedYear = (int)($year ?: date('Y'));
+
+        if ($resolvedMonth < 1 || $resolvedMonth > 12) {
+            $resolvedMonth = (int)date('n');
+        }
+        if ($resolvedYear < 2000 || $resolvedYear > 2100) {
+            $resolvedYear = (int)date('Y');
+        }
+
+        return [
+            'month' => $resolvedMonth,
+            'year' => $resolvedYear,
+            'label' => str_pad((string)$resolvedMonth, 2, '0', STR_PAD_LEFT) . '/' . $resolvedYear,
+            'start_date' => sprintf('%04d-%02d-01', $resolvedYear, $resolvedMonth),
+            'end_date' => date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $resolvedYear, $resolvedMonth))),
+        ];
+    }
+
+    /**
      * Trả danh sách lịch sử đổi giá, có thể lọc theo dịch vụ.
      */
     public static function getAll(array $filters = []) {
@@ -112,7 +135,7 @@ class PriceChangeModel {
         $service = ServiceModel::getById((int)$serviceId);
         if (!$service) { throw new RuntimeException('Dịch vụ cần đổi giá không tồn tại.'); }
         $currentPrice = (float)($service['price'] ?? 0);
-        $currentMode = (string)($service['billing_mode'] ?? 'fixed');
+        $currentMode = (string)($service['billing_mode'] ?? 'meter');
         $hasPriceChange = $newPrice !== null && abs((float)$newPrice - $currentPrice) > 0.001;
         $hasModeChange = $newBillingMode !== null && $newBillingMode !== $currentMode;
         if (!$hasPriceChange && !$hasModeChange) { throw new RuntimeException('Giá và cách tính mới đang trùng hiện tại, không có thay đổi.'); }
@@ -121,7 +144,7 @@ class PriceChangeModel {
             $allowed = ServiceModel::getKindBillingModesMap()[$service['kind'] ?? 'other'] ?? ServiceModel::BILLING_MODES;
             if (!in_array($newBillingMode, $allowed, true)) { throw new RuntimeException('Cách tính này không được phép cho loại dịch vụ này.'); }
         }
-        $period = MeterReadingModel::normalizePeriod($effectiveMonth, $effectiveYear);
+        $period = self::normalizePeriod($effectiveMonth, $effectiveYear);
         $targetOrder = ($period['year'] * 100) + $period['month'];
         $currentOrder = ((int)date('Y') * 100) + (int)date('n');
         if ($targetOrder <= $currentOrder) { throw new RuntimeException('Tháng hiệu lực phải lớn hơn tháng hiện tại.'); }
@@ -196,7 +219,7 @@ return $result;
     }
     public static function getEffectiveConfigForPeriod(array $service, $month, $year) {
         $basePrice = (float)($service['price'] ?? 0);
-        $baseMode = (string)($service['billing_mode'] ?? 'fixed');
+        $baseMode = (string)($service['billing_mode'] ?? 'meter');
         $history = self::getHistoryByServiceId((int)($service['id'] ?? 0));
         $targetOrder = ((int)$year * 100) + (int)$month;
         $currentOrder = ((int)date('Y') * 100) + (int)date('n');
@@ -223,7 +246,7 @@ return $result;
         return ['price' => $price, 'billing_mode' => $mode];
     }
     public static function getEffectivePriceForPeriod($serviceId, $month, $year, $fallbackPrice = 0.0) {
-        $service = ServiceModel::getById((int)$serviceId) ?? ['price' => $fallbackPrice, 'billing_mode' => 'fixed'];
+        $service = ServiceModel::getById((int)$serviceId) ?? ['price' => $fallbackPrice, 'billing_mode' => 'meter'];
         return self::getEffectiveConfigForPeriod($service, $month, $year)['price'];
     }
     public static function buildNotificationContent(array $service, $oldPrice, $newPrice, $effectiveMonth, $effectiveYear, $newBillingMode = null) {

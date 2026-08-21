@@ -52,7 +52,7 @@ $error = $error ?? '';
         <?php else: ?>
         <div class="space-y-4">
             <?php foreach ($hosts as $host): ?>
-            <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900"><?= e($host['name']) ?></h3>

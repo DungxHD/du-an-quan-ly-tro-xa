@@ -3,7 +3,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
 $panelActive = 'notifications';
 $panelTitle = $siteName . ' Admin';
-$panelSubtitle = 'Gửi thông báo cho tenant và theo dõi lịch sử đã phát hành';
+$panelSubtitle = 'Gửi thông báo broadcast đến tất cả tenant và theo dõi lịch sử đã phát hành';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
 require BASE_PATH . 'views/layouts/panel_header.php';
 ?>
@@ -11,9 +11,9 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-bold">Thông báo</h2>
-            <p class="text-gray-500 mt-2">Admin có thể gửi broadcast cho tất cả cư dân hoặc gửi riêng từng tenant. Loại `price_change` sẽ được sinh tự động khi đổi giá dịch vụ.</p>
+            <p class="text-gray-500 mt-2">Admin có thể gửi broadcast cho tất cả tenant.</p>
         </div>
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
                 <p class="text-xs text-gray-500">Tổng tenant</p>
                 <p class="text-xl font-bold"><?= count($tenants ?? []) ?></p>
@@ -23,12 +23,8 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <p class="text-xl font-bold text-primary"><?= count($notificationHistory ?? []) ?></p>
             </div>
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
-                <p class="text-xs text-gray-500">Loại đang chọn</p>
-                <p class="text-xl font-bold text-secondary"><?= e($notificationTypeOptions[$notificationForm['type'] ?? 'general'] ?? 'Chung') ?></p>
-            </div>
-            <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
                 <p class="text-xs text-gray-500">Đối tượng</p>
-                <p class="text-xl font-bold text-green-600"><?= ($notificationForm['recipient_scope'] ?? 'all') === 'all' ? 'Tất cả' : 'Cá nhân' ?></p>
+                <p class="text-xl font-bold text-green-600">Tất cả tenant (broadcast)</p>
             </div>
         </div>
     </div>
@@ -49,7 +45,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div class="grid grid-cols-1 2xl:grid-cols-3 gap-6">
         <section class="2xl:col-span-1">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20 space-y-5">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 sticky top-20 space-y-5">
                 <div>
                     <h3 class="text-lg font-bold">Gửi thông báo mới</h3>
                     <p class="text-sm text-gray-500 mt-1">Form này dùng cho thông báo thủ công. Riêng đổi giá dịch vụ sẽ tự tạo thông báo `price_change`.</p>
@@ -58,18 +54,13 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <div class="rounded-2xl border border-dashed border-gray-200 p-4 bg-gray-50 space-y-3">
                     <div class="flex items-center justify-between gap-3">
                         <p class="font-semibold text-gray-900"><?= e($notificationForm['title'] ?: 'Tiêu đề thông báo') ?></p>
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                            <?= e($notificationTypeOptions[$notificationForm['type'] ?? 'general'] ?? 'Chung') ?>
-                        </span>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">Broadcast (Tất cả tenant)</span>
                     </div>
                     <p class="text-sm text-gray-600"><?= e($notificationForm['content'] ?: 'Nội dung preview sẽ hiển thị ở đây.') ?></p>
-                    <p class="text-xs text-gray-500">
-                        Đối tượng: <?= ($notificationForm['recipient_scope'] ?? 'all') === 'all' ? 'Tất cả tenant' : 'Một tenant cụ thể' ?>
-                    </p>
                 </div>
 
-                <form method="POST" action="<?= BASE_URL ?>?page=admin-send-notification" class="space-y-4">
-<?= csrf_field() ?>
+<form method="POST" action="<?= BASE_URL ?>?page=admin-send-notification" class="space-y-4">
+                    <?= csrf_field() ?>
                     <div>
                         <label class="block text-sm font-semibold mb-2">Tiêu đề</label>
                         <input
@@ -89,49 +80,28 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         ><?= e($notificationForm['content'] ?? '') ?></textarea>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Loại</label>
-                            <select name="type" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                                <?php foreach ($notificationTypeOptions as $typeValue => $typeLabel): ?>
-                                <option value="<?= e($typeValue) ?>" <?= ($notificationForm['type'] ?? 'general') === $typeValue ? 'selected' : '' ?>>
-                                    <?= e($typeLabel) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold mb-2">Đối tượng</label>
-                            <select name="recipient_scope" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                                <option value="all" <?= ($notificationForm['recipient_scope'] ?? 'all') === 'all' ? 'selected' : '' ?>>Tất cả tenant</option>
-                                <option value="user" <?= ($notificationForm['recipient_scope'] ?? 'all') === 'user' ? 'selected' : '' ?>>Chọn 1 tenant</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold mb-2">Tenant nhận riêng</label>
-                        <select name="user_id" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                            <option value="0">Không chọn</option>
-                            <?php foreach ($tenants as $tenant): ?>
-                            <option value="<?= (int)($tenant['id'] ?? 0) ?>" <?= (int)($notificationForm['user_id'] ?? 0) === (int)($tenant['id'] ?? 0) ? 'selected' : '' ?>>
-                                <?= e($tenant['full_name'] ?? '') ?><?= !empty($tenant['room_name']) ? ' - ' . e($tenant['room_name']) : '' ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
                     <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
-                        Gửi thông báo
+                        Gửi thông báo đến tất cả tenant
                     </button>
                 </form>
             </div>
         </section>
 
-        <section class="2xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <section class="2xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <h3 class="font-bold text-lg">Lịch sử thông báo đã gửi</h3>
-                <p class="text-sm text-gray-500 mt-1">Danh sách này giúp admin tra lại thông báo broadcast, thông báo riêng và các bản tin tự sinh từ đổi giá.</p>
+                <div>
+                    <h3 class="font-bold text-lg">Lịch sử thông báo đã gửi</h3>
+                    <p class="text-sm text-gray-500 mt-1">Danh sách này giúp admin tra lại thông báo broadcast, thông báo riêng và các bản tin tự sinh từ đổi giá.</p>
+                </div>
+                <form method="POST" action="<?= BASE_URL ?>?page=admin-mark-notification-read">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="mark_all" value="1">
+                    <input type="hidden" name="redirect_page" value="admin-notifications">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition text-sm">
+                        <span class="material-symbols-outlined text-lg">done_all</span>
+                        Đánh dấu đọc tất cả
+                    </button>
+                </form>
             </div>
 
             <div class="px-6 pt-4 pb-3 border-b border-gray-100 overflow-x-auto">

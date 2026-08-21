@@ -13,13 +13,13 @@ if ($isPendingOtherRoom) {
     $pendingRoomName = $pendingRoom['name'] ?? '';
 }
 ?>
-<section class="py-12 bg-surface min-h-screen">
+<section class="rent-request-page py-12 bg-surface min-h-screen">
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>" class="inline-flex items-center gap-2 text-primary hover:gap-3 transition-all mb-6">
             <span class="material-symbols-outlined">arrow_back</span> Quay lại trang phòng
         </a>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div class="rent-request-heading bg-white rounded-3xl shadow-card border border-gray-100 p-6 mb-6">
             <h2 class="text-2xl font-bold">Yêu cầu thuê phòng</h2>
             <p class="mt-1 text-gray-600"><?= e($room['name'] ?? '') ?> · <?= number_format(((float)($room['price'] ?? 0)) / 1000000, 1) ?>M/tháng</p>
         </div>
@@ -37,27 +37,38 @@ if ($isPendingOtherRoom) {
             $qrBank = RoomModel::getSetting('bank_name', 'Vietcombank');
             $qrAccount = RoomModel::getSetting('bank_account_number', '');
             $qrHolder = RoomModel::getSetting('bank_account_holder', '');
-            $qrAmount = (float)($room['price'] ?? 0);
+            $qrAmount = (float)($pendingRequest['deposit'] ?? 0) > 0 ? (float)$pendingRequest['deposit'] : (float)($room['price'] ?? 0);
             $qrText = 'Chuyen khoan thue phong ' . ($room['name'] ?? '')
                 . ' - So tien: ' . number_format($qrAmount, 0, ',', '.') . ' VND'
                 . ' - Ngan hang: ' . $qrBank
                 . ' - STK: ' . $qrAccount
                 . ' - Chu TK: ' . $qrHolder;
             ?>
-            <div class="bg-white rounded-2xl shadow-sm border border-amber-100 p-6 text-center">
+            <div class="bg-white rounded-3xl shadow-card border border-amber-100 p-6 text-center">
+                <?php if ($payConfirmed): ?>
+                <span class="material-symbols-outlined text-5xl text-sky-500">qr_code_2</span>
+                <h3 class="mt-3 text-lg font-bold">Yêu cầu của bạn đã được admin chấp nhận</h3>
+                <p class="mt-2 text-sm text-gray-600">
+                    Vui lòng thanh toán tiền cọc <span class="font-bold text-sky-700"><?= number_format($qrAmount, 0, ',', '.') ?>đ</span>
+                    để giữ phòng "<?= e($room['name'] ?? '') ?>" cho bạn cho đến hết ngày dự kiến vào ở
+                    (<?= date('d/m/Y', strtotime((string)($pendingRequest['move_in_date'] ?? ''))) ?>).
+                    Mã QR thanh toán bên dưới.
+                </p>
+                <?php else: ?>
                 <span class="material-symbols-outlined text-5xl text-amber-500">hourglass_top</span>
                 <h3 class="mt-3 text-lg font-bold">Yêu cầu đang chờ xét duyệt</h3>
                 <p class="mt-2 text-sm text-gray-600">
                     Yêu cầu thuê phòng "<?= e($room['name'] ?? '') ?>" đã được gửi, vui lòng chờ admin xét duyệt.
                     Admin có thể phản hồi qua thông báo hoặc liên hệ trực tiếp số điện thoại của bạn — hãy chú ý phản hồi từ admin.
                 </p>
+                <?php endif; ?>
                 <?php if ($payConfirmed): ?>
                 <div class="mt-5 mx-auto max-w-sm rounded-2xl border border-sky-200 bg-sky-50 p-5">
-                    <p class="text-sm font-bold text-sky-800">Quét mã QR để chuyển tiền đặt cọc</p>
-                    <p class="mt-1 text-xs text-sky-700">Số tiền: <span class="font-bold"><?= number_format($qrAmount, 0, ',', '.') ?>đ</span> (bằng giá thuê 1 tháng)</p>
+                    <p class="text-sm font-bold text-sky-800">Quét mã QR để chuyển tiền cọc</p>
+                    <p class="mt-1 text-xs text-sky-700">Số tiền cọc: <span class="font-bold"><?= number_format($qrAmount, 0, ',', '.') ?>đ</span></p>
                     <img
                         src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=<?= e(urlencode($qrText)) ?>"
-                        alt="Mã QR chuyển tiền"
+                        alt="Mã QR chuyển tiền cọc"
                         class="mx-auto mt-3 w-44 h-44 rounded-xl bg-white p-2"
                         loading="lazy"
                     >
@@ -65,7 +76,14 @@ if ($isPendingOtherRoom) {
                         <?= e($qrBank) ?> · STK: <?= e($qrAccount) ?><br>
                         Chủ TK: <?= e($qrHolder) ?>
                     </p>
-                    <p class="mt-2 text-[11px] text-sky-700">Sau khi chuyển khoản, hãy thông báo cho admin để được xác nhận chính thức vào phòng.</p>
+                    <form method="POST" action="<?= BASE_URL ?>?page=tenant-paid-rent-request" class="mt-4" onsubmit="return confirm('Xác nhận bạn đã thanh toán tiền cọc thành công? Bạn sẽ được xếp vào phòng ngay lập tức.');">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="request_id" value="<?= (int)($pendingRequest['id'] ?? 0) ?>">
+                        <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition">
+                            Tôi đã thanh toán tiền cọc
+                        </button>
+                    </form>
+                    <p class="mt-2 text-[11px] text-sky-700">Sau khi xác nhận, bạn sẽ được chuyển vào phòng ngay. Admin sẽ nhận được thông báo thanh toán thành công.</p>
                 </div>
                 <?php endif; ?>
                 <div class="mt-5 flex flex-col sm:flex-row gap-3 justify-center">
@@ -91,7 +109,7 @@ if ($isPendingOtherRoom) {
             </div>
             <?php endif; ?>
 
-            <form method="POST" action="<?= BASE_URL ?>?page=submit-rent-request&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <form method="POST" action="<?= BASE_URL ?>?page=submit-rent-request&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-white rounded-3xl shadow-card border border-gray-100 p-6 space-y-4">
                 <?= csrf_field() ?>
                 <div>
                     <label class="block text-sm font-semibold mb-2">Ngày dự kiến vào ở *</label>

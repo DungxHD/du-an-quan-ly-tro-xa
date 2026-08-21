@@ -15,7 +15,6 @@ $formatNumber = static function ($value) {
     return rtrim(rtrim(number_format($number, 2, '.', ''), '0'), '.');
 };
 $currentPeriod = $period ?? PaymentModel::normalizePeriod(null, null);
-$selectedRoomId = (int)($filters['room_id'] ?? 0);
 $generatedCount = count($invoiceList ?? []);
 $paidCount = count(array_filter($invoiceList ?? [], static fn($invoice) => ($invoice['status'] ?? 'unpaid') === 'paid'));
 $unpaidCount = count(array_filter($invoiceList ?? [], static fn($invoice) => ($invoice['status'] ?? 'unpaid') === 'unpaid'));
@@ -125,157 +124,14 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
     <?php endif; ?>
 
-    <div class="grid grid-cols-1 2xl:grid-cols-3 gap-6">
-        <section class="2xl:col-span-1">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20 space-y-5">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <h3 class="text-lg font-bold">Preview hóa đơn</h3>
-                        <p class="text-sm text-gray-500 mt-1">Chọn một phòng để xem trước toàn bộ phân rã trước khi tạo hóa đơn.</p>
-                    </div>
-                    <?php if (!empty($invoicePreview['existing_payment']['id'])): ?>
-                    <span class="px-3 py-1.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-700">Đã tạo</span>
-                    <?php endif; ?>
-                </div>
-
-                <form method="GET" action="<?= BASE_URL ?>" class="space-y-4">
-                    <input type="hidden" name="page" value="admin-invoices">
-                    <input type="hidden" name="month" value="<?= (int)($currentPeriod['month'] ?? date('n')) ?>">
-                    <input type="hidden" name="year" value="<?= (int)($currentPeriod['year'] ?? date('Y')) ?>">
-                    <input type="hidden" name="status" value="<?= e($filters['status'] ?? '') ?>">
-                    <input type="hidden" name="area_id" value="<?= (int)($filters['area_id'] ?? 0) ?>">
-                    <input type="hidden" name="floor_id" value="<?= (int)($filters['floor_id'] ?? 0) ?>">
-                    <div>
-                        <label for="preview-room" class="block text-sm font-semibold mb-2">Phòng cần preview</label>
-                        <select id="preview-room" name="room_id" onchange="this.form.submit()" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                            <option value="0">Chọn phòng</option>
-                            <?php foreach ($invoiceRoomRows as $roomRow): ?>
-                            <option value="<?= (int)($roomRow['room_id'] ?? 0) ?>" <?= $selectedRoomId === (int)($roomRow['room_id'] ?? 0) ? 'selected' : '' ?>>
-                                <?= e(($roomRow['room_name'] ?? 'Phòng') . ' - ' . ($roomRow['area_name'] ?? '') . ' - ' . ($roomRow['floor_name'] ?? '')) ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </form>
-
-                <?php if (empty($invoicePreview['room'])): ?>
-                <div class="rounded-2xl border border-dashed border-gray-200 px-6 py-10 text-center text-gray-500">
-                    Chưa có phòng phù hợp để preview trong kỳ đã chọn.
-                </div>
-                <?php else: ?>
-                <div class="rounded-2xl border border-dashed border-gray-200 p-4 bg-gray-50 space-y-2">
-                    <p class="text-lg font-bold text-gray-900"><?= e($invoicePreview['room']['name'] ?? '') ?></p>
-                    <p class="text-sm text-gray-500"><?= e(($invoicePreview['room']['area_name'] ?? 'Chưa có khu') . ' - ' . ($invoicePreview['room']['floor_name'] ?? 'Chưa có tầng')) ?></p>
-                    <div class="flex flex-wrap gap-2 pt-2">
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">Kỳ <?= e($currentPeriod['label'] ?? '') ?></span>
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">Cư dân: <?= count($invoicePreview['tenants'] ?? []) ?></span>
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-secondary/10 text-secondary">Tổng dự kiến: <?= e($formatMoney($invoicePreview['total_amount'] ?? 0)) ?></span>
-                    </div>
-                </div>
-
-                <?php if (!empty($invoicePreview['tenants'])): ?>
-                <div>
-                    <p class="text-sm font-semibold text-gray-800 mb-2">Cư dân đang ở</p>
-                    <div class="flex flex-wrap gap-2">
-                        <?php foreach ($invoicePreview['tenants'] as $tenant): ?>
-                        <span class="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-sm font-medium">
-                            <?= e($tenant['full_name'] ?? '') ?>
-                        </span>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($invoicePreview['errors'])): ?>
-                <div class="rounded-2xl border border-red-200 bg-red-50 p-4 space-y-2">
-                    <p class="font-semibold text-red-700">Không thể tạo hóa đơn</p>
-                    <?php foreach ($invoicePreview['errors'] as $error): ?>
-                    <p class="text-sm text-red-600">- <?= e($error) ?></p>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($invoicePreview['warnings'])): ?>
-                <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-                    <p class="font-semibold text-amber-800">Lưu ý</p>
-                    <?php foreach ($invoicePreview['warnings'] as $warning): ?>
-                    <p class="text-sm text-amber-700">- <?= e($warning) ?></p>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($invoicePreview['items'])): ?>
-                <div class="overflow-hidden rounded-2xl border border-gray-200">
-                    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                        <h4 class="font-semibold text-gray-900">Bảng phân rã</h4>
-                    </div>
-                    <div class="max-h-[420px] overflow-y-auto">
-                        <table class="w-full">
-                            <thead class="bg-white sticky top-0">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Khoản thu</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Đơn giá</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">SL</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Thành tiền</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                <?php foreach ($invoicePreview['items'] as $item): ?>
-                                <tr>
-                                    <td class="px-4 py-3 align-top">
-                                        <p class="font-semibold text-gray-900"><?= e($item['item_name'] ?? '') ?></p>
-                                        <?php if (!empty($item['note'])): ?>
-                                        <p class="text-xs text-gray-500 mt-1"><?= e($item['note']) ?></p>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="px-4 py-3 align-top text-sm text-gray-700"><?= e($formatMoney($item['unit_price'] ?? 0)) ?></td>
-                                    <td class="px-4 py-3 align-top text-sm text-gray-700"><?= e($formatNumber($item['quantity'] ?? 0)) ?></td>
-                                    <td class="px-4 py-3 align-top font-semibold text-primary"><?= e($formatMoney($item['amount'] ?? 0)) ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                            <tfoot class="bg-slate-50">
-                                <tr>
-                                    <td colspan="3" class="px-4 py-4 text-right font-semibold text-slate-700">Tổng cộng</td>
-                                    <td class="px-4 py-4 font-bold text-secondary"><?= e($formatMoney($invoicePreview['total_amount'] ?? 0)) ?></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-                <?php endif; ?>
-
-                <div class="space-y-3">
-                    <?php if (!empty($invoicePreview['existing_payment']['id'])): ?>
-                    <a href="<?= BASE_URL ?>?page=admin-invoices&month=<?= (int)($currentPeriod['month'] ?? date('n')) ?>&year=<?= (int)($currentPeriod['year'] ?? date('Y')) ?>&area_id=<?= (int)($filters['area_id'] ?? 0) ?>&floor_id=<?= (int)($filters['floor_id'] ?? 0) ?>&status=<?= e($filters['status'] ?? '') ?>&room_id=<?= $selectedRoomId ?>&invoice_id=<?= (int)($invoicePreview['existing_payment']['id'] ?? 0) ?>" class="block w-full py-3 text-center bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition">
-                        Xem hóa đơn đã tạo
-                    </a>
-                    <?php elseif (!empty($invoicePreview['can_generate'])): ?>
-                    <form method="POST" action="<?= BASE_URL ?>?page=admin-generate-invoice">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="month" value="<?= (int)($currentPeriod['month'] ?? date('n')) ?>">
-                        <input type="hidden" name="year" value="<?= (int)($currentPeriod['year'] ?? date('Y')) ?>">
-                        <input type="hidden" name="status" value="<?= e($filters['status'] ?? '') ?>">
-                        <input type="hidden" name="area_id" value="<?= (int)($filters['area_id'] ?? 0) ?>">
-                        <input type="hidden" name="floor_id" value="<?= (int)($filters['floor_id'] ?? 0) ?>">
-                        <input type="hidden" name="room_id" value="<?= $selectedRoomId ?>">
-                        <input type="hidden" name="generate_scope" value="single">
-                        <button type="submit" class="w-full py-3 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition">
-                            Tạo hóa đơn cho phòng này
-                        </button>
-                    </form>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-        </section>
+    <div class="space-y-6">
 
         <section class="2xl:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
                     <div>
                         <h3 class="font-bold text-lg">Trạng thái tạo hóa đơn theo phòng</h3>
-                        <p class="text-sm text-gray-500 mt-1">Phòng đã có hóa đơn sẽ hiện nút xem. Phòng thiếu chỉ số hoặc thiếu dữ liệu sẽ bị khóa tạo.</p>
+                        <p class="text-sm text-gray-500 mt-1">Phòng đã có hóa đơn sẽ hiện nút xem. Phòng thiếu dữ liệu sẽ bị khóa tạo.</p>
                     </div>
                     <form method="POST" action="<?= BASE_URL ?>?page=admin-generate-invoice">
 <?= csrf_field() ?>
@@ -338,16 +194,42 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                         </div>
                         <?php endif; ?>
 
-                        <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-3">
-                            <a href="<?= BASE_URL ?>?page=admin-invoices&month=<?= (int)($currentPeriod['month'] ?? date('n')) ?>&year=<?= (int)($currentPeriod['year'] ?? date('Y')) ?>&area_id=<?= (int)($filters['area_id'] ?? 0) ?>&floor_id=<?= (int)($filters['floor_id'] ?? 0) ?>&status=<?= e($filters['status'] ?? '') ?>&room_id=<?= (int)($roomRow['room_id'] ?? 0) ?>" class="text-blue-600 hover:text-blue-800 font-semibold text-sm">
-                                Preview
-                            </a>
+                        <?php $roomMeter = $meterRoomMap[(int)($roomRow['room_id'] ?? 0)] ?? null; ?>
+                        <?php if (!empty($roomMeter['services']) && empty($roomRow['existing_payment_id'])): ?>
+                        <form method="POST" action="<?= BASE_URL ?>?page=admin-generate-invoice" class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="month" value="<?= (int)($currentPeriod['month'] ?? date('n')) ?>">
+                            <input type="hidden" name="year" value="<?= (int)($currentPeriod['year'] ?? date('Y')) ?>">
+                            <input type="hidden" name="status" value="<?= e($filters['status'] ?? '') ?>">
+                            <input type="hidden" name="area_id" value="<?= (int)($filters['area_id'] ?? 0) ?>">
+                            <input type="hidden" name="floor_id" value="<?= (int)($filters['floor_id'] ?? 0) ?>">
+                            <input type="hidden" name="room_id" value="<?= (int)($roomRow['room_id'] ?? 0) ?>">
+                            <input type="hidden" name="generate_scope" value="single">
+                            <p class="text-sm font-semibold text-gray-900">Nhập chỉ số công tơ</p>
+                            <?php foreach ($roomMeter['services'] as $roomMeterService): ?>
+                            <?php $roomMeterCell = $roomMeter['cells'][(int)($roomMeterService['id'] ?? 0)] ?? []; ?>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-sm font-medium text-gray-700 w-24"><?= e($roomMeterService['name'] ?? '') ?></span>
+                                <span class="flex items-center gap-1" data-meter-row>
+                                    <input type="number" step="0.01" min="0" name="meter_readings[<?= (int)($roomRow['room_id'] ?? 0) ?>][<?= (int)($roomMeterService['id'] ?? 0) ?>][old_index]" value="<?= e($formatNumber($roomMeterCell['old_index'] ?? 0)) ?>" disabled data-old-input class="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 focus:ring-2 focus:ring-primary outline-none">
+                                    <button type="button" data-unlock-old class="text-xs font-semibold text-blue-600 hover:text-blue-800 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg px-2 py-2 transition">Chỉnh sửa</button>
+                                    <input type="hidden" name="meter_readings[<?= (int)($roomRow['room_id'] ?? 0) ?>][<?= (int)($roomMeterService['id'] ?? 0) ?>][old_index_editable]" value="0" data-old-editable>
+                                </span>
+                                <input type="number" step="0.01" min="0" name="meter_readings[<?= (int)($roomRow['room_id'] ?? 0) ?>][<?= (int)($roomMeterService['id'] ?? 0) ?>][new_index]" placeholder="<?= !empty($roomMeterCell['has_reading']) ? 'Cập nhật chỉ số mới' : 'Chỉ số mới' ?>" value="<?= e($roomMeterCell['new_value'] ?? '') ?>" class="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                            </div>
+                            <?php endforeach; ?>
+                            <button type="submit" class="w-full py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-opacity-90 transition text-sm">
+                                Lưu chỉ số & tạo hóa đơn
+                            </button>
+                        </form>
+                        <?php endif; ?>
 
+                        <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-3">
                             <?php if (!empty($roomRow['existing_payment_id'])): ?>
                             <a href="<?= BASE_URL ?>?page=admin-invoices&month=<?= (int)($currentPeriod['month'] ?? date('n')) ?>&year=<?= (int)($currentPeriod['year'] ?? date('Y')) ?>&area_id=<?= (int)($filters['area_id'] ?? 0) ?>&floor_id=<?= (int)($filters['floor_id'] ?? 0) ?>&status=<?= e($filters['status'] ?? '') ?>&room_id=<?= (int)($roomRow['room_id'] ?? 0) ?>&invoice_id=<?= (int)($roomRow['existing_payment_id'] ?? 0) ?>" class="text-slate-900 hover:text-primary font-semibold text-sm">
                                 Xem hóa đơn
                             </a>
-                            <?php elseif (!empty($roomRow['can_generate'])): ?>
+                            <?php elseif (!empty($roomRow['can_generate']) && empty($roomMeter['services'])): ?>
                             <form method="POST" action="<?= BASE_URL ?>?page=admin-generate-invoice">
 <?= csrf_field() ?>
                                 <input type="hidden" name="month" value="<?= (int)($currentPeriod['month'] ?? date('n')) ?>">
@@ -369,7 +251,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100">
                     <h3 class="font-bold text-lg">Danh sách hóa đơn đã tạo</h3>
                     <p class="text-sm text-gray-500 mt-1">Admin có thể lọc theo tháng, trạng thái, khu hoặc tầng. Hóa đơn đã trả sẽ hiện rõ người trả và thời điểm chốt.</p>
@@ -454,7 +336,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
 
             <?php if (!empty($selectedInvoice)): ?>
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div id="invoice-detail" class="bg-white rounded-2xl border border-primary/30 shadow-md overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div>
                         <h3 class="font-bold text-lg">Chi tiết hóa đơn #<?= (int)($selectedInvoice['id'] ?? 0) ?></h3>
@@ -488,7 +370,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                     <td class="px-4 py-4 font-semibold text-gray-900"><?= e($item['item_name'] ?? '') ?></td>
                                     <td class="px-4 py-4 text-sm text-gray-700"><?= e($formatMoney($item['unit_price'] ?? 0)) ?></td>
                                     <td class="px-4 py-4 text-sm text-gray-700"><?= e($formatNumber($item['quantity'] ?? 0)) ?></td>
-                                    <td class="px-4 py-4 text-sm text-gray-700"><?= e($item['billing_mode'] ?? 'fixed') ?></td>
+                                    <td class="px-4 py-4 text-sm text-gray-700"><?= e($item['billing_mode'] ?? '') ?></td>
                                     <td class="px-4 py-4 font-semibold text-primary"><?= e($formatMoney($item['amount'] ?? 0)) ?></td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -559,4 +441,32 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </section>
     </div>
 </div>
+<script>
+    document.addEventListener('click', function (event) {
+        var unlockButton = event.target.closest('[data-unlock-old]');
+        if (!unlockButton) {
+            return;
+        }
+        var row = unlockButton.closest('[data-meter-row]');
+        if (!row) {
+            return;
+        }
+        var input = row.querySelector('[data-old-input]');
+        var flag = row.querySelector('[data-old-editable]');
+        if (input) {
+            input.disabled = false;
+            input.classList.remove('bg-gray-100');
+            input.focus();
+        }
+        if (flag) {
+            flag.value = '1';
+        }
+        unlockButton.remove();
+    });
+
+    var invoiceDetail = document.getElementById('invoice-detail');
+    if (invoiceDetail) {
+        invoiceDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+</script>
 <?php require BASE_PATH . 'views/layouts/panel_footer.php'; ?>

@@ -197,9 +197,19 @@ class Database
                 implode(', ', $placeholders)
             );
 
-            $stmt = self::getInstance()->prepare($sql);
-            $stmt->execute($data);
-            return (int)self::getInstance()->lastInsertId();
+            // [DEV-QWEN-A][FIX][2026-08-20] Ghi DB cũng phải bẫy lỗi thiếu bảng/cột (42S02/42S22)
+            // như query() — trước đây insert/update/delete để PDOException lọt ra ngoài gây fatal → trang trắng.
+            try {
+                $stmt = self::getInstance()->prepare($sql);
+                $stmt->execute($data);
+                return (int)self::getInstance()->lastInsertId();
+            } catch (PDOException $e) {
+                if (in_array($e->getCode(), ['42S02', '42S22'], true)) {
+                    error_log('[DB Schema Missing] ' . $e->getMessage() . ' | SQL: ' . $sql);
+                    return 0;
+                }
+                throw $e;
+            }
         }
 
         $rows = self::getTable($table);
@@ -235,8 +245,16 @@ class Database
                 $executeParams['set_' . $column] = $value;
             }
 
-            $stmt = self::getInstance()->prepare($sql);
-            return $stmt->execute($executeParams);
+            try {
+                $stmt = self::getInstance()->prepare($sql);
+                return $stmt->execute($executeParams);
+            } catch (PDOException $e) {
+                if (in_array($e->getCode(), ['42S02', '42S22'], true)) {
+                    error_log('[DB Schema Missing] ' . $e->getMessage() . ' | SQL: ' . $sql);
+                    return false;
+                }
+                throw $e;
+            }
         }
 
         $rows = self::getTable($table);
@@ -252,8 +270,17 @@ class Database
     public static function delete($table, $where, $params = [])
     {
         if (self::hasConnection()) {
-            $stmt = self::getInstance()->prepare(sprintf('DELETE FROM %s WHERE %s', $table, $where));
-            return $stmt->execute($params);
+            $sql = sprintf('DELETE FROM %s WHERE %s', $table, $where);
+            try {
+                $stmt = self::getInstance()->prepare($sql);
+                return $stmt->execute($params);
+            } catch (PDOException $e) {
+                if (in_array($e->getCode(), ['42S02', '42S22'], true)) {
+                    error_log('[DB Schema Missing] ' . $e->getMessage() . ' | SQL: ' . $sql);
+                    return false;
+                }
+                throw $e;
+            }
         }
 
         $rows = array_filter(
@@ -295,12 +322,6 @@ class Database
                 ['id' => 17, 'setting_key' => 'contact_zalo', 'setting_value' => '0901234567', 'setting_group' => 'contact'],
                 ['id' => 18, 'setting_key' => 'min_days_to_review', 'setting_value' => '15', 'setting_group' => 'moderation'],
                 ['id' => 19, 'setting_key' => 'comment_edit_hours', 'setting_value' => '24', 'setting_group' => 'moderation'],
-                ['id' => 20, 'setting_key' => 'max_comment_attempts', 'setting_value' => '3', 'setting_group' => 'moderation'],
-                ['id' => 21, 'setting_key' => 'comment_lock_hours', 'setting_value' => '24', 'setting_group' => 'moderation'],
-                ['id' => 22, 'setting_key' => 'enable_comment_moderation', 'setting_value' => '1', 'setting_group' => 'moderation'],
-                ['id' => 23, 'setting_key' => 'enable_gemini_moderation', 'setting_value' => '0', 'setting_group' => 'moderation'],
-                ['id' => 24, 'setting_key' => 'gemini_api_key', 'setting_value' => '', 'setting_group' => 'moderation'],
-                ['id' => 25, 'setting_key' => 'toxicity_threshold', 'setting_value' => '0.70', 'setting_group' => 'moderation'],
             ],
             // Dữ liệu fallback cho module khu/tầng bám theo schema mới `areas -> floors -> rooms`.
             'areas' => [
@@ -327,48 +348,32 @@ class Database
             'room_images' => [],
             'users' => [
                 ['id' => 1, 'full_name' => 'Quản trị viên NhaTroA', 'email' => 'admin@nhatroxanh.vn', 'phone' => '0901 234 567', 'password' => $adminPassword, 'role' => 1, 'room_id' => null, 'avatar' => 'default.png', 'created_at' => $now],
-                ['id' => 2, 'full_name' => 'Nguyễn Minh An', 'email' => 'tenant1@gmail.com', 'phone' => '0908 888 999', 'password' => $tenantPassword, 'role' => 0, 'room_id' => 2, 'avatar' => 'default.png', 'date_of_birth' => '2003-05-12', 'permanent_address' => '12 Nguyễn Văn Linh, Quận 7, TP.HCM', 'identity_number' => '079203001234', 'identity_issue_date' => '2021-09-18', 'identity_issue_place' => 'Cục Cảnh sát QLHC về TTXH', 'created_at' => $now],
-                ['id' => 3, 'full_name' => 'Trần Thu Hà', 'email' => 'tenant2@gmail.com', 'phone' => '0909 123 456', 'password' => $tenantPassword, 'role' => 0, 'room_id' => null, 'avatar' => 'default.png', 'date_of_birth' => null, 'permanent_address' => null, 'identity_number' => null, 'identity_issue_date' => null, 'identity_issue_place' => null, 'created_at' => $now],
+                ['id' => 2, 'full_name' => 'Nguyễn Minh An', 'email' => 'tenant1@gmail.com', 'phone' => '0908 888 999', 'password' => $tenantPassword, 'role' => 0, 'room_id' => 2, 'avatar' => 'default.png', 'created_at' => $now],
+                ['id' => 3, 'full_name' => 'Trần Thu Hà', 'email' => 'tenant2@gmail.com', 'phone' => '0909 123 456', 'password' => $tenantPassword, 'role' => 0, 'room_id' => null, 'avatar' => 'default.png', 'created_at' => $now],
             ],
             'roommate_requests' => [],
             'rental_requests' => [],
-            'contracts' => [
-                [
-                    'id' => 1,
-                    'user_id' => 2,
-                    'room_id' => 2,
-                    'move_in_date' => date('Y-m-d', strtotime('-45 days')),
-                    'move_out_date' => null,
-                    'rent_price' => 1800000,
-                    'deposit_amount' => 2000000,
-                    'initial_electricity_index' => 126.5,
-                    'initial_water_index' => 18,
-                    'status' => 'active',
-                    'contract_date' => date('Y-m-d', strtotime('-46 days')),
-                    'created_at' => date('Y-m-d H:i:s', strtotime('-46 days')),
-                ],
-            ],
             'maintenance_requests' => [],
             'services' => [
-                ['id' => 1, 'name' => 'Tiền điện', 'description' => 'Tính theo chỉ số công tơ.', 'price' => 3500, 'unit' => 'kwh', 'icon' => 'bolt', 'is_required' => 1, 'billing_mode' => 'meter', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 2, 'name' => 'Tiền nước', 'description' => 'Mặc định tính theo đầu người, có thể đổi sang chỉ số nếu cần.', 'price' => 50000, 'unit' => 'người', 'icon' => 'water_drop', 'is_required' => 1, 'billing_mode' => 'per_person', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 3, 'name' => 'Tiền rác', 'description' => 'Phí thu gom rác tính theo đầu người.', 'price' => 20000, 'unit' => 'người', 'icon' => 'delete', 'is_required' => 1, 'billing_mode' => 'per_person', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 4, 'name' => 'Wifi', 'description' => 'Internet tốc độ cao cho từng phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'wifi', 'is_required' => 0, 'billing_mode' => 'fixed', 'applies_to' => 'room', 'is_active' => 1],
-                ['id' => 5, 'name' => 'Giữ xe máy', 'description' => 'Miễn phí, dùng để quản lý số lượng xe của từng người.', 'price' => 0, 'unit' => 'xe', 'icon' => 'two_wheeler', 'is_required' => 0, 'billing_mode' => 'per_unit', 'applies_to' => 'person', 'is_active' => 1],
-                ['id' => 6, 'name' => 'Sạc xe điện', 'description' => 'Thu phí theo số lượng xe điện đăng ký.', 'price' => 100000, 'unit' => 'xe', 'icon' => 'electric_bike', 'is_required' => 0, 'billing_mode' => 'per_unit', 'applies_to' => 'person', 'is_active' => 1],
-                ['id' => 7, 'name' => 'Máy giặt', 'description' => 'Dịch vụ máy giặt dùng chung, có thể gán theo phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'local_laundry_service', 'is_required' => 0, 'billing_mode' => 'fixed', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 1, 'name' => 'Tiền điện', 'description' => 'Tính theo chỉ số công tơ điện hàng tháng của phòng.', 'price' => 3500, 'unit' => 'kWh', 'icon' => 'bolt', 'is_required' => 1, 'billing_mode' => 'meter', 'kind' => 'electricity', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 2, 'name' => 'Tiền nước', 'description' => 'Tính theo chỉ số đồng hồ nước (mét khối) hàng tháng của phòng.', 'price' => 30000, 'unit' => 'm3', 'icon' => 'water_drop', 'is_required' => 1, 'billing_mode' => 'meter', 'kind' => 'water', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 3, 'name' => 'Tiền rác', 'description' => 'Phí thu gom rác sinh hoạt tính theo mỗi cá nhân.', 'price' => 20000, 'unit' => 'người/tháng', 'icon' => 'delete', 'is_required' => 1, 'billing_mode' => 'per_person', 'kind' => 'trash', 'applies_to' => 'room', 'is_active' => 1],
+                ['id' => 4, 'name' => 'Wifi', 'description' => 'Internet tốc độ cao cho từng phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'wifi', 'is_required' => 0, 'billing_mode' => 'per_person', 'kind' => 'other', 'applies_to' => 'person', 'is_active' => 1],
+                ['id' => 5, 'name' => 'Giữ xe máy', 'description' => 'Thu phí theo số lượng xe gửi.', 'price' => 100000, 'unit' => 'xe', 'icon' => 'two_wheeler', 'is_required' => 0, 'billing_mode' => 'per_unit', 'kind' => 'other', 'applies_to' => 'person', 'is_active' => 1],
+                ['id' => 6, 'name' => 'Sạc xe điện', 'description' => 'Thu phí theo số lượng xe điện đăng ký.', 'price' => 100000, 'unit' => 'xe', 'icon' => 'electric_bike', 'is_required' => 0, 'billing_mode' => 'per_unit', 'kind' => 'other', 'applies_to' => 'person', 'is_active' => 1],
+                ['id' => 7, 'name' => 'Máy giặt', 'description' => 'Dịch vụ máy giặt dùng chung, có thể gán theo phòng.', 'price' => 50000, 'unit' => 'tháng', 'icon' => 'local_laundry_service', 'is_required' => 0, 'billing_mode' => 'per_unit', 'kind' => 'other', 'applies_to' => 'room', 'is_active' => 1],
             ],
             'room_services' => [
                 ['id' => 1, 'room_id' => 2, 'service_id' => 4, 'quantity' => 1, 'registered_at' => $now, 'created_at' => $now],
                 ['id' => 2, 'room_id' => 2, 'service_id' => 7, 'quantity' => 1, 'registered_at' => $now, 'created_at' => $now],
             ],
+            'user_services' => [
+                ['id' => 1, 'user_id' => 2, 'service_id' => 5, 'quantity' => 1, 'registered_at' => $now, 'created_at' => $now],
+            ],
             'meter_readings' => [
                 ['id' => 1, 'room_id' => 2, 'service_id' => 1, 'month' => 6, 'year' => (int)date('Y'), 'old_index' => 126.5, 'new_index' => 143.5, 'created_at' => date('Y-m-d H:i:s', strtotime('-55 days'))],
                 ['id' => 2, 'room_id' => 2, 'service_id' => 1, 'month' => 7, 'year' => (int)date('Y'), 'old_index' => 143.5, 'new_index' => 162.0, 'created_at' => date('Y-m-d H:i:s', strtotime('-25 days'))],
                 ['id' => 3, 'room_id' => 2, 'service_id' => 1, 'month' => 8, 'year' => (int)date('Y'), 'old_index' => 162.0, 'new_index' => 178.0, 'created_at' => date('Y-m-d H:i:s', strtotime('-2 days'))],
-            ],
-            'user_services' => [
-                ['id' => 1, 'user_id' => 2, 'service_id' => 5, 'quantity' => 1, 'registered_at' => $now, 'created_at' => $now],
             ],
             'price_changes' => [
                 [
@@ -411,18 +416,10 @@ class Database
                 ['id' => 3, 'title' => 'Khu giặt chung', 'description' => 'Máy giặt hoạt động ổn định.', 'icon' => 'local_laundry_service', 'is_active' => 1, 'sort_order' => 3],
                 ['id' => 4, 'title' => 'Khu bếp cơ bản', 'description' => 'Thuận tiện sinh hoạt hằng ngày.', 'icon' => 'kitchen', 'is_active' => 1, 'sort_order' => 4],
             ],
-            'banned_words' => [
-                ['id' => 1, 'word' => 'dm', 'type' => 'abbreviation', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 2, 'word' => 'vcl', 'type' => 'abbreviation', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 3, 'word' => 'ngu nhu bo', 'type' => 'phrase', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 4, 'word' => 'mat day', 'type' => 'phrase', 'replacement' => '***', 'is_active' => 1, 'created_at' => $now],
-                ['id' => 5, 'word' => 'cut', 'type' => 'word', 'replacement' => '***', 'is_active' => 0, 'created_at' => $now],
-            ],
             'comments' => [
-                ['id' => 1, 'room_id' => 1, 'user_id' => 2, 'content' => 'Phòng sáng, sạch và ở khá yên tĩnh.', 'rating' => 5, 'toxicity_score' => 0.02, 'is_spam' => 0, 'flagged_words' => '[]', 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-6 days'))],
-                ['id' => 2, 'room_id' => 3, 'user_id' => 2, 'content' => 'Khu trọ gọn gàng, bảo vệ hỗ trợ nhanh.', 'rating' => 4, 'toxicity_score' => 0.05, 'is_spam' => 0, 'flagged_words' => '[]', 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-3 days'))],
+                ['id' => 1, 'room_id' => 1, 'user_id' => 2, 'content' => 'Phòng sáng, sạch và ở khá yên tĩnh.', 'rating' => 5, 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-6 days'))],
+                ['id' => 2, 'room_id' => 3, 'user_id' => 2, 'content' => 'Khu trọ gọn gàng, bảo vệ hỗ trợ nhanh.', 'rating' => 4, 'status' => 1, 'edited_at' => null, 'created_at' => date('Y-m-d H:i:s', strtotime('-3 days'))],
             ],
-            'comment_moderation' => [],
             'comment_reports' => [
                 ['id' => 1, 'comment_id' => 1, 'user_id' => 3, 'reason' => 'Nội dung này hơi công kích và thiếu tôn trọng.', 'status' => 'pending', 'created_at' => date('Y-m-d H:i:s', strtotime('-1 day'))],
             ],
@@ -487,12 +484,6 @@ class Database
         if (in_array($key, [
             'min_days_to_review',
             'comment_edit_hours',
-            'max_comment_attempts',
-            'comment_lock_hours',
-            'enable_gemini_moderation',
-            'gemini_api_key',
-            'toxicity_threshold',
-            'enable_comment_moderation',
         ], true)) {
             return 'moderation';
         }

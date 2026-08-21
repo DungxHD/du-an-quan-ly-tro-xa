@@ -437,6 +437,34 @@ document.addEventListener('DOMContentLoaded', () => {
         shell.scrollTo({ top: Math.max(0, top - shell.clientHeight / 3), behavior: 'smooth' });
     };
 
+    // Cập nhật trạng thái data-active cho chip/row của cùng một tiện ích (cả 2 panel)
+    // để syncAmenityChips() render đúng trạng thái mà không cần reload trang.
+    const setAmenityActive = (id, active) => {
+        root.querySelectorAll('.cms-amenity-chip[data-id="' + id + '"], .cms-amenity-row[data-id="' + id + '"]')
+            .forEach((el) => { el.dataset.active = active ? '1' : '0'; });
+    };
+
+    // Đồng bộ thứ tự hiển thị giữa panel chip (bản xem trước) và bảng quản lý tiện ích
+    // sau khi kéo thả, để cả 2 nơi hiển thị đúng thứ tự mới mà không cần reload trang.
+    const syncAmenityOrder = (orderedIds) => {
+        const applyOrder = (listEl) => {
+            if (!listEl) { return; }
+            const items = Array.from(listEl.querySelectorAll('.cms-amenity-chip, .cms-amenity-row'));
+            const itemsById = {};
+            items.forEach((n) => { itemsById[String(n.dataset.id)] = n; });
+            orderedIds.forEach((id, index) => {
+                const el = itemsById[String(id)];
+                if (!el) { return; }
+                el.dataset.order = String(index);
+                const anchor = listEl.children[index];
+                if (anchor && anchor !== el) { listEl.insertBefore(el, anchor); }
+                else if (!anchor) { listEl.appendChild(el); }
+            });
+        };
+        applyOrder(document.getElementById('cmsChipList'));
+        applyOrder(document.getElementById('cmsAmenityList'));
+    };
+
     // Lưu thứ tự tiện ích sau khi kéo thả (activate_id dùng khi kéo tiện ích đang ẩn vào bản xem trước).
     // Không reload trang - chỉ reload lại bản xem trước để áp dụng thứ tự mới.
     const saveAmenityOrder = (orderedIds, activateId, thenReload) => {
@@ -446,6 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activateId) { body.set('activate_id', String(activateId)); }
         fetch(root.dataset.saveOrderUrl, { method: 'POST', body })
             .then(() => {
+                if (activateId) { setAmenityActive(activateId, true); }
+                syncAmenityOrder(orderedIds);
                 syncAmenityChips();
                 loadPreview();
             })
@@ -477,6 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body.set('is_active', active ? '1' : '0');
         fetch(root.dataset.saveAmenityUrl, { method: 'POST', body })
             .then(() => {
+                setAmenityActive(chip.dataset.id, active);
                 syncAmenityChips();
                 loadPreview();
             })

@@ -1,4 +1,9 @@
 <?php
+/**
+ * Mailer - Gửi email.
+ * - OTP quên mật khẩu: dùng Resend API (theo yêu cầu).
+ * - Các email khác: dùng SMTP (nếu được cấu hình).
+ */
 class Mailer {
     private static ?array $config = null;
 
@@ -20,7 +25,17 @@ class Mailer {
         return self::$config;
     }
 
+    /**
+     * Kiểm tra xem có cấu hình email nào không (Resend cho OTP, SMTP cho các email khác).
+     */
     public static function isConfigured() {
+        // Resend API key cho OTP
+        $resendKey = trim((string)SettingModel::get('resend_api_key', ''));
+        if ($resendKey !== '') {
+            return true;
+        }
+
+        // Fallback: SMTP cho các email khác
         $config = self::loadConfig();
 
         if (empty($config['host']) || $config['host'] === 'smtp.example.com') {
@@ -40,17 +55,51 @@ class Mailer {
     }
 
     /**
-     * Gửi email qua SMTP.
-     * Trả về true nếu thành công, false nếu thất bại.
-     * Không throw exception, chỉ log l��i và trả về false.
+     * Gửi email - tự chọn cách gửi phù hợp.
+     * - Nếu có Resend API key: dùng Resend (ưu tiên cho OTP).
+     * - Nếu không có Resend: dùng SMTP (nếu được cấu hình).
      */
     public static function send($toEmail, $subject, $htmlBody, $textBody = '') {
-        if (!self::isConfigured()) {
+        // Thử Resend trước (nếu có API key)
+        $resendKey = trim((string)SettingModel::get('resend_api_key', ''));
+        if ($resendKey !== '') {
+            return self::sendViaResend($toEmail, $subject, $htmlBody);
+        }
+
+        // Fallback sang SMTP
+        return self::sendViaSmtp($toEmail, $subject, $htmlBody, $textBody);
+    }
+
+    /**
+     * Gửi email qua Resend API.
+     */
+    private static function sendViaResend($toEmail, $subject, $htmlBody) {
+        return ResendEmailSender::send($toEmail, $subject, $htmlBody);
+    }
+
+    /**
+     * Gửi email qua SMTP (PHP mail()).
+     * Giữ lại để tương thích ngược cho các email khác (nếu cần).
+     */
+    private static function sendViaSmtp($toEmail, $subject, $htmlBody, $textBody = '') {
+        $config = self::loadConfig();
+
+        if (empty($config['host']) || $config['host'] === 'smtp.example.com') {
             error_log('[Mailer] SMTP not configured');
             return false;
         }
-
-        $config = self::loadConfig();
+        if (empty($config['username']) || $config['username'] === 'your_email@example.com') {
+            error_log('[Mailer] SMTP username not configured');
+            return false;
+        }
+        if (empty($config['password']) || $config['password'] === 'your_smtp_password') {
+            error_log('[Mailer] SMTP password not configured');
+            return false;
+        }
+        if (empty($config['from_email'])) {
+            error_log('[Mailer] SMTP from_email not configured');
+            return false;
+        }
 
         try {
             $headers = [];
@@ -77,9 +126,15 @@ class Mailer {
     }
 
     /**
-     * Gửi email OTP đặt lại mật khẩu.
+     * Gửi email OTP đặt lại mật khẩu - LUÔN dùng Resend API.
      */
     public static function sendOtpEmail($toEmail, $otp, $userName) {
+        $resendKey = trim((string)SettingModel::get('resend_api_key', ''));
+        if ($resendKey === '') {
+            error_log('[Mailer] Resend API key not configured - cannot send OTP');
+            return false;
+        }
+
         $subject = 'Mã OTP đặt lại mật khẩu - ' . RoomModel::getSetting('site_name', 'NhaTroA');
         $ttlMinutes = (int)RoomModel::getSetting('otp_ttl_minutes', 2);
 
@@ -120,6 +175,6 @@ class Mailer {
         </body>
         </html>';
 
-        return self::send($toEmail, $subject, $htmlBody);
+        return self::sendViaResend($toEmail, $subject, $htmlBody);
     }
 }

@@ -3,7 +3,7 @@ $siteName = RoomModel::getSetting('site_name', 'NhaTroA');
 $panelTheme = 'admin';
 $panelActive = 'comments';
 $panelTitle = $siteName . ' Admin';
-$panelSubtitle = 'Quản lý đánh giá công khai, đánh giá spam và trạng thái ẩn/hiện';
+$panelSubtitle = 'Quản lý đánh giá công khai và trạng thái ẩn/hiện';
 $panelTopLink = ['label' => 'Xem website', 'url' => BASE_URL . '?page=home'];
 require BASE_PATH . 'views/layouts/panel_header.php';
 ?>
@@ -12,10 +12,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <div>
             <h2 class="text-3xl font-bold">Đánh giá phòng</h2>
             <p class="text-gray-500 mt-2">
-                Admin xem toàn bộ đánh giá, kể cả comment bị đánh dấu spam hoặc đang bị ẩn, sau đó quyết định ẩn hoặc hiện lại.
+                Admin xem toàn bộ đánh giá, kể cả đánh giá đang bị ẩn, sau đó quyết định ẩn hoặc hiện lại.
             </p>
         </div>
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-3 gap-3">
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
                 <p class="text-xs text-gray-500">Tổng đánh giá</p>
                 <p class="text-xl font-bold"><?= (int)($commentStats['total'] ?? 0) ?></p>
@@ -27,14 +27,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
                 <p class="text-xs text-gray-500">Đang ẩn</p>
                 <p class="text-xl font-bold text-rose-600"><?= (int)($commentStats['hidden'] ?? 0) ?></p>
-            </div>
-            <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
-                <p class="text-xs text-gray-500">Spam</p>
-                <p class="text-xl font-bold text-amber-600"><?= (int)($commentStats['spam'] ?? 0) ?></p>
-            </div>
-            <div class="px-4 py-3 rounded-2xl bg-white border border-gray-200">
-                <p class="text-xs text-gray-500">Sạch</p>
-                <p class="text-xl font-bold text-primary"><?= (int)($commentStats['clean'] ?? 0) ?></p>
             </div>
         </div>
     </div>
@@ -53,7 +45,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </div>
     <?php endif; ?>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
         <form method="GET" action="<?= BASE_URL ?>" class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input type="hidden" name="page" value="admin-comments">
 
@@ -63,15 +55,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                     <option value="">Tất cả</option>
                     <option value="visible" <?= ($commentFilters['status'] ?? '') === 'visible' ? 'selected' : '' ?>>Đang hiện</option>
                     <option value="hidden" <?= ($commentFilters['status'] ?? '') === 'hidden' ? 'selected' : '' ?>>Đang ẩn</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-semibold mb-2">Loại nội dung</label>
-                <select name="spam" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none">
-                    <option value="">Tất cả</option>
-                    <option value="clean" <?= ($commentFilters['spam'] ?? '') === 'clean' ? 'selected' : '' ?>>Chưa spam</option>
-                    <option value="spam" <?= ($commentFilters['spam'] ?? '') === 'spam' ? 'selected' : '' ?>>Spam</option>
                 </select>
             </div>
 
@@ -97,10 +80,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </form>
     </section>
 
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="font-bold text-lg">Danh sách đánh giá</h3>
-            <p class="text-sm text-gray-500 mt-1">Thứ tự đang bám đúng đặc tả: sao cao trước, rồi đến spam, độ độc hại và thời gian tạo.</p>
+            <p class="text-sm text-gray-500 mt-1">Thứ tự: sao cao trước, cùng số sao thì đánh giá mới nhất trước.</p>
         </div>
 
         <?php if (empty($comments)): ?>
@@ -122,13 +105,10 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 <?= (int)($comment['status'] ?? 0) === 1 ? 'Đang hiện' : 'Đang ẩn' ?>
                             </span>
                             <?php if ((int)($comment['status'] ?? 0) === 0): ?>
-                            <span class="px-3 py-1 rounded-full text-xs font-semibold <?= !empty($comment['is_hidden_by_ai']) ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700' ?>">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
                                 <?= e($comment['hidden_reason_label'] ?? 'Đang ẩn') ?>
                             </span>
                             <?php endif; ?>
-                            <span class="px-3 py-1 rounded-full text-xs font-semibold <?= (int)($comment['is_spam'] ?? 0) === 1 ? 'bg-amber-100 text-amber-700' : 'bg-cyan-100 text-cyan-700' ?>">
-                                <?= (int)($comment['is_spam'] ?? 0) === 1 ? 'Spam' : 'Chưa spam' ?>
-                            </span>
                             <?php if (!empty($comment['is_edited'])): ?>
                             <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
                                 Đã sửa <?= e($comment['edited_at_label'] ?? '') ?>
@@ -140,9 +120,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <?php for ($i = 1; $i <= 5; $i++): ?>
                             <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' <?= $i <= (int)($comment['rating'] ?? 0) ? 1 : 0 ?>;">star</span>
                             <?php endfor; ?>
-                            <span class="ml-3 text-xs text-gray-500">
-                                Toxicity: <?= number_format((float)($comment['toxicity_score'] ?? 0), 2) ?>
-                            </span>
                         </div>
 
                         <p class="mt-4 text-gray-700 leading-relaxed">
@@ -150,16 +127,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 ? nl2br(e($comment['content']))
                                 : 'Người dùng chỉ chấm sao cho phòng này.' ?>
                         </p>
-
-                        <?php if (!empty($comment['flagged_words_list'])): ?>
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            <?php foreach ($comment['flagged_words_list'] as $flaggedWord): ?>
-                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                <?= e($flaggedWord) ?>
-                            </span>
-                            <?php endforeach; ?>
-                        </div>
-                        <?php endif; ?>
 
                         <p class="mt-4 text-xs text-gray-400">
                             Tạo lúc <?= e($comment['created_at_label'] ?? '') ?>
@@ -172,7 +139,6 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                             <input type="hidden" name="comment_id" value="<?= (int)($comment['id'] ?? 0) ?>">
                             <input type="hidden" name="target_status" value="<?= (int)($comment['status'] ?? 0) === 1 ? 0 : 1 ?>">
                             <input type="hidden" name="return_status" value="<?= e($commentFilters['status'] ?? '') ?>">
-                            <input type="hidden" name="return_spam" value="<?= e($commentFilters['spam'] ?? '') ?>">
                             <input type="hidden" name="return_keyword" value="<?= e($commentFilters['keyword'] ?? '') ?>">
                             <button type="submit" class="px-4 py-3 rounded-xl font-semibold transition <?= (int)($comment['status'] ?? 0) === 1 ? 'bg-rose-500 text-white hover:bg-rose-600' : 'bg-green-500 text-white hover:bg-green-600' ?>">
                                 <?= (int)($comment['status'] ?? 0) === 1 ? 'Ẩn đánh giá' : 'Hiện đánh giá' ?>

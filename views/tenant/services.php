@@ -53,7 +53,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <?php endif; ?>
 
     <!-- SECTION 1: Dịch vụ phòng (bắt buộc + gán phòng) -->
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
             <h3 class="text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary">meeting_room</span>
@@ -71,7 +71,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php else: ?>
             <div class="space-y-4">
                 <?php foreach ($roomServices as $service): ?>
-                <div class="bg-primary/5 border border-primary/10 rounded-2xl p-5">
+                <div class="bg-primary/5 border border-primary/10 rounded-3xl p-5">
                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                         <div class="flex items-start gap-4">
                             <div class="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
@@ -93,15 +93,13 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 <div class="mt-3 flex flex-wrap gap-2">
                                     <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">Số lượng: <?= (int)($service['quantity'] ?? 1) ?></span>
                                     <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">/<?= e($service['unit'] ?? 'đơn vị') ?></span>
-                                    <?php if (($service['billing_mode'] ?? '') === 'meter'): ?>
-                                    <span class="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">Theo chỉ số</span>
-                                    <?php elseif (($service['billing_mode'] ?? '') === 'per_person'): ?>
-                                    <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Theo người</span>
-                                    <?php elseif (($service['billing_mode'] ?? '') === 'per_unit'): ?>
-                                    <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">Theo số lượng</span>
-                                    <?php else: ?>
-                                    <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">Cố định</span>
-                                    <?php endif; ?>
+<?php if (($service['billing_mode'] ?? '') === 'meter'): ?>
+<span class="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">Theo chỉ số</span>
+<?php elseif (($service['billing_mode'] ?? '') === 'per_person'): ?>
+<span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Theo người</span>
+<?php elseif (($service['billing_mode'] ?? '') === 'per_unit'): ?>
+<span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">Theo số lượng</span>
+<?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -130,7 +128,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     </section>
 
     <!-- SECTION 2: Dịch vụ có thể đăng ký thêm -->
-    <section class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100">
             <h3 class="text-xl font-bold flex items-center gap-2">
                 <span class="material-symbols-outlined text-secondary">add_circle</span>
@@ -147,7 +145,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             <?php else: ?>
             <div class="space-y-4">
                 <?php foreach ($availableServices as $service): ?>
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                <div class="bg-white border border-gray-200 rounded-3xl p-5 shadow-sm">
                     <div class="flex items-start gap-4">
                         <div class="w-12 h-12 bg-secondary/10 text-secondary rounded-xl flex items-center justify-center">
                             <span class="material-symbols-outlined text-2xl"><?= e($service['icon'] ?? 'settings') ?></span>

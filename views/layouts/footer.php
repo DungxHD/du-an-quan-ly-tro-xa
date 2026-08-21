@@ -1,6 +1,6 @@
 </main>
 
-<footer class="bg-gray-900 text-gray-300 mt-20">
+<footer class="nta-public-footer mt-20 border-t">
     <?php
     $layout = $layout ?? [];
     $siteName = $layout['siteName'] ?? 'NhaTroA';
@@ -13,38 +13,45 @@
     $contactPhone = $layout['contact']['phone'] ?? fallbackText('');
     $contactEmail = $layout['contact']['email'] ?? fallbackText('');
     ?>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-                <h3 class="text-white text-xl font-bold mb-4" data-cms="site_name"><?= e($siteName) ?></h3>
-                <p class="text-sm" data-cms="site_description"><?= e($metaDescription) ?></p>
+    <div class="public-footer-inner w-[min(100%-28px,1240px)] mx-auto py-14">
+        <div class="grid grid-cols-1 md:grid-cols-[1.35fr_1fr_1fr] gap-10 stagger-children reveal-slide-up">
+            <div class="public-footer-brand">
+                <a href="<?= $homeUrl ?>" class="inline-flex items-center gap-3 text-white no-underline" data-cms="site_name">
+                    <span class="public-brand-mark"><span class="material-symbols-outlined" aria-hidden="true">home</span></span>
+                    <span class="text-xl font-bold"><?= e($siteName) ?></span>
+                </a>
+                <p class="mt-5 max-w-md text-sm leading-7" data-cms="site_description"><?= e($metaDescription) ?></p>
+                <p class="mt-6 text-xs uppercase tracking-[.16em] text-white/45">Sống rõ ràng · ở dễ chịu</p>
             </div>
             <div>
                 <h4 class="text-white font-semibold mb-4">Liên hệ</h4>
-                <p class="text-sm flex items-center gap-2 mb-2">
-                    <span class="material-symbols-outlined text-sm">location_on</span>
-                    <span data-cms="contact_address"><?= e($contactAddress) ?></span>
-                </p>
-                <p class="text-sm flex items-center gap-2 mb-2">
-                    <span class="material-symbols-outlined text-sm">call</span>
-                    <span data-cms="contact_phone"><?= e($contactPhone) ?></span>
-                </p>
-                <p class="text-sm flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm">mail</span>
-                    <span data-cms="contact_email"><?= e($contactEmail) ?></span>
-                </p>
+                <div class="space-y-3 text-sm">
+                    <p class="public-footer-contact flex items-start gap-3">
+                        <span class="material-symbols-outlined text-base text-white/65" aria-hidden="true">location_on</span>
+                        <span data-cms="contact_address"><?= e($contactAddress) ?></span>
+                    </p>
+                    <p class="public-footer-contact flex items-start gap-3">
+                        <span class="material-symbols-outlined text-base text-white/65" aria-hidden="true">call</span>
+                        <span data-cms="contact_phone"><?= e($contactPhone) ?></span>
+                    </p>
+                    <p class="public-footer-contact flex items-start gap-3">
+                        <span class="material-symbols-outlined text-base text-white/65" aria-hidden="true">mail</span>
+                        <span data-cms="contact_email"><?= e($contactEmail) ?></span>
+                    </p>
+                </div>
             </div>
             <div>
-                <h4 class="text-white font-semibold mb-4">Liên kết</h4>
-                <ul class="space-y-2 text-sm">
-                    <li><a href="<?= $homeUrl ?>" class="hover:text-white">Trang chủ</a></li>
-                    <li><a href="<?= $roomsUrl ?>" class="hover:text-white">Phòng trọ</a></li>
-                    <li><a href="<?= $introUrl ?>" class="hover:text-white">Giới thiệu</a></li>
+                <h4 class="text-white font-semibold mb-4">Khám phá</h4>
+                <ul class="space-y-3 text-sm">
+                    <li><a href="<?= $homeUrl ?>">Trang chủ</a></li>
+                    <li><a href="<?= $roomsUrl ?>">Phòng trọ</a></li>
+                    <li><a href="<?= $introUrl ?>">Giới thiệu</a></li>
                 </ul>
             </div>
         </div>
-        <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            &copy; <?= date('Y') ?> <span data-cms="site_name"><?= e($siteName) ?></span>. All rights reserved.
+        <div class="public-footer-bottom border-t mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <span>&copy; <?= date('Y') ?> <span data-cms="site_name"><?= e($siteName) ?></span>. All rights reserved.</span>
+            <span class="text-white/45">Thông tin rõ ràng trước khi bạn đến xem phòng.</span>
         </div>
     </div>
 </footer>

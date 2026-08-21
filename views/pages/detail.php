@@ -4,6 +4,9 @@ $galleryImages = $room['gallery_images'] ?? [];
 $primaryImage = $galleryImages[0] ?? ($room['thumbnail'] ?? '');
 $fallbackImage = RoomModel::getDefaultRoomImageUrl();
 $services = $room['services'] ?? [];
+$commentMessage = $commentMessage ?? '';
+$commentError = $commentError ?? '';
+$commentWarning = $commentWarning ?? '';
 $commentBundle = $commentBundle ?? ['public_comments' => [], 'owner_comment' => null, 'public_count' => 0];
 $publicComments = $commentBundle['public_comments'] ?? [];
 $ownerComment = $commentBundle['owner_comment'] ?? null;
@@ -20,7 +23,7 @@ $contactPhone = RoomModel::getSetting('contact_phone', '');
 $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 ?>
 
-<section class="py-12 bg-surface min-h-screen">
+<section class="room-detail-page py-12 bg-surface min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <a href="<?= BASE_URL ?>?page=rooms" class="inline-flex items-center gap-2 text-primary hover:gap-3 transition-all mb-6 reveal">
             <span class="material-symbols-outlined">arrow_back</span> Quay lại danh sách phòng
@@ -28,8 +31,8 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
             <!-- Gallery -->
-            <div class="lg:col-span-3 reveal-left">
-                <div class="aspect-video rounded-2xl overflow-hidden mb-4 shadow-xl">
+            <div class="room-gallery lg:col-span-3 reveal-left">
+                <div class="room-gallery-main aspect-video rounded-3xl overflow-hidden mb-4 shadow-card">
                     <img src="<?= e($primaryImage) ?>" alt="<?= e($room['name']) ?>" class="w-full h-full object-cover" onerror="if(this.dataset.fallbackApplied==='1'){return;}this.dataset.fallbackApplied='1';this.src='<?= e($fallbackImage) ?>';">
                 </div>
                 <?php $subImages = array_slice($galleryImages, 1); ?>
@@ -45,8 +48,8 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
             </div>
 
             <!-- Info -->
-            <div class="lg:col-span-2 reveal-right">
-                <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 sticky top-20">
+            <div class="room-summary-column lg:col-span-2 reveal-right">
+                <div class="room-summary-card bg-white p-8 rounded-3xl shadow-card border border-gray-100 sticky top-20">
                     <span class="inline-block px-3 py-1 <?= e(($room['status'] ?? '') === 'available' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700') ?> text-xs font-semibold rounded-full mb-3">
                         <?= e($room['availabilityLabel'] ?? 'Đang mở cho thuê') ?>
                     </span>
@@ -106,7 +109,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
         </div>
 
         <!-- Description -->
-        <div class="mt-12 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 reveal">
+        <div class="mt-12 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 reveal">
             <h2 class="text-2xl font-bold mb-4">Mô tả chi tiết</h2>
             <p class="text-gray-600 leading-relaxed"><?= nl2br(e($room['description'])) ?></p>
         </div>
@@ -167,7 +170,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
             }
         }
         ?>
-        <div class="mt-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 reveal">
+        <div class="mt-8 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 reveal">
             <h2 class="text-2xl font-bold mb-6">Tiện ích của phòng</h2>
             <?php if (empty($merged)): ?>
                 <p class="text-gray-500">Phòng chưa có tiện ích nào được cập nhật.</p>
@@ -184,7 +187,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
         </div>
 
         <!-- Comments -->
-        <div class="mt-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 reveal">
+        <div class="mt-8 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 reveal">
             <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <h2 class="text-2xl font-bold">Đánh giá</h2>
                 <span class="rounded-full bg-surface px-4 py-2 text-sm font-semibold text-gray-700">
@@ -199,6 +202,13 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                 </div>
             <?php endif; ?>
 
+            <?php if (!empty($commentWarning)): ?>
+                <div class="mb-5 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-2xl flex items-center gap-2">
+                    <span class="material-symbols-outlined">warning</span>
+                    <?= e($commentWarning) ?>
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($commentError)): ?>
                 <div class="mb-5 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center gap-2">
                     <span class="material-symbols-outlined">error</span>
@@ -208,16 +218,16 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 <section class="xl:col-span-1">
-                    <div class="rounded-2xl border border-gray-100 bg-surface p-5 sticky top-20 space-y-4">
+                    <div class="rounded-3xl border border-gray-100 bg-surface p-5 sticky top-20 space-y-4 shadow-sm hover:shadow-card transition-all">
                         <div>
                             <h3 class="text-lg font-bold"><?= $ownerComment ? 'Đánh giá của bạn' : 'Viết đánh giá' ?></h3>
                             <p class="text-sm text-gray-500 mt-1">
-                                Tenant đang ở hoặc vừa chuyển đi trong 15 ngày có thể chấm sao và chia sẻ trải nghiệm.
+                                Tenant ở đủ 15 ngày có thể chấm sao và chia sẻ trải nghiệm. Mỗi người chỉ đánh giá một lần, được sửa trong 24h.
                             </p>
                         </div>
 
                         <?php if ($ownerComment): ?>
-                            <article class="rounded-2xl border border-primary/15 bg-white p-5">
+                            <article class="rounded-3xl border border-primary/15 bg-white p-5 shadow-sm hover:shadow-card transition-all">
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <p class="font-semibold text-gray-900"><?= e($ownerComment['full_name'] ?? 'Bạn') ?></p>
@@ -252,26 +262,28 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                                         : 'Bạn đã chọn chỉ chấm sao cho phòng này.' ?>
                                 </p>
 
-                                <?php if (!empty($ownerComment['can_edit'])): ?>
-                                    <div class="mt-5 flex flex-wrap gap-3">
+                                <div class="mt-5 flex flex-wrap items-center gap-3">
+                                    <?php if (!empty($ownerComment['can_edit'])): ?>
                                         <a href="<?= BASE_URL ?>?page=tenant-edit-comment&id=<?= (int)($ownerComment['id'] ?? 0) ?>" class="px-4 py-2 rounded-xl border border-primary text-primary font-semibold hover:bg-primary/5 transition">
                                             Sửa
                                         </a>
-                                        <form method="POST" action="<?= BASE_URL ?>?page=tenant-delete-comment" onsubmit="return confirm('Bạn chắc chắn muốn xóa đánh giá này?');">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="comment_id" value="<?= (int)($ownerComment['id'] ?? 0) ?>">
-                                            <input type="hidden" name="room_id" value="<?= (int)($ownerComment['room_id'] ?? 0) ?>">
-                                            <button type="submit" class="px-4 py-2 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition">
-                                                Xóa
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <?php endif; ?>
+                                    <form method="POST" action="<?= BASE_URL ?>?page=tenant-delete-comment" onsubmit="return confirm('Bạn chắc chắn muốn xóa đánh giá này? Sau khi xóa không thể khôi phục.');">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="comment_id" value="<?= (int)($ownerComment['id'] ?? 0) ?>">
+                                        <input type="hidden" name="room_id" value="<?= (int)($ownerComment['room_id'] ?? 0) ?>">
+                                        <button type="submit" class="px-4 py-2 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition">
+                                            Xóa
+                                        </button>
+                                    </form>
+                                </div>
+                                <?php if (!empty($ownerComment['can_edit'])): ?>
                                     <p class="mt-3 text-xs text-gray-500">
-                                        Bạn còn quyền sửa/xóa đến <?= e($ownerComment['edit_deadline'] ?? '') ?>.
+                                        Bạn còn quyền sửa đến <?= e($ownerComment['edit_deadline'] ?? '') ?>. Sau thời gian này chỉ có thể xóa đánh giá.
                                     </p>
                                 <?php else: ?>
-                                    <p class="mt-4 text-sm text-amber-700 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                                        Đã quá thời hạn 24h. Vui lòng liên hệ admin để sửa hoặc xóa đánh giá này.
+                                    <p class="mt-3 text-xs text-gray-500">
+                                        Đã quá 24h kể từ khi gửi, bạn không thể sửa nữa nhưng vẫn có thể xóa đánh giá.
                                     </p>
                                 <?php endif; ?>
                             </article>
@@ -279,7 +291,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                             <form method="POST" action="<?= BASE_URL ?>?page=tenant-add-comment" class="space-y-4">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="room_id" value="<?= (int)($room['id'] ?? 0) ?>">
-                                <input type="hidden" name="rating" value="5" data-rating-input>
+                                <input type="hidden" name="rating" value="0" data-rating-input>
 
                                 <div>
                                     <label class="block text-sm font-semibold mb-2">Số sao</label>
@@ -290,10 +302,11 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                                                 class="rating-star text-yellow-400 transition hover:scale-110"
                                                 data-rating-value="<?= $i ?>"
                                                 aria-label="Chọn <?= $i ?> sao">
-                                                <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">star</span>
+                                                <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 0;">star</span>
                                             </button>
                                         <?php endfor; ?>
                                     </div>
+                                    <p class="mt-2 text-xs text-gray-500" data-rating-hint>Chưa chọn sao</p>
                                 </div>
 
                                 <div>
@@ -329,7 +342,7 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
                         </p>
                     <?php else: ?>
                         <?php foreach ($publicComments as $c): ?>
-                            <article class="flex gap-4 p-5 bg-surface rounded-2xl border border-gray-100">
+                            <article class="flex gap-4 p-5 bg-surface rounded-3xl border border-gray-100 shadow-sm hover:shadow-card transition-all">
                                 <?php if (!empty($c['avatar'])): ?>
                                     <img src="<?= e($c['avatar']) ?>" alt="<?= e($c['full_name']) ?>" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
                                 <?php else: ?>
@@ -394,21 +407,28 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
 </section>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('[data-rating-widget]').forEach((widget) => {
-        const input = widget.parentElement.parentElement.querySelector('[data-rating-input]');
+        const form = widget.closest('form');
+        const input = form ? form.querySelector('[data-rating-input]') : null;
+        const hint = widget.parentElement.querySelector('[data-rating-hint]');
         const buttons = Array.from(widget.querySelectorAll('[data-rating-value]'));
 
         const paint = (value) => {
+            const numValue = Number(value);
             buttons.forEach((button) => {
-                const filled = Number(button.dataset.ratingValue) <= Number(value);
+                const filled = Number(button.dataset.ratingValue) <= numValue;
                 const icon = button.querySelector('.material-symbols-outlined');
                 if (icon) {
                     icon.style.fontVariationSettings = filled ? "'FILL' 1" : "'FILL' 0";
                 }
             });
+            if (hint) {
+                hint.textContent = numValue > 0 ? 'Đang chọn ' + numValue + '/5 sao' : 'Chưa chọn sao';
+            }
         };
 
-        paint(input ? input.value : 5);
+        paint(input ? input.value : 0);
         buttons.forEach((button) => {
             button.addEventListener('click', () => {
                 if (input) {
@@ -418,14 +438,15 @@ $phoneTel = preg_replace('/\s+/', '', (string)$contactPhone);
             });
         });
     });
+});
 </script>
 
 
 <!-- [DEV-QWEN-A][NHOM-2][LIGHTBOX-V2] Click anh chinh/phu de zoom, next/prev, Esc/click ngoai de dong -->
 <div id="roomLightbox" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/90" onclick="if(event.target===this) closeRoomLightbox();">
-    <button type="button" onclick="closeRoomLightbox()" class="absolute top-4 right-4 z-[10001] w-11 h-11 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl" aria-label="Dong">&times;</button>
-    <button type="button" onclick="roomLightboxStep(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh truoc">&#10094;</button>
-    <button type="button" onclick="roomLightboxStep(1)" class="absolute right-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Anh sau">&#10095;</button>
+    <button type="button" onclick="closeRoomLightbox()" class="absolute top-4 right-4 z-[10001] w-11 h-11 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl" aria-label="Đóng ảnh">&times;</button>
+    <button type="button" onclick="roomLightboxStep(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Ảnh trước">&#10094;</button>
+    <button type="button" onclick="roomLightboxStep(1)" class="absolute right-3 top-1/2 -translate-y-1/2 z-[10001] w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 text-white text-3xl" aria-label="Ảnh sau">&#10095;</button>
     <img id="roomLightboxImg" src="" alt="Anh phong" class="max-w-[92vw] max-h-[88vh] object-contain rounded-lg" onclick="event.stopPropagation()" onerror="if(this.dataset.fallbackApplied==='1'){return;}this.dataset.fallbackApplied='1';this.src='<?= e($fallbackImage) ?>';">
     <div id="roomLightboxCounter" class="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 text-white text-sm"></div>
 </div>

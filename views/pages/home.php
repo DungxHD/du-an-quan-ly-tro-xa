@@ -14,60 +14,72 @@ $featured = $featured ?? [];
 $livingSteps = $livingSteps ?? [];
 $areaShowcase = $areaShowcase ?? [];
 $faqItems = $faqItems ?? [];
-$testimonials = $testimonials ?? [];
 $siteName = $siteName ?? ($layout['siteName'] ?? 'NhaTroA');
 $phone = $layout['contact']['phone'] ?? fallbackText('');
 $phoneTel = trim((string)($layout['contact']['phoneTel'] ?? ''));
 $roomsPageUrl = BASE_URL . '?page=rooms';
 ?>
 
-<section class="relative min-h-[700px] flex items-center justify-center overflow-hidden">
-    <div class="hero-bg absolute inset-0 bg-cover bg-center" data-cms="hero_image" style="background-image: url('<?= e($heroImage) ?>');"></div>
-    <div class="absolute inset-0 bg-gradient-to-br from-gray-950/85 via-gray-900/70 to-primary/40"></div>
-
-    <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-white">
-        <div class="max-w-4xl text-center mx-auto">
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-sm mb-6 reveal">
-                <span class="material-symbols-outlined text-base">verified</span>
+<section class="home-hero relative overflow-hidden bg-surface">
+    <div class="home-hero-grid max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <div class="home-hero-copy relative z-10 flex flex-col justify-center">
+            <div class="home-hero-kicker inline-flex items-center gap-2 reveal">
+                <span class="material-symbols-outlined text-base">verified_user</span>
                 <span data-cms="site_slogan"><?= e($siteSlogan) ?></span>
             </div>
-            <h1 class="text-5xl md:text-7xl font-black leading-tight mb-6 reveal">
+            <h1 class="home-hero-title text-5xl md:text-7xl font-black leading-[.98] mt-6 mb-6 reveal">
                 <?= e($headline1) ?><br>
-                <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"><?= e($headline2) ?></span>
+                <span><?= e($headline2) ?></span>
             </h1>
-            <p class="text-lg md:text-2xl text-gray-200 max-w-3xl mx-auto mb-10 reveal" data-cms="hero_subheadline">
+            <p class="home-hero-description text-lg md:text-xl max-w-xl mb-8 reveal" data-cms="hero_subheadline">
                 <?= e($siteDescription) ?>
             </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center reveal">
-                <a href="<?= e($roomsPageUrl) ?>" class="px-8 py-4 bg-primary text-white rounded-xl font-semibold hover:bg-opacity-90 transition transform hover:scale-105 shadow-2xl flex items-center justify-center gap-2">
-                    <span class="material-symbols-outlined">search</span>
+            <div class="flex flex-col sm:flex-row gap-3 reveal">
+                <a href="<?= e($roomsPageUrl) ?>" class="nta-button nta-button--primary px-6 py-3.5">
+                    <span class="material-symbols-outlined text-base">search</span>
                     Xem phòng trống
                 </a>
-                <a href="<?= BASE_URL ?>?page=intro" class="px-8 py-4 bg-white/10 backdrop-blur-md text-white rounded-xl font-semibold hover:bg-white/20 transition border border-white/20 flex items-center justify-center gap-2">
-                    <span class="material-symbols-outlined">info</span>
+                <a href="<?= BASE_URL ?>?page=intro" class="nta-button nta-button--outline px-6 py-3.5">
+                    <span class="material-symbols-outlined text-base">arrow_outward</span>
                     Tìm hiểu khu trọ
                 </a>
             </div>
 
             <?php if (!empty($heroBadges)): ?>
-                <div class="mt-10 flex flex-wrap justify-center gap-3 reveal">
+                <div class="home-hero-badges mt-9 flex flex-wrap gap-2 reveal">
                     <?php foreach ($heroBadges as $badge): ?>
-                        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-sm">
+                        <div class="inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm">
                             <span class="material-symbols-outlined text-base"><?= e($badge['icon'] ?? 'verified') ?></span>
                             <span class="font-semibold"><?= e($badge['label'] ?? '') ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+        </div>
+
+        <div class="home-hero-visual relative reveal-right">
+            <div class="home-hero-image-wrap">
+                <div class="hero-bg absolute inset-0 bg-cover bg-center" data-cms="hero_image" style="background-image: url('<?= e($heroImage) ?>');"></div>
+                <div class="home-hero-image-overlay absolute inset-0"></div>
+                <div class="home-hero-image-caption absolute left-5 right-5 bottom-5 flex items-end justify-between gap-4 text-white bg-black/40 backdrop-blur-md p-5 rounded-3xl border border-white/20 shadow-card">
+                    <div>
+                        <p class="text-xs uppercase tracking-[.18em] text-white/70">NhaTroA / living, clearly</p>
+                        <p class="mt-2 text-lg font-bold">Một nơi ở được mô tả đủ rõ trước khi bạn đến xem.</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-xl">north_east</span>
+                    </div>
+                </div>
+            </div>
 
             <?php if (!empty($heroStats)): ?>
-                <div class="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto reveal">
+                <div class="home-stat-rail absolute -bottom-6 -left-4 sm:left-6 lg:-left-10 grid grid-cols-<?= min(3, max(1, count($heroStats))) ?> gap-2 sm:gap-3 reveal-scale">
                     <?php foreach ($heroStats as $stat): ?>
-                        <div class="rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md px-6 py-5 text-white">
-                            <p class="text-3xl font-extrabold">
+                        <div class="home-stat-card px-4 py-3 sm:px-5 sm:py-4">
+                            <p class="text-2xl sm:text-3xl font-extrabold nta-mono">
                                 <span data-target="<?= e($stat['value'] ?? 0) ?>">0</span><?= e($stat['suffix'] ?? '') ?>
                             </p>
-                            <p class="text-sm text-gray-100/90 mt-1"><?= e($stat['label'] ?? '') ?></p>
+                            <p class="text-xs mt-1"><?= e($stat['label'] ?? '') ?></p>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -75,8 +87,9 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         </div>
     </div>
 
-    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white animate-bounce">
-        <span class="material-symbols-outlined text-3xl">keyboard_arrow_down</span>
+    <div class="home-scroll-hint absolute bottom-6 right-6 hidden md:flex items-center gap-2 text-xs font-semibold">
+        <span>Cuộn để khám phá</span>
+        <span class="material-symbols-outlined text-base">south</span>
     </div>
 </section>
 
@@ -130,7 +143,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
             </div>
             <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-3 gap-6 stagger-children">
                 <?php foreach ($marketingHighlights as $item): ?>
-                    <div class="bg-surface border border-gray-100 rounded-2xl p-7 card-hover">
+                    <div class="bg-surface border border-gray-100 rounded-2xl shadow-sm p-7 card-hover">
                         <div class="w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center mb-5">
                             <span class="material-symbols-outlined text-2xl text-primary"><?= e($item['icon'] ?? 'verified') ?></span>
                         </div>
@@ -158,7 +171,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php else: ?>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
                 <?php foreach ($amenities as $item): ?>
-                    <div class="relative group bg-white p-6 rounded-2xl border border-gray-100 text-center card-hover hover:border-primary/30 transition" data-amenity-id="<?= (int)($item['id'] ?? 0) ?>">
+                    <div class="relative group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-center card-hover hover:border-primary/30 transition" data-amenity-id="<?= (int)($item['id'] ?? 0) ?>">
                         <?php if (!empty($GLOBALS['cmsPreviewAdmin'])): ?>
                             <button type="button"
                                 class="cms-amenity-remove absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center text-lg font-bold shadow hover:bg-red-600 transition"
@@ -209,7 +222,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 stagger-children">
                 <?php foreach ($featured as $room): ?>
-                    <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-surface rounded-2xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
+                    <a href="<?= BASE_URL ?>?page=detail&id=<?= (int)($room['id'] ?? 0) ?>" class="bg-surface rounded-3xl overflow-hidden shadow-sm border border-gray-100 card-hover block">
                         <div class="relative aspect-video overflow-hidden">
                             <img src="<?= e($room['thumbnail'] ?? '') ?>" alt="<?= e($room['name'] ?? '') ?>" class="w-full h-full object-cover hover:scale-110 transition-transform duration-500">
                             <span class="absolute top-4 right-4 px-3 py-1 bg-green-500 text-white text-xs rounded-full font-semibold shadow-lg">
@@ -270,7 +283,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children">
             <?php foreach ($livingSteps as $step): ?>
-                <div class="rounded-2xl bg-white border border-gray-100 p-8 card-hover">
+                <div class="rounded-3xl bg-white border border-gray-100 shadow-sm p-8 card-hover">
                     <div class="flex items-center gap-4 mb-5">
                         <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
                             <span class="text-lg font-extrabold text-primary"><?= e($step['step'] ?? '') ?></span>
@@ -299,7 +312,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 stagger-children">
                 <?php foreach ($areaShowcase as $area): ?>
-                    <a href="<?= e($area['rooms_url'] ?? $roomsPageUrl) ?>" class="group bg-surface rounded-2xl overflow-hidden border border-gray-100 shadow-sm card-hover block">
+                    <a href="<?= e($area['rooms_url'] ?? $roomsPageUrl) ?>" class="group bg-surface rounded-3xl overflow-hidden border border-gray-100 shadow-sm card-hover block">
                         <div class="relative h-60 overflow-hidden">
                             <img src="<?= e($area['image'] ?? '') ?>" alt="<?= e($area['name'] ?? '') ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent"></div>
@@ -363,38 +376,6 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php endif; ?>
     </div>
 </section>
-
-<?php if (!empty($testimonials)): ?>
-<section class="py-20 bg-surface">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16 reveal">
-            <h2 class="text-4xl md:text-5xl font-bold mb-4">Cư dân <span class="gradient-text">đánh giá</span></h2>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children">
-            <?php foreach ($testimonials as $item): ?>
-                <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 card-hover">
-                    <div class="flex text-yellow-400 mb-4">
-                        <?php for ($i = 0; $i < 5; $i++): ?>
-                            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
-                        <?php endfor; ?>
-                    </div>
-                    <p class="text-gray-600 italic mb-6">"<?= e($item['text'] ?? '') ?>"</p>
-                    <div class="flex items-center gap-3 pt-4 border-t border-gray-100">
-                        <div class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white font-bold">
-                            <?= e(mb_substr((string)($item['name'] ?? 'K'), 0, 1)) ?>
-                        </div>
-                        <div>
-                            <p class="font-bold"><?= e($item['name'] ?? '') ?></p>
-                            <p class="text-xs text-gray-500"><?= e($item['role'] ?? '') ?></p>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-</section>
-<?php endif; ?>
 
 <?php if (!empty($faqItems)): ?>
 <section class="py-20 bg-white">

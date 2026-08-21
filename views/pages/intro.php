@@ -12,15 +12,15 @@ $phoneTel = trim((string)($layout['contact']['phoneTel'] ?? ''));
 $roomsPageUrl = BASE_URL . '?page=rooms';
 ?>
 
-<section class="py-20 bg-gradient-to-br from-primary/5 via-white to-secondary/5">
+<section class="intro-hero py-20 bg-surface">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center max-w-4xl mx-auto mb-14 reveal">
+        <div class="intro-hero-header max-w-4xl mb-14 reveal">
             <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-5">
                 <span class="material-symbols-outlined text-base">home_work</span>
                 <?= e($introStory['eyebrow'] ?? 'Giới thiệu khu trọ') ?>
             </span>
-            <h1 class="text-5xl md:text-6xl font-black mb-5">Về <span class="gradient-text" data-cms="site_name"><?= e($siteName) ?></span></h1>
-            <p class="text-xl text-gray-600">
+            <h1 class="intro-display text-5xl md:text-6xl font-black mb-5">Về <span class="gradient-text" data-cms="site_name"><?= e($siteName) ?></span></h1>
+            <p class="text-xl text-gray-600 leading-relaxed">
                 Trang này tập trung vào chính khu trọ đang vận hành, không dùng nội dung chung chung kiểu landing page.
             </p>
         </div>
@@ -64,7 +64,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
         <?php if (!empty($introStats)): ?>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 stagger-children">
                 <?php foreach ($introStats as $stat): ?>
-                    <div class="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm text-center card-hover">
+                    <div class="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm hover:shadow-card text-center card-hover transition-all">
                         <p class="text-4xl font-black gradient-text mb-3">
                             <span data-target="<?= e($stat['value'] ?? 0) ?>">0</span><?= e($stat['suffix'] ?? '') ?>
                         </p>
@@ -87,7 +87,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children">
             <?php foreach ($introValues as $value): ?>
-                <div class="bg-surface rounded-2xl border border-gray-100 p-8 card-hover">
+                <div class="bg-surface rounded-3xl border border-gray-100 p-8 shadow-sm hover:shadow-card card-hover transition-all">
                     <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-5">
                         <span class="material-symbols-outlined text-2xl"><?= e($value['icon'] ?? 'verified') ?></span>
                     </div>
@@ -110,7 +110,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
         <div class="space-y-6">
             <?php foreach ($introJourney as $index => $item): ?>
-                <div class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 shadow-sm reveal">
+                <div class="bg-white rounded-3xl border border-gray-100 p-6 md:p-8 shadow-sm hover:shadow-card transition-all reveal">
                     <div class="flex flex-col md:flex-row md:items-start gap-5">
                         <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-xl shrink-0">
                             <?= $index + 1 ?>
@@ -143,7 +143,7 @@ $roomsPageUrl = BASE_URL . '?page=rooms';
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 stagger-children">
             <?php foreach ($areasPreview as $area): ?>
-                <div class="bg-surface rounded-2xl border border-gray-100 overflow-hidden card-hover">
+                <div class="bg-surface rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-card card-hover transition-all">
                     <img src="<?= e(!empty($area['image']) ? $area['image'] : $introImage) ?>" alt="<?= e($area['name'] ?? '') ?>" class="w-full h-52 object-cover">
                     <div class="p-6">
                         <h3 class="text-xl font-bold mb-2"><?= e($area['name'] ?? '') ?></h3>

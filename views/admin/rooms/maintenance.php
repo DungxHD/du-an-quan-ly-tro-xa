@@ -54,7 +54,7 @@ $formatDate = static function ($value) {
     <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800"><?= e($error) ?></div>
     <?php endif; ?>
 
-    <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <h3 class="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
             <span class="material-symbols-outlined text-primary">add_circle</span>
             Đề xuất bảo trì mới
@@ -101,7 +101,7 @@ $formatDate = static function ($value) {
     <?php else: ?>
     <div class="space-y-4">
         <?php foreach ($requests as $request): ?>
-        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">

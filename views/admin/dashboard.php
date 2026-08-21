@@ -9,6 +9,10 @@ $panelPageScripts = '
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+const themeStyles = getComputedStyle(document.documentElement);
+const chartBrand = themeStyles.getPropertyValue("--nta-brand").trim() || "#00685f";
+const chartAccent = themeStyles.getPropertyValue("--nta-secondary").trim() || "#4b41e1";
+const chartInk = themeStyles.getPropertyValue("--nta-ink").trim() || "#17211f";
 const areaCtx = document.getElementById("areaOccupancyChart");
 if (areaCtx) {
 new Chart(areaCtx, {
@@ -18,20 +22,20 @@ labels: ' . json_encode(array_map(static fn($row) => $row['name'] ?? 'Khu', $are
 datasets: [{
 label: "Tổng phòng",
 data: ' . json_encode(array_map(static fn($row) => (int)($row['total_rooms'] ?? 0), $areaStats ?? [])) . ',
-backgroundColor: "#00685f",
+backgroundColor: chartBrand,
 borderRadius: 10
 }, {
 label: "Phòng trống",
 data: ' . json_encode(array_map(static fn($row) => (int)($row['available_rooms'] ?? 0), $areaStats ?? [])) . ',
-backgroundColor: "#4b41e1",
+backgroundColor: chartAccent,
 borderRadius: 10
 }]
 },
 options: {
 responsive: true,
 maintainAspectRatio: false,
-plugins: { legend: { position: "bottom" } },
-scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+plugins: { legend: { position: "bottom", labels: { color: chartInk } } },
+scales: { y: { beginAtZero: true, ticks: { precision: 0, color: chartInk }, grid: { color: chartInk + "1A" } } }
 }
 });
 }
@@ -44,8 +48,8 @@ labels: ' . json_encode(array_map(static fn($row) => $row['label'] ?? '', $reven
 datasets: [{
 label: "Doanh thu đã thu",
 data: ' . json_encode(array_map(static fn($row) => (float)($row['total_amount'] ?? 0), $revenueStats['rows'] ?? [])) . ',
-borderColor: "#00685f",
-backgroundColor: "rgba(0, 104, 95, 0.12)",
+borderColor: chartBrand,
+backgroundColor: chartBrand + "1F",
 fill: true,
 tension: 0.3,
 pointRadius: 4,
@@ -70,38 +74,38 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <p class="text-gray-500 mt-1">Theo dõi nhanh toàn bộ khu, phòng, người thuê và doanh thu dự kiến trước khi đi vào từng module chi tiết.</p>
     </div>
 
-    <div class="grid grid-cols-2 xl:grid-cols-7 gap-4">
-        <button type="button" data-detail="areas" class="bg-white rounded-2xl border p-5 text-left cursor-pointer hover:shadow-md hover:border-primary/50 transition text-center">
+    <div class="dashboard-kpi-grid grid grid-cols-2 xl:grid-cols-7 gap-4">
+        <button type="button" data-detail="areas" class="bg-white rounded-3xl border p-5 text-left cursor-pointer hover:shadow-card card-hover hover:border-primary/50 transition text-center">
             <p class="text-sm text-gray-500 mb-1">Tổng khu</p>
             <p class="text-2xl font-bold"><?= (int)($stats['total_areas'] ?? 0) ?></p>
             <p class="text-xs text-primary mt-1">Bấm để xem chi tiết ▾</p>
         </button>
-        <button type="button" data-detail="rooms" class="bg-white rounded-2xl border p-5 text-left cursor-pointer hover:shadow-md hover:border-primary/50 transition text-center">
+        <button type="button" data-detail="rooms" class="bg-white rounded-3xl border p-5 text-left cursor-pointer hover:shadow-card card-hover hover:border-primary/50 transition text-center">
             <p class="text-sm text-gray-500 mb-1">Tổng phòng</p>
             <p class="text-2xl font-bold"><?= (int)($stats['total_rooms'] ?? 0) ?></p>
             <p class="text-xs text-primary mt-1">Bấm để xem chi tiết ▾</p>
         </button>
-        <button type="button" data-detail="available" class="bg-white rounded-2xl border p-5 text-left cursor-pointer hover:shadow-md hover:border-green-500/50 transition text-center">
+        <button type="button" data-detail="available" class="bg-white rounded-3xl border p-5 text-left cursor-pointer hover:shadow-card card-hover hover:border-green-500/50 transition text-center">
             <p class="text-sm text-gray-500 mb-1">Phòng trống</p>
             <p class="text-2xl font-bold text-green-600"><?= (int)($stats['available_rooms'] ?? 0) ?></p>
             <p class="text-xs text-green-600 mt-1">Bấm để xem chi tiết ▾</p>
         </button>
-        <button type="button" data-detail="rented" class="bg-white rounded-2xl border p-5 text-left cursor-pointer hover:shadow-md hover:border-blue-500/50 transition text-center">
+        <button type="button" data-detail="rented" class="bg-white rounded-3xl border p-5 text-left cursor-pointer hover:shadow-card card-hover hover:border-blue-500/50 transition text-center">
             <p class="text-sm text-gray-500 mb-1">Phòng đã thuê</p>
             <p class="text-2xl font-bold text-gray-800"><?= (int)($stats['rented_rooms'] ?? 0) ?></p>
             <p class="text-xs text-blue-600 mt-1">Bấm để xem chi tiết ▾</p>
         </button>
-        <button type="button" data-detail="draft" class="bg-white rounded-2xl border p-5 text-left cursor-pointer hover:shadow-md hover:border-amber-500/50 transition text-center">
+        <button type="button" data-detail="draft" class="bg-white rounded-3xl border p-5 text-left cursor-pointer hover:shadow-card card-hover hover:border-amber-500/50 transition text-center">
             <p class="text-sm text-gray-500 mb-1">Phòng chưa có thông tin</p>
             <p class="text-2xl font-bold text-amber-600"><?= (int)($stats['draft_rooms'] ?? 0) ?></p>
             <p class="text-xs text-amber-600 mt-1">Bấm để xem chi tiết ▾</p>
         </button>
-        <button type="button" data-detail="tenants" class="bg-white rounded-2xl border p-5 text-left cursor-pointer hover:shadow-md hover:border-secondary/50 transition text-center">
+        <button type="button" data-detail="tenants" class="bg-white rounded-3xl border p-5 text-left cursor-pointer hover:shadow-card card-hover hover:border-secondary/50 transition text-center">
             <p class="text-sm text-gray-500 mb-1">Người thuê</p>
             <p class="text-2xl font-bold text-secondary"><?= (int)($stats['total_tenants'] ?? 0) ?></p>
             <p class="text-xs text-secondary mt-1">Bấm để xem chi tiết ▾</p>
         </button>
-        <div class="bg-white rounded-2xl border p-5">
+        <div class="bg-white rounded-3xl border p-5">
             <p class="text-sm text-gray-500 mb-1">Doanh thu dự kiến</p>
             <p class="text-2xl font-bold text-primary"><?= number_format((float)($stats['total_revenue'] ?? 0) / 1000000, 1) ?>M</p>
         </div>
@@ -109,7 +113,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
 
     <div id="dashboardDetail" class="hidden space-y-4">
 
-        <div id="detail-areas" data-detail-panel class="hidden bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <div id="detail-areas" data-detail-panel class="hidden bg-white rounded-3xl border shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 class="font-bold text-lg">Danh sách khu vực <span class="text-sm font-normal text-gray-400">(<?= count($areaStats ?? []) ?>)</span></h3>
                 <input type="text" class="detail-search px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary w-full sm:w-64" placeholder="Tìm kiếm tên khu..." data-target="detail-areas-table">
@@ -180,7 +184,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         };
         $renderRoomTable = static function ($panelId, $title, $searchPlaceholder, $tableId, $roomList, $rentedRoomOccupants) use ($renderRoomRows) {
             ?>
-            <div id="<?= $panelId ?>" data-detail-panel class="hidden bg-white rounded-2xl border shadow-sm overflow-hidden">
+            <div id="<?= $panelId ?>" data-detail-panel class="hidden bg-white rounded-3xl border shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <h3 class="font-bold text-lg"><?= $title ?> <span class="text-sm font-normal text-gray-400">(<?= count($roomList) ?>)</span></h3>
                     <input type="text" class="detail-search px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary w-full sm:w-64" placeholder="<?= $searchPlaceholder ?>" data-target="<?= $tableId ?>">
@@ -216,7 +220,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         $renderRoomTable('detail-draft', 'Danh sách phòng chưa có thông tin', 'Tìm kiếm tên phòng...', 'detail-draft-table', array_values(array_filter($allRooms ?? [], static fn($r) => ($r['status'] ?? '') === 'draft')), $rentedOccupants);
         ?>
 
-        <div id="detail-tenants" data-detail-panel class="hidden bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <div id="detail-tenants" data-detail-panel class="hidden bg-white rounded-3xl border shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 class="font-bold text-lg">Người đang thuê phòng <span class="text-sm font-normal text-gray-400">(<?= count($occupantsList ?? []) ?>)</span></h3>
                 <input type="text" class="detail-search px-4 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-primary w-full sm:w-64" placeholder="Tìm theo tên, số điện thoại hoặc phòng..." data-target="detail-tenants-table">
@@ -270,7 +274,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <?php endif; ?>
 </div>
 <!-- [DEV-QWEN-A][NHOM-3] Stats section -->
-<div class="bg-white rounded-2xl border p-6 mt-6">
+<div class="bg-white rounded-3xl border p-6 mt-6">
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
         <h3 class="text-xl font-bold">Thống kê theo khu</h3>
         <form method="GET" action="<?= BASE_URL ?>" class="flex gap-3">

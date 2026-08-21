@@ -79,7 +79,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 text-center">
         <span class="material-symbols-outlined text-6xl text-gray-300">receipt_long</span>
         <h3 class="text-2xl font-bold mt-4">Chưa có hóa đơn cho kỳ <?= e($currentPeriod['label'] ?? '') ?></h3>
-        <p class="text-gray-500 mt-2">Admin chưa tạo hóa đơn tháng này hoặc đang thiếu dữ liệu chỉ số để chốt tiền.</p>
+        <p class="text-gray-500 mt-2">Admin chưa tạo hóa đơn tháng này.</p>
     </div>
     <?php else: ?>
     <div class="grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -119,7 +119,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
     <?php endif; ?>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <section class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <section class="xl:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="text-xl font-bold flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">receipt_long</span>
@@ -148,7 +148,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                                 </td>
                                 <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($formatMoney($item['unit_price'] ?? 0)) ?></td>
                                 <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($formatNumber($item['quantity'] ?? 0)) ?></td>
-                                <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($item['billing_mode'] ?? 'fixed') ?></td>
+                                <td class="px-4 py-4 align-top text-sm text-gray-700"><?= e($item['billing_mode'] ?? '') ?></td>
                                 <td class="px-4 py-4 align-top font-semibold text-primary"><?= e($formatMoney($item['amount'] ?? 0)) ?></td>
                             </tr>
                             <?php endforeach; ?>
@@ -165,13 +165,13 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         </section>
 
         <section class="space-y-4">
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
                 <p class="text-sm text-gray-500">Thông tin phòng</p>
                 <p class="text-xl font-bold mt-1"><?= e($invoice['room']['name'] ?? '') ?></p>
                 <p class="text-sm text-gray-500 mt-1"><?= e(($invoice['room']['area_name'] ?? '') . ' - ' . ($invoice['room']['floor_name'] ?? '')) ?></p>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
                 <p class="text-sm text-gray-500">Cư dân cùng phòng</p>
                 <div class="mt-3 flex flex-wrap gap-2">
                     <?php foreach (($invoice['tenants'] ?? []) as $tenant): ?>
@@ -182,7 +182,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
                 <p class="text-sm text-gray-500">Người trả hiện tại</p>
                 <p class="text-xl font-bold mt-1"><?= e($invoice['payer']['full_name'] ?? 'Chưa ghi nhận') ?></p>
                 <?php if (!empty($invoice['paid_at'])): ?>
@@ -191,7 +191,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
             </div>
 
             <?php if (($invoice['status'] ?? 'unpaid') === 'unpaid'): ?>
-            <form method="POST" action="<?= BASE_URL ?>?page=tenant-pay-invoice" class="bg-primary/5 border border-primary/10 rounded-2xl p-5 space-y-4">
+            <form method="POST" action="<?= BASE_URL ?>?page=tenant-pay-invoice" class="bg-primary/5 border border-primary/10 rounded-3xl p-5 space-y-4">
 <?= csrf_field() ?>
                 <input type="hidden" name="payment_id" value="<?= (int)($invoice['id'] ?? 0) ?>">
                 <input type="hidden" name="month" value="<?= (int)($currentPeriod['month'] ?? date('n')) ?>">

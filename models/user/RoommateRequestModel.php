@@ -122,7 +122,22 @@ class RoommateRequestModel {
         return is_array($rows) ? $rows : [];
     }
 
-    public static function setStatus($id, $status) {
-        return Database::update('roommate_requests', ['status' => $status], 'id = :id', ['id' => (int)$id]);
+    public static function setStatus($id, $status, $adminNote = null) {
+        $payload = ['status' => $status];
+        if ($adminNote !== null) {
+            $payload['admin_note'] = trim((string)$adminNote);
+        }
+        return Database::update('roommate_requests', $payload, 'id = :id', ['id' => (int)$id]);
+    }
+
+    /**
+     * Đếm yêu cầu ở ghép đang chờ admin duyệt (pending_admin + pending cũ) cho badge "Cần xử lý".
+     */
+    public static function countPendingAdmin() {
+        if (!Database::hasConnection()) { return 0; }
+        $rows = Database::fetchAll(
+            "SELECT COUNT(*) AS total FROM roommate_requests WHERE status IN ('pending_admin', 'pending')"
+        );
+        return (int)($rows[0]['total'] ?? 0);
     }
 }
