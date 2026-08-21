@@ -74,7 +74,7 @@ require BASE_PATH . 'views/layouts/panel_header.php';
         <p class="text-gray-500 mt-1">Theo dõi nhanh toàn bộ khu, phòng, người thuê và doanh thu dự kiến trước khi đi vào từng module chi tiết.</p>
     </div>
 
-    <div class="grid grid-cols-2 xl:grid-cols-7 gap-4">
+    <div class="dashboard-kpi-grid grid grid-cols-2 xl:grid-cols-7 gap-4">
         <button type="button" data-detail="areas" class="bg-white rounded-3xl border p-5 text-left cursor-pointer hover:shadow-card card-hover hover:border-primary/50 transition text-center">
             <p class="text-sm text-gray-500 mb-1">Tổng khu</p>
             <p class="text-2xl font-bold"><?= (int)($stats['total_areas'] ?? 0) ?></p>

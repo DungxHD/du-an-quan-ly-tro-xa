@@ -191,7 +191,7 @@ $roomFilterBaseUrl = BASE_URL . '?page=rooms';
 </section>
 
 <?php if ($totalPages > 1): ?>
-<nav class="mt-10 mb-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phan trang phong tro">
+<nav class="mt-10 mb-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang phòng trọ">
     <?php if ($currentPage > 1): ?>
     <a href="<?= e($buildPageUrl(1)) ?>" class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition" title="Trang đầu">&laquo;</a>
     <a href="<?= e($buildPageUrl($currentPage - 1)) ?>" class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition">&lsaquo; Trước</a>
